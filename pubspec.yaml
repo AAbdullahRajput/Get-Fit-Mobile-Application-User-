@@ -1,0 +1,30 @@
+name: get_fit
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.3.1 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  pin_code_fields: any
+  vertical_card_pager: any
+  animated_weight_picker: any
+  omni_datetime_picker: any
+  payment_card: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/onboarding/
+    - assets/launch/
+    - assets/auth/
+    - assets/home/
+    - assets/challenge/
