@@ -9,8 +9,8 @@ class NewfeedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 168,
-      width: 300, // Fixed width instead of double.infinity
-      margin: EdgeInsets.only(right: 16), // Add margin between cards
+      width: 300,
+      margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
       ),
@@ -20,22 +20,28 @@ class NewfeedCard extends StatelessWidget {
             flex: 1,
             child: Container(
               width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                color: context.isDark ? Colors.white : Colors.grey[200],
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
                 ),
               ),
-              child: const Icon(Icons.image_outlined, size: 48, color: themeColor),
+              child: Icon(
+                Icons.image_outlined,
+                size: 48,
+                color: context.isDark ? themeColor : Colors.grey,
+              ),
             ),
           ),
           Expanded(
             flex: 1,
             child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xff2f2f2f),
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                color: context.isDark
+                    ? const Color(0xff2f2f2f)
+                    : const Color(0xff1A1A1A),
+                borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(16),
                   bottomRight: Radius.circular(16),
                 ),

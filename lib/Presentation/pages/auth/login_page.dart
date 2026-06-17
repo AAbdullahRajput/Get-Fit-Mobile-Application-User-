@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/auth/forgot_password.dart';
 import 'package:get_fit/Presentation/pages/auth/register_page.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Presentation/pages/home/home_page.dart'; // fix this import path
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -210,7 +211,10 @@ class _LoginPageState extends State<LoginPage> {
                       // Login button
                       ElevatedButton(
                         onPressed: () {
-                          // Handle login
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => const HomePage()),
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: themeColor,

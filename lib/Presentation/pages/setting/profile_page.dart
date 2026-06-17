@@ -1,203 +1,110 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Utils/constants.dart';
 
-class ProfilePage  extends StatelessWidget {
+class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xff232323),
-      body: Stack(
+    return Material(
+      color: context.bgColor,
+      child: Stack(
         children: [
-          Container(
-            height: 337,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              color: themeColor,
-            ),
-          ),
-          SafeArea(
+          // Main scrollable content
+          SingleChildScrollView(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(10),
-                    backgroundColor: Colors.black54,
+                // Top yellow header
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top + 20,
+                    bottom: 40,
                   ),
-                  child: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
+                  decoration: const BoxDecoration(
+                    color: themeColor,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(30),
+                      bottomRight: Radius.circular(30),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 55,
+                        backgroundColor: context.bgColor,
+                        child: Icon(Icons.person,
+                            size: 80, color: context.textColor),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Name Surname',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        "email@gmail.com",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SafeArea(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                        radius: 65,
-                        backgroundColor: Color(0xff232323),
-                        child:
-                            Icon(Icons.person, size: 100, color: Colors.white)),
-                    SizedBox(height: 20),
-                    Text(
-                      'Name Surname',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      "email@gmail.com",
-                      style: TextStyle(
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 295,
-            left: 0,
-            right: 0,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Color(0xff414141),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const IntrinsicHeight(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Column(
-                          children: [
-                            Text(
-                              "75 kg",
-                              style: TextStyle(
-                                fontSize: 20,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
+
+                // Space for stats box overlap
+                SizedBox(height: MediaQuery.of(context).padding.top + 60),
+
+                // Form fields
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      ...formFields.map((field) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: context.cardBgColor,
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            ),
-                            Text(
-                              "Weight",
-                              style: TextStyle(
-                                color: Colors.white70,
-                              ),
-                            ),
-                          ],
-                        ),
-                        VerticalDivider(
-                          color: Colors.white,
-                          thickness: 2,
-                        ),
-                        Column(
-                          children: [
-                            Text(
-                              "28",
-                              style: TextStyle(
-                                fontSize: 20,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              "Years Old",
-                              style: TextStyle(
-                                color: Colors.white70,
-                              ),
-                            ),
-                          ],
-                        ),
-                        VerticalDivider(
-                          color: Colors.white,
-                          thickness: 2,
-                        ),
-                        Column(
-                          children: [
-                            Text(
-                              "180 cm",
-                              style: TextStyle(
-                                fontSize: 20,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              "Height",
-                              style: TextStyle(
-                                color: Colors.white70,
-                              ),
-                            ),
-                          ],
-                        )
-                      ],
-                    ),
-                  )),
-            ),
-          ),
-          Positioned(
-            top: 350,
-            left: 0,
-            right: 0,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SizedBox(
-                height: 480,
-                child: ListView.builder(
-                  itemCount: formFields.length + 1, // +1 for the button
-                  itemBuilder: (context, index) {
-                    if (index < formFields.length) {
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        child: SizedBox(
-                          height: 45,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: TextFormField(
-                              decoration: InputDecoration(
-                                fillColor: Colors.white,
-                                labelText: formFields[index]['label'],
-                                labelStyle: const TextStyle(color: Colors.black38),
-                                hintText: formFields[index]['hint'],
-                                hintStyle: const TextStyle(color: Colors.black38),
-                                prefixIcon: Icon(
-                                  formFields[index]['icon'],
-                                  color: Colors.black38,
+                              child: TextFormField(
+                                style:
+                                    TextStyle(color: context.textColor),
+                                decoration: InputDecoration(
+                                  labelText: field['label'],
+                                  labelStyle: TextStyle(
+                                      color: context.subtextColor),
+                                  hintText: field['hint'],
+                                  hintStyle: TextStyle(
+                                      color: context.subtextColor),
+                                  prefixIcon: Icon(
+                                    field['icon'],
+                                    color: context.subtextColor,
+                                  ),
+                                  border: InputBorder.none,
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                          vertical: 14, horizontal: 12),
                                 ),
-                                border: InputBorder.none,
                               ),
                             ),
-                          ),
-                        ),
-                      );
-                    } else {
-                      // Update Profile Button
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 35, left: 40, right: 40 ),
+                          )),
+
+                      const SizedBox(height: 10),
+
+                      SizedBox(
+                        width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {
-                          },
+                          onPressed: () {},
                           style: ElevatedButton.styleFrom(
                             backgroundColor: themeColor,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 15),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(25),
                             ),
@@ -211,9 +118,105 @@ class ProfilePage  extends StatelessWidget {
                             ),
                           ),
                         ),
-                      );
-                    }
-                  },
+                      ),
+
+                      const SizedBox(height: 30),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Stats box overlapping yellow and background
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 220,
+            left: 0,
+            right: 0,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: context.isDark
+                      ? const Color(0xff414141)
+                      : const Color(0xff1A1A1A),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        children: const [
+                          Text("75 kg",
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
+                          SizedBox(height: 4),
+                          Text("Weight",
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    Container(
+                        width: 1, height: 40, color: Colors.white54),
+                    Expanded(
+                      child: Column(
+                        children: const [
+                          Text("28",
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
+                          SizedBox(height: 4),
+                          Text("Years Old",
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    Container(
+                        width: 1, height: 40, color: Colors.white54),
+                    Expanded(
+                      child: Column(
+                        children: const [
+                          Text("180 cm",
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
+                          SizedBox(height: 4),
+                          Text("Height",
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Back button overlaying on top of yellow header
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(10),
+                    backgroundColor: Colors.black54,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),

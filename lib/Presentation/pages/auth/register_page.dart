@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/auth/login_page.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Presentation/pages/home/home_page.dart'; // fix this import path
+
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -270,7 +272,11 @@ class _RegisterPageState extends State<RegisterPage> {
                       // Register button
                       ElevatedButton(
                         onPressed: () {
-                        },
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const HomePage()),
+                        );
+                      },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: themeColor,
                           foregroundColor: Colors.black,

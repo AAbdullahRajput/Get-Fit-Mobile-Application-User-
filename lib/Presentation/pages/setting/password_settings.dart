@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:get_fit/Utils/constants.dart';
 
 class PasswordSettings extends StatelessWidget {
@@ -8,93 +7,116 @@ class PasswordSettings extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff232323),
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text(
-          'Password Settings',
-          style: TextStyle(
-            color: themeColor,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: const Color(0xff232323),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.only(top: 10, right: 20, left: 20),
-        child: ListView.builder(
-          itemCount: formFields.length + 1,
-          itemBuilder: (context, index) {
-            if (index < formFields.length) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    child: SizedBox(
-                      height: 45,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: TextFormField(
-                          decoration: InputDecoration(
-                            fillColor: Colors.white,
-                            hintText: formFields[index]['label'],
-                            hintStyle: const TextStyle(color: Colors.black38),
-                            border: InputBorder.none,
-                            suffixIcon: const Icon(
-                              Icons.visibility,
-                              color: Colors.black38,
+      backgroundColor: context.bgColor,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 60, 20, 10),
+              child: ListView.builder(
+                itemCount: formFields.length + 1,
+                itemBuilder: (context, index) {
+                  if (index < formFields.length) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: context.cardBgColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: SizedBox(
+                            height: 45,
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
+                              child: TextFormField(
+                                style: TextStyle(color: context.textColor),
+                                decoration: InputDecoration(
+                                  hintText: formFields[index]['label'],
+                                  hintStyle: TextStyle(
+                                      color: context.subtextColor),
+                                  border: InputBorder.none,
+                                  suffixIcon: Icon(
+                                    Icons.visibility,
+                                    color: context.subtextColor,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                  if (index == 0) // Only show for Current Password field
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8, right: 8, bottom: 16),
-                      child: GestureDetector(
-                        onTap: () {
-                        },
+                        if (index == 0)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                top: 8, right: 8, bottom: 16),
+                            child: GestureDetector(
+                              onTap: () {},
+                              child: Text(
+                                'Forgot Password?',
+                                style: TextStyle(
+                                  color: context.isDark
+                                      ? themeColor
+                                      : Colors.black,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  } else {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: ElevatedButton(
+                        onPressed: () {},
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeColor,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                        ),
                         child: const Text(
-                          'Forgot Password?',
+                          'Change Password',
                           style: TextStyle(
-                            color: themeColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            color: Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                    ),
-                ],
-              );
-            } else {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
+                    );
+                  }
+                },
+              ),
+            ),
+          ),
+
+          // Back button overlay
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: themeColor,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(10),
+                    backgroundColor: Colors.black54,
                   ),
-                  child: const Text(
-                    'Change Password',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: const Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
                   ),
                 ),
-              );
-            }
-          },
-        ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

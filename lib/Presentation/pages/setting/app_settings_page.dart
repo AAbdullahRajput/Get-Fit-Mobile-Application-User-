@@ -19,107 +19,120 @@ class AppSettingsPage extends StatelessWidget {
     },
   ];
   const AppSettingsPage({super.key});
-  
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff232323),
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text(
-          'Settings',
-          style: TextStyle(
-            color: themeColor,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: const Color(0xff232323),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.only(top: 10),
-        child: Column(
-          children: [
-            Expanded(
+      backgroundColor: context.bgColor,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 60, 0, 10),
               child: ListView.builder(
-                            itemCount: settingsItems.length,
-                            itemBuilder: (context, index) {
-                              final item = settingsItems[index];
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: themeColor,
-                                  child: Icon(
-                                    item['icon'],
-                                    color: Colors.black,
-                                    size: 24,
-                                  ),
-                                ),
+                itemCount: settingsItems.length,
+                itemBuilder: (context, index) {
+                  final item = settingsItems[index];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: themeColor,
+                      child: Icon(
+                        item['icon'],
+                        color: Colors.black,
+                        size: 24,
+                      ),
+                    ),
+                    title: Text(
+                      item['title'],
+                      style: TextStyle(
+                        color: context.textColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    trailing: Icon(
+                      Icons.arrow_forward_ios,
+                      color: context.isDark ? themeColor : Colors.black,
+                      size: 18,
+                    ),
+                    onTap: () {
+                      switch (item['title']) {
+                        case 'Notification Settings':
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => NotificationsPage(),
+                            ),
+                          );
+                          break;
+
+                        case 'Password Settings':
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PasswordSettings(),
+                            ),
+                          );
+                          break;
+
+                        case 'Delete Account':
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                backgroundColor: context.bgColor,
                                 title: Text(
-                                  item['title'],
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                                  'Delete Account',
+                                  style: TextStyle(color: context.textColor),
+                                ),
+                                content: Text(
+                                  'DELETE ACC LOGIC HERE...',
+                                  style:
+                                      TextStyle(color: context.subtextColor),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: Text(
+                                    'Close',
+                                    style: TextStyle(color: context.isDark ? themeColor : Colors.black),
                                   ),
-                                ),
-                                trailing: const Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: themeColor,
-                                  size: 18,
-                                ),
-                                onTap: () {
-                                  switch (item['title']) {
-                                    case 'Notification Settings':
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => NotificationsPage(),
-                                        ),
-                                      );
-                                      break;
-                          
-                                    case 'Password Settings':
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => PasswordSettings(),
-                                        ),
-                                      );
-                                      break;
-                          
-                                    case 'Delete Account':
-                                      showDialog(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return AlertDialog(
-                                            backgroundColor: const Color(0xff232323),
-                                            title: const Text('Delete Acount',
-                                                style: TextStyle(color: Colors.white)),
-                                            content: const Text(
-                                              'DELETE ACC LOGIC HERE...',
-                                              style: TextStyle(color: Colors.white70),
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context),
-                                                child: const Text('Close',
-                                                    style: TextStyle(color: themeColor)),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                      break;
-                                  }
-                                },
+                                  ),
+                                ],
                               );
                             },
-                          ),
+                          );
+                          break;
+                      }
+                    },
+                  );
+                },
+              ),
             ),
-          ],
-        ),
+          ),
+
+          // Back button overlay
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(10),
+                    backgroundColor: Colors.black54,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

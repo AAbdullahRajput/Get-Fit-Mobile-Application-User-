@@ -9,35 +9,50 @@ class AddCardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff232323),
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text(
-          'Add New Card',
-          style: TextStyle(
-            color: themeColor,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
+      backgroundColor: context.bgColor,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: _buildCardForm(context, isEdit: false),
           ),
-        ),
-        backgroundColor: const Color(0xff232323),
-        iconTheme: const IconThemeData(color: Colors.white),
+
+          // Back button overlay
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(10),
+                    backgroundColor: Colors.black54,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-      body: _buildCardForm(context, isEdit: false),
     );
   }
 }
 
 Widget _buildCardForm(BuildContext context, {required bool isEdit}) {
   return SingleChildScrollView(
-    padding: const EdgeInsets.all(16),
+    padding: const EdgeInsets.fromLTRB(16, 60, 16, 16),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Payment Method',
           style: TextStyle(
-            color: Colors.white,
+            color: context.textColor,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -57,22 +72,23 @@ Widget _buildCardForm(BuildContext context, {required bool isEdit}) {
           validity: 'MM/YY',
           holder: 'CARD HOLDER',
           isStrict: false,
-          cardNetwork: CardNetwork.visa, backgroundImage: null,
+          cardNetwork: CardNetwork.visa,
+          backgroundImage: null,
         ),
         const SizedBox(height: 24),
         // Form Fields
-        _buildTextField('Card Holder Name', Icons.person_outline),
+        _buildTextField(context, 'Card Holder Name', Icons.person_outline),
         const SizedBox(height: 16),
-        _buildTextField('Card Number', Icons.credit_card),
+        _buildTextField(context, 'Card Number', Icons.credit_card),
         const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
-              child: _buildTextField('Expiry', Icons.calendar_today),
+              child: _buildTextField(context, 'Expiry', Icons.calendar_today),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _buildTextField('CVC', Icons.lock_outline),
+              child: _buildTextField(context, 'CVC', Icons.lock_outline),
             ),
           ],
         ),
@@ -85,9 +101,9 @@ Widget _buildCardForm(BuildContext context, {required bool isEdit}) {
                 onChanged: (value) {},
                 fillColor: MaterialStateProperty.all(themeColor),
               ),
-              const Text(
+              Text(
                 'Set as default payment method',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: context.textColor),
               ),
             ],
           ),
@@ -104,19 +120,19 @@ Widget _buildCardForm(BuildContext context, {required bool isEdit}) {
   );
 }
 
-Widget _buildTextField(String label, IconData icon) {
+Widget _buildTextField(BuildContext context, String label, IconData icon) {
   return Container(
     decoration: BoxDecoration(
-      color: const Color(0xff414141),
+      color: context.cardBgColor,
       borderRadius: BorderRadius.circular(12),
     ),
     padding: const EdgeInsets.symmetric(horizontal: 16),
     child: TextField(
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: context.textColor),
       decoration: InputDecoration(
-        icon: Icon(icon, color: Colors.white70),
+        icon: Icon(icon, color: context.subtextColor),
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.white70),
+        labelStyle: TextStyle(color: context.subtextColor),
         border: InputBorder.none,
       ),
     ),

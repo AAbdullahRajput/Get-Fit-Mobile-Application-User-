@@ -20,7 +20,8 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
       'isAssistant': false,
     },
     {
-      'message': 'I can help you create a personalized workout plan. What are your fitness goals?',
+      'message':
+          'I can help you create a personalized workout plan. What are your fitness goals?',
       'isAssistant': true,
     },
   ];
@@ -28,34 +29,50 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff232323),
-      appBar: AppBar(
-        centerTitle: false,
-        title: const Text(
-          'Assistant',
-          style: TextStyle(
-            color: themeColor,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        
-        backgroundColor: const Color(0xff232323),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: Column(
+      backgroundColor: context.bgColor,
+      body: Stack(
         children: [
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return _buildMessageBubble(message);
-              },
+          SafeArea(
+            child: Column(
+              children: [
+                // Space for back button
+                const SizedBox(height: 56),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      return _buildMessageBubble(message);
+                    },
+                  ),
+                ),
+                _buildInputField(context),
+              ],
             ),
           ),
-          _buildInputField(),
+
+          // Back button overlay
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(10),
+                    backgroundColor: Colors.black54,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -63,12 +80,17 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
 
   Widget _buildMessageBubble(Map<String, dynamic> message) {
     return Align(
-      alignment: message['isAssistant'] ? Alignment.centerLeft : Alignment.centerRight,
+      alignment: message['isAssistant']
+          ? Alignment.centerLeft
+          : Alignment.centerRight,
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: message['isAssistant'] ? const Color(0xff414141) : themeColor,
+          color: message['isAssistant']
+              ? context.cardBgColor
+              : themeColor,
           borderRadius: BorderRadius.circular(20),
         ),
         constraints: BoxConstraints(
@@ -77,7 +99,9 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
         child: Text(
           message['message'],
           style: TextStyle(
-            color: message['isAssistant'] ? Colors.white : Colors.black,
+            color: message['isAssistant']
+                ? context.textColor
+                : Colors.black,
             fontSize: 16,
           ),
         ),
@@ -85,14 +109,14 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
     );
   }
 
-  Widget _buildInputField() {
+  Widget _buildInputField(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Color(0xff414141),
+      decoration: BoxDecoration(
+        color: context.cardBgColor,
         border: Border(
           top: BorderSide(
-            color: Colors.white24,
+            color: context.isDark ? Colors.white24 : Colors.grey.shade300,
             width: 0.5,
           ),
         ),
@@ -100,30 +124,29 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.mic,
-              color: themeColor,
+              color: context.isDark ? themeColor : Colors.black,
             ),
-            onPressed: () {
-              // Handle mic input
-            },
+            onPressed: () {},
           ),
           Expanded(
             child: TextField(
               controller: _messageController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              style: TextStyle(color: context.textColor),
+              decoration: InputDecoration(
                 hintText: 'Type a message...',
-                hintStyle: TextStyle(color: Colors.white54),
+                hintStyle: TextStyle(color: context.subtextColor),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16),
               ),
             ),
           ),
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.send,
-              color: themeColor,
+              color: context.isDark ? themeColor : Colors.black,
             ),
             onPressed: () {
               if (_messageController.text.trim().isNotEmpty) {

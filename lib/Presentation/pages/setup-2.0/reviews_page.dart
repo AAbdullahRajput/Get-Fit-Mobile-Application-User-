@@ -21,167 +21,148 @@ class _ReviewsPageState extends State<ReviewsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          title: const Text(
-            'Reviews',
-            style: TextStyle(
-              color: themeColor,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          backgroundColor: const Color(0xff232323),
-          iconTheme: const IconThemeData(color: Colors.white),
-        ),
-        body: Column(
-          children: [
-            SizedBox(height: 10),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 22),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(30),
-                color: Color(0xff2C2C2E),
-              ),
-              height: 45,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    height: 45,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: categories.length,
-                      shrinkWrap: true,
-                      itemBuilder: (context, index) {
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              selectedIndex = index;
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            decoration: BoxDecoration(
-                              color: selectedIndex == index
-                                  ? themeColor
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            child: Center(
-                              child: Text(
-                                categories[index],
-                                style: TextStyle(
+      backgroundColor: context.bgColor,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
+                const SizedBox(height: 56),
+                // Category Tabs
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 22),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    color: context.cardBgColor,
+                  ),
+                  height: 45,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        height: 45,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: categories.length,
+                          shrinkWrap: true,
+                          itemBuilder: (context, index) {
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedIndex = index;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 24),
+                                decoration: BoxDecoration(
                                   color: selectedIndex == index
-                                      ? Colors.black
-                                      : Colors.white,
-                                  fontWeight: FontWeight.bold,
+                                      ? themeColor
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    categories[index],
+                                    style: TextStyle(
+                                      color: selectedIndex == index
+                                          ? Colors.black
+                                          : context.textColor,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                Text(
-                  '${widget.rating}',
-                  style: TextStyle(
-                    color: themeColor,
-                    fontSize: 45,
-                    fontWeight: FontWeight.bold,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 20),
+                // Rating Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    Container(
-                      child: Column(
-                        children: [
-                          Container(
-                              margin: EdgeInsets.only(top: 5),
-                              color: Colors.white,
-                              height: 5,
-                              width: 177)
-                        ],
-                      ),
+                    Text(
+                      widget.rating,
+                      style: TextStyle(
+                      color: context.isDark ? themeColor : Colors.black87,
+                      fontSize: 45,
+                      fontWeight: FontWeight.bold,
                     ),
-                    Container(
-                      child: Column(
-                        children: [
-                          Container(
-                              margin: EdgeInsets.only(top: 5),
-                              color: Colors.white,
-                              height: 5,
-                              width: 145)
-                        ],
-                      ),
                     ),
-                    Container(
-                      child: Column(
-                        children: [
-                          Container(
-                              margin: EdgeInsets.only(top: 5),
-                              color: Colors.white,
-                              height: 5,
-                              width: 100)
-                        ],
-                      ),
-                    ),
-                    Container(
-                      child: Column(
-                        children: [
-                          Container(
-                              margin: EdgeInsets.only(top: 5),
-                              color: Colors.white,
-                              height: 5,
-                              width: 50)
-                        ],
-                      ),
-                    ),
-                    Container(
-                      child: Column(
-                        children: [
-                          Container(
-                              margin: EdgeInsets.only(top: 5),
-                              color: Colors.white,
-                              height: 5,
-                              width: 30)
-                        ],
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ratingBar(context, 177),
+                        _ratingBar(context, 145),
+                        _ratingBar(context, 100),
+                        _ratingBar(context, 50),
+                        _ratingBar(context, 30),
+                      ],
                     ),
                   ],
-                )
+                ),
+                const SizedBox(height: 20),
+                // Reviews List
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: 6,
+                    itemBuilder: (context, index) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                        child: ReviewCard(),
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 26),
+                  child: ReuseableButton(
+                    title: "Write a Review",
+                    onPressed: () {
+                      Navigator.of(context).push(MaterialPageRoute(
+                          builder: (context) => WriteReviewPage()));
+                    },
+                  ),
+                ),
               ],
             ),
-            SizedBox(height: 20),
-            Expanded(
-              child: ListView.builder(
-                itemCount: 6,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: const ReviewCard(),
-                  );
-                },
+          ),
+
+          // Back button overlay
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(10),
+                    backgroundColor: Colors.black54,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: ReuseableButton(title: "Write a Review", onPressed: () {
-                        Navigator.of(context).push(MaterialPageRoute(
-                            builder: (context) => WriteReviewPage()));
-                      }),
-            ),
-          ],
-        ));
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ratingBar(BuildContext context, double width) {
+    return Container(
+      margin: const EdgeInsets.only(top: 5),
+      color: context.isDark ? Colors.white : context.textColor,
+      height: 5,
+      width: width,
+    );
   }
 }

@@ -8,37 +8,75 @@ import 'package:omni_datetime_picker/omni_datetime_picker.dart';
 class AppointmentBookingPage extends StatelessWidget {
   const AppointmentBookingPage({super.key});
 
-
-
   @override
   Widget build(BuildContext context) {
-  // DateTime? dateTime = await showOmniDateTimePicker(context: context);
     return Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(
-          centerTitle: true,
-          title: const Text(
-            'Appointment',
-            style: TextStyle(
-              color: themeColor,
-              fontWeight: FontWeight.bold,
+      backgroundColor: context.bgColor,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 60, 8, 16),
+              child: Column(
+                children: [
+                  FitnessTrainerCard(),
+                  const SizedBox(height: 16),
+                  ReuseableButton(
+                    title: "Pick Date and Time",
+                    onPressed: () async => await showOmniDateTimePicker(
+                      context: context,
+                      theme: ThemeData(
+                        colorScheme: context.isDark
+    ? const ColorScheme.dark(
+        primary: themeColor,
+        onPrimary: Colors.black,
+      )
+    : const ColorScheme.light(
+        primary: Colors.black,
+        onPrimary: Colors.white,
+        surface: Colors.white,
+        onSurface: Colors.black,
+      ),
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  ReuseableButton(
+                    title: "Next",
+                    onPressed: () {
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => PaymentPage(),
+                      ));
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
-          backgroundColor: const Color(0xff232323),
-          iconTheme: const IconThemeData(color: Colors.white),
-        ),
-        body: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(children: [
-            FitnessTrainerCard(),
-            ReuseableButton(title: "Pick Date and Time", onPressed: () async => await showOmniDateTimePicker(context: context),),
-            Spacer(),
-            ReuseableButton(title: "Next", onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (context) => PaymentPage(),
-              )); 
-            },)
-          ]),
-        ));
+
+          // Back button overlay
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(10),
+                    backgroundColor: Colors.black54,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
