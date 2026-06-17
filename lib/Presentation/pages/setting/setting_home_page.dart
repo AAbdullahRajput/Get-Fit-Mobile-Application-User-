@@ -317,8 +317,7 @@ class _SettingHomePageState extends State<SettingHomePage> {
                                         );
                                       },
                                       child: const Text('Logout',
-                                          style:
-                                              TextStyle(color: themeColor)),
+                                          style:TextStyle(color: themeColor)),
                                     ),
                                   ],
                                 );
