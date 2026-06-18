@@ -181,10 +181,10 @@ class BackExerciseDetail extends StatelessWidget {
                           ),
                           child: Column(
                             children: [
-                              _instructionItem('1', 'Hang from the bar with an overhand grip'),
-                              _instructionItem('2', 'Pull your body up until your chin passes the bar'),
-                              _instructionItem('3', 'Lower yourself back down with control'),
-                              _instructionItem('4', 'Repeat for desired reps'),
+                              _instructionItem(context, '1', 'Hang from the bar with an overhand grip'),
+                              _instructionItem(context, '2', 'Pull your body up until your chin passes the bar'),
+                              _instructionItem(context, '3', 'Lower yourself back down with control'),
+                              _instructionItem(context, '4', 'Repeat for desired reps'),
                             ],
                           ),
                         ),
@@ -290,28 +290,38 @@ class BackExerciseDetail extends StatelessWidget {
   }
 
   Widget _instructionItem(BuildContext context, String number, String instruction) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: const BoxDecoration(color: themeColor, shape: BoxShape.circle),
-          child: Center(
-            child: Text(number, style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold)),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: const BoxDecoration(color: themeColor, shape: BoxShape.circle),
+            child: Center(
+              child: Text(
+                number,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            instruction,
-            style: TextStyle(color: context.textColor, fontSize: 14),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              instruction,
+              style: TextStyle(
+                color: context.textColor,
+                fontSize: 14,
+              ),
+            ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 }
