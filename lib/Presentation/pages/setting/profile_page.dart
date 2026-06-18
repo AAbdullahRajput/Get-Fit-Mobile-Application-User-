@@ -63,8 +63,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       top: MediaQuery.of(context).padding.top + 20,
                       bottom: 40,
                     ),
-                    decoration: const BoxDecoration(
-                      color: themeColor,
+                    decoration: BoxDecoration(
+                      color: context.subtextColor,
                       borderRadius: BorderRadius.only(
                         bottomLeft: Radius.circular(30),
                         bottomRight: Radius.circular(30),
