@@ -41,7 +41,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
         children: [
           SafeArea(
             child: RefreshIndicator(
-              color: themeColor,
+              color: context.subtextColor,
               backgroundColor: context.cardBgColor,
               displacement: 100,
               onRefresh: _onRefresh,
