@@ -39,9 +39,9 @@ class _GymPageState extends State<GymPage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _loadData();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasLoaded) _loadData();
   }
 
   Future<void> _loadData() async {
@@ -181,7 +181,7 @@ class _GymPageState extends State<GymPage> {
             // Exercise Cards
             Expanded(
               child: RefreshIndicator(
-                color: themeColor,
+                color: context.subtextColor,
                 backgroundColor: context.cardBgColor,
                 onRefresh: _onRefresh,
                 child: _isLoading
