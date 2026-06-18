@@ -16,6 +16,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedTab = 0;
+  bool _isLoading = true;
 
   final List<Map<String, dynamic>> _tabs = const [
     {'label': 'Overview', 'icon': Icons.grid_view_rounded},
@@ -25,7 +26,26 @@ class _HomePageState extends State<HomePage> {
     {'label': 'Running', 'icon': Icons.directions_run_outlined},
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<void> _onRefresh() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _isLoading = false);
+  }
+
   Widget _getTabContent(BuildContext context) {
+    if (_isLoading) return _buildSkeleton(context);
+
     switch (_selectedTab) {
       case 0:
         return const _OverviewTab();
@@ -53,9 +73,13 @@ class _HomePageState extends State<HomePage> {
                     return Padding(
                       padding: const EdgeInsets.all(2.0),
                       child: Card(
-                        color: const Color(0xff2f2f2f),
+                        color: context.cardBgColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
                           leading: CircleAvatar(
                             backgroundColor: themeColor,
                             radius: 30,
@@ -63,8 +87,8 @@ class _HomePageState extends State<HomePage> {
                           ),
                           title: Text(
                             trainer.name,
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 18),
+                            style: TextStyle(
+                                color: context.textColor, fontSize: 18),
                           ),
                           subtitle: Column(
                             mainAxisAlignment: MainAxisAlignment.start,
@@ -72,21 +96,22 @@ class _HomePageState extends State<HomePage> {
                             children: [
                               Text(
                                 trainer.trainingType,
-                                style: const TextStyle(
-                                    color: Colors.grey, fontSize: 14),
+                                style: TextStyle(
+                                    color: context.subtextColor,
+                                    fontSize: 14),
                               ),
                               Text(
                                 '${trainer.experience} years experience',
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 14),
+                                style: TextStyle(
+                                    color: context.textColor, fontSize: 14),
                               ),
                             ],
                           ),
                           trailing: Column(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              const Icon(Icons.arrow_forward,
-                                  color: Colors.white),
+                              Icon(Icons.arrow_forward,
+                                  color: context.textColor),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 4, vertical: 2),
@@ -103,13 +128,15 @@ class _HomePageState extends State<HomePage> {
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (context) => FitnessTrainerDetailPage(
+                                builder: (context) =>
+                                    FitnessTrainerDetailPage(
                                   bgImg: trainer.bg_img,
                                   trainerName: trainer.name,
                                   trainerExp: trainer.experience,
                                   trainerType: trainer.trainingType,
                                   trainerClients: trainer.active_clients,
-                                  trainingCompleted: trainer.training_completed,
+                                  trainingCompleted:
+                                      trainer.training_completed,
                                   trainerRating: trainer.rating,
                                 ),
                               ),
@@ -130,14 +157,96 @@ class _HomePageState extends State<HomePage> {
           child: YogaNavbarItemContent(),
         );
       case 3:
-        case 3:
         return const GymPage();
       case 4:
-        case 4:
         return const RunnerPage();
       default:
         return const SizedBox();
     }
+  }
+
+  Widget _buildSkeleton(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header skeleton
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _skeletonBox(context, width: 120, height: 22),
+                  const SizedBox(height: 8),
+                  _skeletonBox(context, width: 200, height: 14),
+                ],
+              ),
+              Row(
+                children: [
+                  _skeletonBox(context, width: 24, height: 24, radius: 12),
+                  const SizedBox(width: 10),
+                  _skeletonBox(context, width: 24, height: 24, radius: 12),
+                  const SizedBox(width: 10),
+                  _skeletonBox(context, width: 24, height: 24, radius: 12),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 30),
+
+          // Banner skeleton
+          _skeletonBox(context, width: double.infinity, height: 77, radius: 20),
+          const SizedBox(height: 30),
+
+          // Activity summary title
+          _skeletonBox(context, width: 160, height: 22),
+          const SizedBox(height: 20),
+
+          // Two stat cards skeleton
+          Row(
+            children: [
+              Expanded(
+                child: _skeletonBox(context,
+                    width: double.infinity, height: 120, radius: 16),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _skeletonBox(context,
+                    width: double.infinity, height: 120, radius: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Upcoming class card skeleton
+          _skeletonBox(context,
+              width: double.infinity, height: 194, radius: 16),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _skeletonBox(
+    BuildContext context, {
+    required double width,
+    required double height,
+    double radius = 8,
+  }) {
+    return _ShimmerWidget(
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: context.isDark
+              ? const Color(0xff3a3a3a)
+              : Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(radius),
+        ),
+      ),
+    );
   }
 
   @override
@@ -145,7 +254,22 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: context.bgColor,
       body: SafeArea(
-        child: _getTabContent(context),
+        child: RefreshIndicator(
+          color: context.subtextColor,
+          backgroundColor: context.cardBgColor,
+          displacement: 100,
+          onRefresh: _onRefresh,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  MediaQuery.of(context).padding.bottom -
+                  80,
+              child: _getTabContent(context),
+            ),
+          ),
+        ),
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -157,19 +281,26 @@ class _HomePageState extends State<HomePage> {
           children: List.generate(_tabs.length, (i) {
             final isSelected = _selectedTab == i;
             return GestureDetector(
-              onTap: () => setState(() => _selectedTab = i),
+              onTap: () => setState(() {
+                _selectedTab = i;
+                _isLoading = true;
+                _loadData();
+              }),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     _tabs[i]['icon'] as IconData,
-                    color: isSelected ? themeColor : context.navUnselectedColor,
+                    color: isSelected
+                        ? themeColor
+                        : context.navUnselectedColor,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     _tabs[i]['label'] as String,
                     style: TextStyle(
-                      color: isSelected ? themeColor : context.subtextColor,
+                      color:
+                          isSelected ? themeColor : context.subtextColor,
                       fontSize: 12,
                     ),
                   ),
@@ -212,7 +343,8 @@ class _OverviewTab extends StatelessWidget {
                       Text(
                         "Hi, Johns!",
                         style: TextStyle(
-                            color: context.isDark ? themeColor : Colors.black,
+                            color:
+                                context.isDark ? themeColor : Colors.black,
                             fontSize: 22,
                             fontWeight: FontWeight.bold),
                       ),
@@ -238,7 +370,8 @@ class _OverviewTab extends StatelessWidget {
                           ));
                         },
                         child: Icon(Icons.settings,
-                            color: context.isDark ? themeColor : Colors.black),
+                            color:
+                                context.isDark ? themeColor : Colors.black),
                       ),
                     ],
                   ),
@@ -282,7 +415,8 @@ class _OverviewTab extends StatelessWidget {
                     children: [
                       Container(
                         height: 120,
-                        padding: const EdgeInsets.fromLTRB(16, 36, 16, 16),
+                        padding:
+                            const EdgeInsets.fromLTRB(16, 36, 16, 16),
                         decoration: BoxDecoration(
                           color: context.isDark
                               ? Colors.white
@@ -363,7 +497,8 @@ class _OverviewTab extends StatelessWidget {
                     children: [
                       Container(
                         height: 120,
-                        padding: const EdgeInsets.fromLTRB(16, 36, 16, 16),
+                        padding:
+                            const EdgeInsets.fromLTRB(16, 36, 16, 16),
                         decoration: BoxDecoration(
                           color: context.isDark
                               ? Colors.white
@@ -462,8 +597,8 @@ class _OverviewTab extends StatelessWidget {
                                 fontWeight: FontWeight.bold)),
                         const SizedBox(height: 10),
                         const Text("Yoga",
-                            style:
-                                TextStyle(fontWeight: FontWeight.bold)),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold)),
                         const Text("Time: 2h:20m"),
                         const Spacer(),
                         SizedBox(
@@ -499,6 +634,47 @@ class _OverviewTab extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// Shimmer animation widget
+class _ShimmerWidget extends StatefulWidget {
+  final Widget child;
+  const _ShimmerWidget({required this.child});
+
+  @override
+  State<_ShimmerWidget> createState() => _ShimmerWidgetState();
+}
+
+class _ShimmerWidgetState extends State<_ShimmerWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _animation,
+      child: widget.child,
     );
   }
 }
