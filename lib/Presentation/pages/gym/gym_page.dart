@@ -140,16 +140,23 @@ class _GymPageState extends State<GymPage> {
               ),
             ),
             const SizedBox(height: 12),
-
             // Exercise Cards
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: filteredExercises.length,
-                itemBuilder: (context, index) {
-                  final exercise = filteredExercises[index];
-                  return _exerciseCard(context, exercise);
+              child: RefreshIndicator(
+                color: themeColor,
+                backgroundColor: context.cardBgColor,
+                onRefresh: () async {
+                  await Future.delayed(const Duration(seconds: 1));
+                  setState(() {});
                 },
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: filteredExercises.length,
+                  itemBuilder: (context, index) {
+                    final exercise = filteredExercises[index];
+                    return _exerciseCard(context, exercise);
+                  },
+                ),
               ),
             ),
           ],
