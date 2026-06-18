@@ -15,6 +15,7 @@ class SettingHomePage extends StatefulWidget {
 }
 
 class _SettingHomePageState extends State<SettingHomePage> {
+  static bool _hasLoaded = false;
   bool _isLoading = true;
 
   final List<Map<String, dynamic>> settingsItems = const [
@@ -34,16 +35,27 @@ class _SettingHomePageState extends State<SettingHomePage> {
   }
 
   Future<void> _loadData() async {
+  if (_hasLoaded) {
+    setState(() => _isLoading = false);
+    return;
+  }
   await Future.delayed(const Duration(seconds: 1));
-  if (mounted) setState(() => _isLoading = false);
+  if (mounted) {
+    _hasLoaded = true;
+    setState(() => _isLoading = false);
+  }
 }
 
 
   Future<void> _onRefresh() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
-    if (mounted) setState(() => _isLoading = false);
+  _hasLoaded = false;
+  setState(() => _isLoading = true);
+  await Future.delayed(const Duration(seconds: 1));
+  if (mounted) {
+    _hasLoaded = true;
+    setState(() => _isLoading = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {
