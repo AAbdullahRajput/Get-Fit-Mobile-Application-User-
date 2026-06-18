@@ -5,6 +5,7 @@ import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Domain/models/fitness_trainer_model.dart';
 import 'package:get_fit/Presentation/pages/setup-2.0/fitness_tainer_detail_page.dart';
 import 'package:get_fit/Presentation/pages/runner/runner_page.dart';
+import 'package:get_fit/Presentation/pages/gym/gym_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -129,9 +130,8 @@ class _HomePageState extends State<HomePage> {
           child: YogaNavbarItemContent(),
         );
       case 3:
-        return Center(
-            child: Text('Gym Coming Soon',
-                style: TextStyle(color: context.textColor)));
+        case 3:
+        return const GymPage();
       case 4:
         case 4:
         return const RunnerPage();
