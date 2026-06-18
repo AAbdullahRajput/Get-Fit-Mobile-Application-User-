@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/setting/setting_home_page.dart';
-import 'package:get_fit/Presentation/widgets/yoga_navbar_item_content.dart';
+// Remove this: import 'package:get_fit/Presentation/widgets/yoga_navbar_item_content.dart';
+import 'package:get_fit/Presentation/pages/yoga/yoga_tab_content.dart'; // Add this
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Domain/models/fitness_trainer_model.dart';
 import 'package:get_fit/Presentation/pages/setup-2.0/fitness_tainer_detail_page.dart';
 import 'package:get_fit/Presentation/pages/runner/runner_page.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_page.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,10 +16,10 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin {
   int _selectedTab = 0;
   static bool _hasLoaded = false;
-  bool _isLoading = true;
+  bool _isLoading = false;
 
   final List<Map<String, dynamic>> _tabs = const [
     {'label': 'Overview', 'icon': Icons.grid_view_rounded},
@@ -28,40 +30,26 @@ class _HomePageState extends State<HomePage> {
   ];
 
   @override
-void initState() {
-  super.initState();
-  _loadData();
-}
+  bool get wantKeepAlive => true;
 
-Future<void> _loadData() async {
-  if (_hasLoaded) {
-    setState(() => _isLoading = false);
-    return;
-  }
-  await Future.delayed(const Duration(seconds: 1));
-  if (mounted) {
+  late final List<Widget> _pages = [
+    const _OverviewTab(),
+    _buildFitnessTab(),
+    const YogaTabContent(), // Updated: Using new YogaTabContent
+    const GymPage(),
+    const RunnerPage(),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
     _hasLoaded = true;
-    setState(() => _isLoading = false);
+    _isLoading = false;
   }
-}
 
-Future<void> _onRefresh() async {
-  _hasLoaded = false;
-  setState(() => _isLoading = true);
-  await Future.delayed(const Duration(seconds: 1));
-  if (mounted) {
-    _hasLoaded = true;
-    setState(() => _isLoading = false);
-  }
-}
-
-  Widget _getTabContent(BuildContext context) {
-    if (_isLoading) return _buildSkeleton(context);
-
-    switch (_selectedTab) {
-      case 0:
-        return const _OverviewTab();
-      case 1:
+  Widget _buildFitnessTab() {
+    return Builder(
+      builder: (context) {
         return Padding(
           padding: const EdgeInsets.all(10.0),
           child: Column(
@@ -71,7 +59,7 @@ Future<void> _onRefresh() async {
                 child: Text(
                   'Fitness Trainers',
                   style: TextStyle(
-                    color: context.isDark ? Colors.white : Colors.black,
+                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
@@ -85,7 +73,7 @@ Future<void> _onRefresh() async {
                     return Padding(
                       padding: const EdgeInsets.all(2.0),
                       child: Card(
-                        color: context.cardBgColor,
+                        color: Theme.of(context).cardColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -100,7 +88,8 @@ Future<void> _onRefresh() async {
                           title: Text(
                             trainer.name,
                             style: TextStyle(
-                                color: context.textColor, fontSize: 18),
+                                color: Theme.of(context).textTheme.bodyLarge?.color,
+                                fontSize: 18),
                           ),
                           subtitle: Column(
                             mainAxisAlignment: MainAxisAlignment.start,
@@ -109,13 +98,14 @@ Future<void> _onRefresh() async {
                               Text(
                                 trainer.trainingType,
                                 style: TextStyle(
-                                    color: context.subtextColor,
+                                    color: Theme.of(context).textTheme.bodySmall?.color,
                                     fontSize: 14),
                               ),
                               Text(
                                 '${trainer.experience} years experience',
                                 style: TextStyle(
-                                    color: context.textColor, fontSize: 14),
+                                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                                    fontSize: 14),
                               ),
                             ],
                           ),
@@ -123,7 +113,7 @@ Future<void> _onRefresh() async {
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
                               Icon(Icons.arrow_forward,
-                                  color: context.textColor),
+                                  color: Theme.of(context).textTheme.bodyLarge?.color),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 4, vertical: 2),
@@ -163,18 +153,21 @@ Future<void> _onRefresh() async {
             ],
           ),
         );
-      case 2:
-        return const SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: YogaNavbarItemContent(),
-        );
-      case 3:
-        return const GymPage();
-      case 4:
-        return const RunnerPage();
-      default:
-        return const SizedBox();
+      },
+    );
+  }
+
+  Future<void> _onRefresh() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
+  }
+
+  Widget _getTabContent(BuildContext context) {
+    if (_isLoading) return _buildSkeleton(context);
+    return _pages[_selectedTab];
   }
 
   Widget _buildSkeleton(BuildContext context) {
@@ -252,7 +245,7 @@ Future<void> _onRefresh() async {
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: context.isDark
+          color: Theme.of(context).brightness == Brightness.dark
               ? const Color(0xff3a3a3a)
               : Colors.grey.shade300,
           borderRadius: BorderRadius.circular(radius),
@@ -263,35 +256,30 @@ Future<void> _onRefresh() async {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: context.bgColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: RefreshIndicator(
-          color: context.subtextColor,
-          backgroundColor: context.cardBgColor,
+          color: themeColor,
+          backgroundColor: Theme.of(context).cardColor,
           displacement: 100,
           onRefresh: _onRefresh,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: SizedBox(
-              height: MediaQuery.of(context).size.height -
-                  MediaQuery.of(context).padding.top -
-                  MediaQuery.of(context).padding.bottom -
-                  80,
-              child: _getTabContent(context),
-            ),
-          ),
+          child: _getTabContent(context),
         ),
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: context.navBgColor,
+          color: Theme.of(context).bottomNavigationBarTheme.backgroundColor ?? Colors.transparent,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: List.generate(_tabs.length, (i) {
             final isSelected = _selectedTab == i;
+            final unselectedColor = isDark ? Colors.white54 : Colors.grey.shade600;
             return GestureDetector(
               onTap: () => setState(() {
                 _selectedTab = i;
@@ -301,16 +289,13 @@ Future<void> _onRefresh() async {
                 children: [
                   Icon(
                     _tabs[i]['icon'] as IconData,
-                    color: isSelected
-                        ? themeColor
-                        : context.navUnselectedColor,
+                    color: isSelected ? themeColor : unselectedColor,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     _tabs[i]['label'] as String,
                     style: TextStyle(
-                      color:
-                          isSelected ? themeColor : context.subtextColor,
+                      color: isSelected ? themeColor : unselectedColor,
                       fontSize: 12,
                     ),
                   ),
@@ -336,6 +321,7 @@ class _OverviewTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -353,25 +339,24 @@ class _OverviewTab extends StatelessWidget {
                       Text(
                         "Hi, Johns!",
                         style: TextStyle(
-                            color:
-                                context.isDark ? themeColor : Colors.black,
+                            color: isDark ? themeColor : Colors.black,
                             fontSize: 22,
                             fontWeight: FontWeight.bold),
                       ),
                       Text(
                         "It's time to challenge your limits.",
                         style: TextStyle(
-                            fontSize: 13, color: context.textColor),
+                            fontSize: 13, color: Theme.of(context).textTheme.bodyLarge?.color),
                       ),
                     ],
                   ),
                   Row(
                     children: [
                       Icon(Icons.search,
-                          color: context.isDark ? themeColor : Colors.black),
+                          color: isDark ? themeColor : Colors.black),
                       const SizedBox(width: 10),
                       Icon(Icons.notifications,
-                          color: context.isDark ? themeColor : Colors.black),
+                          color: isDark ? themeColor : Colors.black),
                       const SizedBox(width: 10),
                       InkWell(
                         onTap: () {
@@ -380,8 +365,7 @@ class _OverviewTab extends StatelessWidget {
                           ));
                         },
                         child: Icon(Icons.settings,
-                            color:
-                                context.isDark ? themeColor : Colors.black),
+                            color: isDark ? themeColor : Colors.black),
                       ),
                     ],
                   ),
@@ -390,29 +374,55 @@ class _OverviewTab extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Container(
-              height: 77,
-              decoration: BoxDecoration(
-                color: themeColor,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: ListTile(
-                leading: Image.asset("assets/home/fire.png",
-                    width: 50, height: 50),
-                title: const Text("Workout Today",
-                    style: TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
-                subtitle: const Text(
-                  "let's achieve your target today",
-                  style: TextStyle(fontSize: 13, color: Colors.black),
+  height: 80,
+  decoration: BoxDecoration(
+    color: themeColor,
+    borderRadius: BorderRadius.circular(20),
+  ),
+  child: Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 18),
+    child: Row(
+      children: [
+        Image.asset(
+          "assets/home/fire.png",
+          width: 50,
+          height: 50,
+        ),
+        const SizedBox(width: 20),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                "Workout Today",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
                 ),
               ),
-            ),
+              const SizedBox(height: 2),
+              Text(
+                "let's achieve your target today",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.black.withOpacity(0.7),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ),
+),
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text("Activity Summary",
                   style: TextStyle(
-                      color: context.textColor,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
                       fontSize: 22,
                       fontWeight: FontWeight.bold)),
             ),
@@ -428,7 +438,7 @@ class _OverviewTab extends StatelessWidget {
                         padding:
                             const EdgeInsets.fromLTRB(16, 36, 16, 16),
                         decoration: BoxDecoration(
-                          color: context.isDark
+                          color: isDark
                               ? Colors.white
                               : Colors.grey[200],
                           borderRadius: BorderRadius.circular(16),
@@ -436,31 +446,56 @@ class _OverviewTab extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 14),
                             Row(
                               children: [
-                                const Text("10000",
-                                    style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black)),
-                                const SizedBox(width: 8),
+                                SvgPicture.asset(
+                                    "assets/icons/steps_icon.svg",
+                                    width: 16, height: 16,
+                                    colorFilter: ColorFilter.mode(Colors.grey[600]!, BlendMode.srcIn)),
+                                const SizedBox(width: 6),
                                 Text("Steps",
                                     style: TextStyle(
                                         fontSize: 14,
+                                        fontWeight: FontWeight.w600,
                                         color: Colors.grey[600])),
                               ],
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6),
                             Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Icon(Icons.refresh,
-                                    size: 14, color: Colors.grey[600]),
-                                const SizedBox(width: 4),
-                                Text("Last 7 Days",
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600])),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    const Text("5000",
+                                        style: TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold,
+                                            color: themeColor)),
+                                    Text("/10000",
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[500])),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    SvgPicture.asset(
+                                        "assets/icons/clock_icon.svg",
+                                        width: 12, height: 12,
+                                        colorFilter: ColorFilter.mode(Colors.grey[500]!, BlendMode.srcIn)),
+                                    const SizedBox(width: 2),
+                                    Text("Last\n7 Days",
+                                        textAlign: TextAlign.right,
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey[500],
+                                            height: 1.2)),
+                                  ],
+                                ),
                               ],
                             ),
                           ],
@@ -474,7 +509,7 @@ class _OverviewTab extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: context.iconBgColor,
+                              color: Theme.of(context).cardColor,
                               shape: BoxShape.circle,
                             ),
                             child: Container(
@@ -510,7 +545,7 @@ class _OverviewTab extends StatelessWidget {
                         padding:
                             const EdgeInsets.fromLTRB(16, 36, 16, 16),
                         decoration: BoxDecoration(
-                          color: context.isDark
+                          color: isDark
                               ? Colors.white
                               : Colors.grey[200],
                           borderRadius: BorderRadius.circular(16),
@@ -518,31 +553,56 @@ class _OverviewTab extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 14),
                             Row(
                               children: [
-                                const Text("1500",
-                                    style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black)),
-                                const SizedBox(width: 8),
+                                SvgPicture.asset(
+                                    "assets/icons/calories_icon.svg",
+                                    width: 16, height: 16,
+                                    colorFilter: ColorFilter.mode(Colors.grey[600]!, BlendMode.srcIn)),
+                                const SizedBox(width: 6),
                                 Text("Calories",
                                     style: TextStyle(
                                         fontSize: 14,
+                                        fontWeight: FontWeight.w600,
                                         color: Colors.grey[600])),
                               ],
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6),
                             Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Icon(Icons.refresh,
-                                    size: 14, color: Colors.grey[600]),
-                                const SizedBox(width: 4),
-                                Text("Last 7 Days",
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600])),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    const Text("1500",
+                                        style: TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold,
+                                            color: themeColor)),
+                                    Text("/2000",
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[500])),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    SvgPicture.asset(
+                                        "assets/icons/clock_icon.svg",
+                                        width: 12, height: 12,
+                                        colorFilter: ColorFilter.mode(Colors.grey[500]!, BlendMode.srcIn)),
+                                    const SizedBox(width: 2),
+                                    Text("Last\n7 Days",
+                                        textAlign: TextAlign.right,
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey[500],
+                                            height: 1.2)),
+                                  ],
+                                ),
                               ],
                             ),
                           ],
@@ -556,7 +616,7 @@ class _OverviewTab extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: context.iconBgColor,
+                              color: Theme.of(context).cardColor,
                               shape: BoxShape.circle,
                             ),
                             child: Container(
@@ -603,14 +663,14 @@ class _OverviewTab extends StatelessWidget {
                         const Text("Next Upcoming Class",
                             style: TextStyle(
                                 color: Colors.black,
-                                fontSize: 18,
+                                fontSize: 25,
                                 fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 5),
                         const Text("Yoga",
                             style: TextStyle(
-                                fontWeight: FontWeight.bold, color: Colors.black,)),
+                                fontWeight: FontWeight.bold, color: Colors.black, fontSize: 25)),
                         const Text("Time: 2h:20m",style: TextStyle(
-                          color: Colors.black
+                          color: Colors.black, fontSize: 17
                         ),),
                         const Spacer(),
                         SizedBox(

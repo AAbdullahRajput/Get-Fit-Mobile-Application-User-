@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:get_fit/Domain/models/exercise_model.dart';
 import 'package:get_fit/Utils/constants.dart';
 
-class ChestExerciseDetail extends StatelessWidget {
+class CoreExerciseDetail extends StatelessWidget {
   final Exercise exercise;
 
-  const ChestExerciseDetail({
+  const CoreExerciseDetail({
     super.key,
     required this.exercise,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: context.bgColor,
       body: Stack(
@@ -26,9 +28,7 @@ class ChestExerciseDetail extends StatelessWidget {
                   Container(
                     height: 280,
                     width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: context.cardBgColor,
-                    ),
+                    decoration: BoxDecoration(color: context.cardBgColor),
                     child: Stack(
                       children: [
                         Image.network(
@@ -36,24 +36,15 @@ class ChestExerciseDetail extends StatelessWidget {
                           width: double.infinity,
                           height: 280,
                           fit: BoxFit.cover,
-                          loadingBuilder: (context, child, progress) {
-                            if (progress == null) return child;
-                            return Center(
-                              child: CircularProgressIndicator(
-                                color: themeColor,
-                              ),
-                            );
-                          },
                           errorBuilder: (context, error, stack) => Container(
                             color: context.cardBgColor,
-                            child: const Icon(
+                            child: Icon(
                               Icons.fitness_center,
                               color: themeColor,
                               size: 64,
                             ),
                           ),
                         ),
-                        // Gradient Overlay
                         Positioned.fill(
                           child: DecoratedBox(
                             decoration: BoxDecoration(
@@ -68,7 +59,6 @@ class ChestExerciseDetail extends StatelessWidget {
                             ),
                           ),
                         ),
-                        // Title Overlay
                         Positioned(
                           bottom: 20,
                           left: 20,
@@ -140,11 +130,10 @@ class ChestExerciseDetail extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Description
                         Text(
                           'Description',
                           style: TextStyle(
-                            color: context.textColor,
+                            color: isDark ? Colors.white : Colors.black87,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -160,11 +149,10 @@ class ChestExerciseDetail extends StatelessWidget {
                         ),
                         const SizedBox(height: 20),
 
-                        // Sets, Reps, Rest
                         Text(
                           'Workout Details',
                           style: TextStyle(
-                            color: context.textColor,
+                            color: isDark ? Colors.white : Colors.black87,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -181,11 +169,10 @@ class ChestExerciseDetail extends StatelessWidget {
                         ),
                         const SizedBox(height: 20),
 
-                        // Target Muscles
                         Text(
                           'Target Muscles',
                           style: TextStyle(
-                            color: context.textColor,
+                            color: isDark ? Colors.white : Colors.black87,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -194,19 +181,18 @@ class ChestExerciseDetail extends StatelessWidget {
                         Wrap(
                           spacing: 8,
                           children: [
-                            _muscleChip(context, 'Pectoralis Major'),
-                            _muscleChip(context, 'Triceps'),
-                            _muscleChip(context, 'Deltoids'),
-                            _muscleChip(context, 'Core'),
+                            _muscleChip(context, 'Rectus Abdominis'),
+                            _muscleChip(context, 'Transverse Abdominis'),
+                            _muscleChip(context, 'Obliques'),
+                            _muscleChip(context, 'Erector Spinae'),
                           ],
                         ),
                         const SizedBox(height: 20),
 
-                        // Equipment
                         Text(
                           'Equipment Needed',
                           style: TextStyle(
-                            color: context.textColor,
+                            color: isDark ? Colors.white : Colors.black87,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -222,7 +208,7 @@ class ChestExerciseDetail extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            'Barbell, Bench',
+                            'Mat (No equipment needed)',
                             style: TextStyle(
                               color: context.textColor,
                               fontSize: 14,
@@ -231,11 +217,10 @@ class ChestExerciseDetail extends StatelessWidget {
                         ),
                         const SizedBox(height: 20),
 
-                        // Video Tutorial
                         Text(
                           'Video Tutorial',
                           style: TextStyle(
-                            color: context.textColor,
+                            color: isDark ? Colors.white : Colors.black87,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -271,11 +256,10 @@ class ChestExerciseDetail extends StatelessWidget {
                         ),
                         const SizedBox(height: 20),
 
-                        // Instructions
                         Text(
                           'Step by Step Instructions',
                           style: TextStyle(
-                            color: context.textColor,
+                            color: isDark ? Colors.white : Colors.black87,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -289,26 +273,41 @@ class ChestExerciseDetail extends StatelessWidget {
                           ),
                           child: Column(
                             children: [
-                            _instructionItem(context, '1', 'Lie on the bench with your eyes under the bar'),
-                            _instructionItem(context, '2', 'Grip the bar slightly wider than shoulder-width'),
-                            _instructionItem(context, '3', 'Lower the bar to your chest'),
-                            _instructionItem(context, '4', 'Press the bar back up to the starting position'),
-                          ],
+                              _instructionItem(
+                                context,
+                                '1',
+                                'Lie face down on the floor with elbows under shoulders',
+                              ),
+                              _instructionItem(
+                                context,
+                                '2',
+                                'Lift your body off the floor, balancing on toes and forearms',
+                              ),
+                              _instructionItem(
+                                context,
+                                '3',
+                                'Keep your body in a straight line from head to heels',
+                              ),
+                              _instructionItem(
+                                context,
+                                '4',
+                                'Hold the position while breathing deeply',
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 20),
 
-                        // Buttons
                         Row(
                           children: [
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: () {
-                                  // Start workout
-                                },
+                                onPressed: () {},
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: themeColor,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -337,9 +336,7 @@ class ChestExerciseDetail extends StatelessWidget {
                                   color: context.textColor,
                                   size: 28,
                                 ),
-                                onPressed: () {
-                                  // Save to favorites
-                                },
+                                onPressed: () {},
                               ),
                             ),
                           ],
@@ -425,58 +422,61 @@ class ChestExerciseDetail extends StatelessWidget {
   }
 
   Widget _muscleChip(BuildContext context, String muscle) {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: BoxDecoration(
-      color: isDark ? themeColor.withOpacity(0.2) : Colors.grey.shade200,
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Text(
-      muscle,
-      style: TextStyle(
-        color: isDark ? themeColor : Colors.black87,
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? themeColor.withOpacity(0.2) : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(20),
       ),
-    ),
-  );
-}
+      child: Text(
+        muscle,
+        style: TextStyle(
+          color: isDark ? themeColor : Colors.black87,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
 
   Widget _instructionItem(BuildContext context, String number, String instruction) {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: const BoxDecoration(color: themeColor, shape: BoxShape.circle),
-          child: Center(
-            child: Text(
-              number,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: const BoxDecoration(
+              color: themeColor,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            instruction,
-            style: TextStyle(
-              color: isDark ? Colors.white : Colors.black87,
-              fontSize: 14,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              instruction,
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+                fontSize: 14,
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 }

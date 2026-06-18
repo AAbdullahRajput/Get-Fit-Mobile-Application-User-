@@ -4,11 +4,10 @@ import 'package:get_fit/Presentation/pages/gym/gym_exercises/legs/legs_exercises
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/shoulders/shoulders_exercises_screen.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/chest/chest_exercises_screen.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/back/back_exercises_screen.dart';
-import 'package:get_fit/Presentation/pages/gym/gym_exercises/legs/legs_exercises_screen.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/arms/arms_exercises_screen.dart';
-
+import 'package:get_fit/Presentation/pages/gym/gym_exercises/core/core_exercises_screen.dart';
+import 'package:flutter/foundation.dart';
 
 class GymPage extends StatefulWidget {
   const GymPage({super.key});
@@ -17,14 +16,17 @@ class GymPage extends StatefulWidget {
   State<GymPage> createState() => _GymPageState();
 }
 
-class _GymPageState extends State<GymPage> {
+class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
   static bool _hasLoaded = false;
   bool _isLoading = false;
   int selectedCategory = 0;
 
-  final List<String> categories = [
-    'All', 'Chest', 'Back', 'Shoulders', 'Legs', 'Arms', 'Core'
+  final List<String> categories = const [
+    'All', 'Chest', 'Back', 'Shoulders', 'Legs', 'Arm', 'Core'
   ];
+
+  @override
+  bool get wantKeepAlive => true; // Keep page alive when switching tabs
 
   List<Exercise> get filteredExercises {
     if (selectedCategory == 0) return dummyExercises;
@@ -87,48 +89,23 @@ class _GymPageState extends State<GymPage> {
   void _navigateToCategoryScreen(String category) {
     switch(category) {
       case 'Chest':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ChestExercisesScreen(),
-          ),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const ChestExercisesScreen()));
         break;
       case 'Back':
-        Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const BackExercisesScreen(),
-        ),
-      );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const BackExercisesScreen()));
         break;
       case 'Shoulders':
-        Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const ShouldersExercisesScreen(),
-        ),
-      );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const ShouldersExercisesScreen()));
         break;
       case 'Legs':
-        Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const LegsExercisesScreen(),
-        ),
-      );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const LegsExercisesScreen()));
         break;
-      case 'Arms':
-        case 'Arms':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ArmsExercisesScreen(),
-          ),
-        );
+      case 'Arm':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const ArmsExercisesScreen()));
         break;
       case 'Core':
-        _showComingSoon(category);
+        case 'Core':
+        Navigator.push(context,MaterialPageRoute(builder: (context) => const CoreExercisesScreen(),),);
         break;
       default:
         _showComingSoon(category);
@@ -136,98 +113,68 @@ class _GymPageState extends State<GymPage> {
   }
 
   void _showComingSoon(String category) {
-  // Get hex color without # prefix
-  final colorHex = themeColor.value.toRadixString(16).padLeft(8, '0').substring(2);
-  
-  showDialog(
-    context: context,
-    barrierDismissible: true,
-    builder: (BuildContext context) {
-      return Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        backgroundColor: context.bgColor,
-        elevation: 8,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: context.bgColor,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // SVG Icon - Using simple dumbbell
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.fitness_center,
-                  color: themeColor,
-                  size: 48,
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Title
-              Text(
-                'Coming Soon!',
-                style: TextStyle(
-                  color: context.textColor,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              
-              // Message
-              Text(
-                '$category exercises are being added.\nStay tuned for updates!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: context.subtextColor,
-                  fontSize: 14,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 20),
-              
-              // Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: themeColor,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: context.bgColor,
+          elevation: 8,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: context.bgColor,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: themeColor.withOpacity(0.2),
+                    shape: BoxShape.circle,
                   ),
-                  child: const Text(
-                    'Got it!',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  child: Icon(Icons.fitness_center, color: themeColor, size: 48),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Coming Soon!',
+                  style: TextStyle(color: context.textColor, fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$category exercises are being added.\nStay tuned for updates!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: context.subtextColor, fontSize: 14, height: 1.5),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: themeColor,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
+                    child: const Text('Got it!', style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+    final isDark = context.isDark;
+    
     return Scaffold(
       backgroundColor: context.bgColor,
       body: SafeArea(
@@ -243,30 +190,24 @@ class _GymPageState extends State<GymPage> {
                   Text(
                     'Gym',
                     style: TextStyle(
-                      color: context.isDark ? themeColor : Colors.black,
+                      color: isDark ? themeColor : Colors.black,
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: themeColor,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Row(
-                      children: const [
-                        Icon(Icons.local_fire_department,
-                            color: Colors.black, size: 16),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.local_fire_department, color: Colors.black, size: 16),
                         SizedBox(width: 4),
                         Text(
                           '5 Day Streak',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
+                          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
                         ),
                       ],
                     ),
@@ -289,18 +230,13 @@ class _GymPageState extends State<GymPage> {
                     onTap: () => setState(() => selectedCategory = index),
                     child: Container(
                       margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
                       decoration: BoxDecoration(
                         color: selected ? themeColor : context.cardBgColor,
                         borderRadius: BorderRadius.circular(20),
                         border: selected
                             ? null
-                            : Border.all(
-                                color: context.isDark
-                                    ? Colors.grey.shade700
-                                    : Colors.grey.shade300,
-                              ),
+                            : Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                       ),
                       child: Text(
                         categories[index],
@@ -322,30 +258,28 @@ class _GymPageState extends State<GymPage> {
               padding: const EdgeInsets.only(left: 20),
               child: Text(
                 '${filteredExercises.length} exercises',
-                style: TextStyle(
-                  color: context.subtextColor,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: context.subtextColor, fontSize: 13),
               ),
             ),
             const SizedBox(height: 12),
+            
             // Exercise Cards
             Expanded(
               child: RefreshIndicator(
-                color: context.subtextColor,
+                color: themeColor,
                 backgroundColor: context.cardBgColor,
                 onRefresh: _onRefresh,
                 child: _isLoading
-                ? _buildSkeleton(context)
-                : ListView.builder(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: filteredExercises.length,
-                  itemBuilder: (context, index) {
-                    final exercise = filteredExercises[index];
-                    return _exerciseCard(context, exercise);
-                  },
-                ),
+                    ? _buildSkeleton(context)
+                    : ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: filteredExercises.length,
+                        itemBuilder: (context, index) {
+                          final exercise = filteredExercises[index];
+                          return _exerciseCard(context, exercise);
+                        },
+                      ),
               ),
             ),
           ],
@@ -365,9 +299,7 @@ class _GymPageState extends State<GymPage> {
             margin: const EdgeInsets.only(bottom: 16),
             height: 180,
             decoration: BoxDecoration(
-              color: context.isDark
-                  ? const Color(0xff3a3a3a)
-                  : Colors.grey.shade300,
+              color: context.isDark ? const Color(0xff3a3a3a) : Colors.grey.shade300,
               borderRadius: BorderRadius.circular(20),
             ),
           ),
@@ -377,6 +309,8 @@ class _GymPageState extends State<GymPage> {
   }
 
   Widget _exerciseCard(BuildContext context, Exercise exercise) {
+    final isDark = context.isDark;
+    
     return GestureDetector(
       onTap: () => _navigateToCategoryScreen(exercise.category),
       child: Container(
@@ -407,15 +341,18 @@ class _GymPageState extends State<GymPage> {
                     return Container(
                       color: context.cardBgColor,
                       child: const Center(
-  child: CircularProgressIndicator(color: Colors.black),
-),
+                        child: CircularProgressIndicator(color: Colors.black),
+                      ),
                     );
                   },
                   errorBuilder: (context, error, stack) => Container(
-  color: context.cardBgColor,
-  child: Icon(Icons.fitness_center,
-      color: context.isDark ? themeColor : Colors.black, size: 48),
-),
+                    color: context.cardBgColor,
+                    child: Icon(
+                      Icons.fitness_center,
+                      color: isDark ? themeColor : Colors.black,
+                      size: 48,
+                    ),
+                  ),
                 ),
               ),
               // Dark Gradient Overlay
@@ -446,36 +383,26 @@ class _GymPageState extends State<GymPage> {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: _levelColor(exercise.level).withOpacity(0.85),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               exercise.level,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               exercise.category,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
@@ -483,19 +410,12 @@ class _GymPageState extends State<GymPage> {
                       const SizedBox(height: 6),
                       Text(
                         exercise.title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         exercise.description,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -505,11 +425,7 @@ class _GymPageState extends State<GymPage> {
                         children: [
                           Text(
                             'View ${exercise.category} Exercises →',
-                            style: const TextStyle(
-                              color: themeColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: const TextStyle(color: themeColor, fontSize: 12, fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),

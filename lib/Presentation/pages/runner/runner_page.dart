@@ -8,14 +8,14 @@ class RunnerPage extends StatefulWidget {
   State<RunnerPage> createState() => _RunnerPageState();
 }
 
-class _RunnerPageState extends State<RunnerPage> {
+class _RunnerPageState extends State<RunnerPage> with AutomaticKeepAliveClientMixin {
   static bool _hasLoaded = false;
-  bool _isLoading = true;
+  bool _isLoading = false; // Start with false for instant load
   int selectedFilter = 1; // default 7 Days
 
-  final List<String> filters = ['Today', '7 Days', '14 Days', '30 Days'];
+  final List<String> filters = const ['Today', '7 Days', '14 Days', '30 Days'];
 
-  final List<Map<String, dynamic>> caloriesData = [
+  final List<Map<String, dynamic>> caloriesData = const [
     {'day': 'Mon', 'value': 0.6},
     {'day': 'Tue', 'value': 0.5},
     {'day': 'Wed', 'value': 0.7},
@@ -25,375 +25,366 @@ class _RunnerPageState extends State<RunnerPage> {
   ];
 
   @override
-void initState() {
-  super.initState();
-  _loadData();
-}
+  bool get wantKeepAlive => true;
 
-Future<void> _loadData() async {
-  if (_hasLoaded) {
-    setState(() => _isLoading = false);
-    return;
-  }
-  await Future.delayed(const Duration(seconds: 1));
-  if (mounted) {
+  @override
+  void initState() {
+    super.initState();
     _hasLoaded = true;
-    setState(() => _isLoading = false);
+    _isLoading = false;
   }
-}
 
-Future<void> _onRefresh() async {
-  _hasLoaded = false;
-  setState(() => _isLoading = true);
-  await Future.delayed(const Duration(seconds: 1));
-  if (mounted) {
-    _hasLoaded = true;
-    setState(() => _isLoading = false);
+  Future<void> _onRefresh() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
-}
 
-@override
-Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final isDark = context.isDark;
+
     return Scaffold(
       backgroundColor: context.bgColor,
       body: SafeArea(
-  child: RefreshIndicator(
-    color: context.subtextColor,
-    backgroundColor: context.cardBgColor,
-    onRefresh: _onRefresh,
-    displacement: 100,
-    child: SingleChildScrollView(
-  physics: const AlwaysScrollableScrollPhysics(),
-  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-  child: _isLoading ? _buildSkeleton(context) : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title
-              Text(
-                'Activities',
-                style: TextStyle(
-                  color: context.isDark ? themeColor : Colors.black,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+        child: RefreshIndicator(
+          color: themeColor,
+          backgroundColor: context.cardBgColor,
+          onRefresh: _onRefresh,
+          displacement: 100,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: _isLoading 
+                ? _buildSkeleton(context) 
+                : _buildContent(context, isDark),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Title
+        Text(
+          'Activities',
+          style: TextStyle(
+            color: isDark ? themeColor : Colors.black,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Filter Tabs
+        Row(
+          children: List.generate(filters.length, (index) {
+            final selected = selectedFilter == index;
+            return GestureDetector(
+              onTap: () => setState(() => selectedFilter = index),
+              child: Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: selected ? themeColor : context.cardBgColor,
+                  borderRadius: BorderRadius.circular(20),
+                  border: selected
+                      ? null
+                      : Border.all(
+                          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                        ),
+                ),
+                child: Text(
+                  filters[index],
+                  style: TextStyle(
+                    color: selected ? Colors.black : context.textColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
+            );
+          }),
+        ),
+        const SizedBox(height: 16),
 
-              // Filter Tabs
-              Row(
-                children: List.generate(filters.length, (index) {
-                  final selected = selectedFilter == index;
-                  return GestureDetector(
-                    onTap: () => setState(() => selectedFilter = index),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: selected ? themeColor : context.cardBgColor,
-                        borderRadius: BorderRadius.circular(20),
-                        border: selected
-                            ? null
-                            : Border.all(
-                                color: context.isDark
-                                    ? Colors.grey.shade700
-                                    : Colors.grey.shade300,
-                              ),
-                      ),
-                      child: Text(
-                        filters[index],
+        // Description
+        Text(
+          'This data is your activity for several days in 30 days. We will data any gym according to the system',
+          style: TextStyle(
+            color: context.subtextColor,
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Workout Length Card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: context.cardBgColor,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text('🏋️', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Workout Length',
                         style: TextStyle(
-                          color: selected
-                              ? Colors.black
-                              : context.textColor,
-                          fontWeight: FontWeight.w600,
+                          color: context.subtextColor,
                           fontSize: 13,
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '2 : 52 : 00 s',
+                    style: TextStyle(
+                      color: context.textColor,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
-                  );
-                }),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-
-              // Description
               Text(
-                'This data is your activity for several days in 30 days. We will data any gym according to the system',
+                'Last 7 days',
                 style: TextStyle(
                   color: context.subtextColor,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Workout Length Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: context.cardBgColor,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Text('🏋️',
-                                style: TextStyle(fontSize: 14)),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Workout Length',
-                              style: TextStyle(
-                                color: context.subtextColor,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '2 : 52 : 00 s',
-                          style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'Last 7 days',
-                      style: TextStyle(
-                        color: context.subtextColor,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Calories Burn Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: themeColor,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: const [
-                            Text('🔥', style: TextStyle(fontSize: 16)),
-                            SizedBox(width: 6),
-                            Text(
-                              'Calories Burn',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          decoration: const BoxDecoration(
-                            color: Colors.black,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.more_vert,
-                              color: Colors.white, size: 20),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    RichText(
-                      text: const TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '456',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          TextSpan(
-                            text: ' Kcal',
-                            style: TextStyle(
-                              color: Colors.black87,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Bar Chart
-                    SizedBox(
-                      height: 120,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: caloriesData.map((data) {
-                          final isToday = data['day'] == 'Thu';
-                          return Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Container(
-                                width: 32,
-                                height: 90 * (data['value'] as double),
-                                decoration: BoxDecoration(
-                                  color: isToday
-                                      ? Colors.black
-                                      : Colors.black.withOpacity(0.25),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                data['day'],
-                                style: const TextStyle(
-                                  color: Colors.black87,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Heart Rate Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: context.cardBgColor,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Heart Rate',
-                          style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: context.isDark
-                                ? Colors.black
-                                : Colors.grey.shade200,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.more_vert,
-                              color: context.textColor, size: 20),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '76',
-                            style: TextStyle(
-                              color: context.textColor,
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          TextSpan(
-                            text: ' bmp',
-                            style: TextStyle(
-                              color: context.subtextColor,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Heart Rate Line Chart
-                    SizedBox(
-                      height: 80,
-                      child: CustomPaint(
-                        size: const Size(double.infinity, 80),
-                        painter: _HeartRatePainter(
-                          color: Colors.green,
-                        ),
-                      ),
-                    ),
-                  ],
+                  fontSize: 12,
                 ),
               ),
             ],
           ),
         ),
-      ),
+        const SizedBox(height: 16),
+
+        // Calories Burn Card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: themeColor,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: const [
+                      Text('🔥', style: TextStyle(fontSize: 16)),
+                      SizedBox(width: 6),
+                      Text(
+                        'Calories Burn',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.black,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.more_vert,
+                        color: Colors.white, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              RichText(
+                text: const TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '456',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextSpan(
+                      text: ' Kcal',
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Bar Chart
+              SizedBox(
+                height: 120,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: caloriesData.map((data) {
+                    final isToday = data['day'] == 'Thu';
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 90 * (data['value'] as double),
+                          decoration: BoxDecoration(
+                            color: isToday
+                                ? Colors.black
+                                : Colors.black.withOpacity(0.25),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          data['day'],
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Heart Rate Card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: context.cardBgColor,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Heart Rate',
+                    style: TextStyle(
+                      color: context.textColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.black : Colors.grey.shade200,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.more_vert,
+                        color: context.textColor, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '76',
+                      style: TextStyle(
+                        color: context.textColor,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextSpan(
+                      text: ' bmp',
+                      style: TextStyle(
+                        color: context.subtextColor,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Heart Rate Line Chart
+              SizedBox(
+                height: 80,
+                child: CustomPaint(
+                  size: const Size(double.infinity, 80),
+                  painter: _HeartRatePainter(
+                    color: Colors.green,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkeleton(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _shimmer(context, width: 140, height: 32),
+        const SizedBox(height: 16),
+        Row(
+          children: List.generate(4, (i) => Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _shimmer(context, width: 70, height: 34, radius: 20),
+          )),
+        ),
+        const SizedBox(height: 16),
+        _shimmer(context, width: double.infinity, height: 40),
+        const SizedBox(height: 16),
+        _shimmer(context, width: double.infinity, height: 80, radius: 16),
+        const SizedBox(height: 16),
+        _shimmer(context, width: double.infinity, height: 200, radius: 16),
+        const SizedBox(height: 16),
+        _shimmer(context, width: double.infinity, height: 160, radius: 16),
+      ],
+    );
+  }
+
+  Widget _shimmer(BuildContext context,
+      {required double width, required double height, double radius = 8}) {
+    return _ShimmerWidget(
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: context.isDark
+              ? const Color(0xff3a3a3a)
+              : Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(radius),
+        ),
       ),
     );
   }
-  Widget _buildSkeleton(BuildContext context) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _shimmer(context, width: 140, height: 32),
-      const SizedBox(height: 16),
-      Row(
-        children: List.generate(4, (i) => Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: _shimmer(context, width: 70, height: 34, radius: 20),
-        )),
-      ),
-      const SizedBox(height: 16),
-      _shimmer(context, width: double.infinity, height: 40),
-      const SizedBox(height: 16),
-      _shimmer(context, width: double.infinity, height: 80, radius: 16),
-      const SizedBox(height: 16),
-      _shimmer(context, width: double.infinity, height: 200, radius: 16),
-      const SizedBox(height: 16),
-      _shimmer(context, width: double.infinity, height: 160, radius: 16),
-    ],
-  );
-}
-
-Widget _shimmer(BuildContext context,
-    {required double width, required double height, double radius = 8}) {
-  return _ShimmerWidget(
-    child: Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: context.isDark
-            ? const Color(0xff3a3a3a)
-            : Colors.grey.shade300,
-        borderRadius: BorderRadius.circular(radius),
-      ),
-    ),
-  );
-}
 }
 
 class _ShimmerWidget extends StatefulWidget {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:get_fit/Presentation/pages/challenge/weekly_challenge_home_page.dart';
 import 'dart:ui';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Presentation/pages/yoga/challenge/weekly_challenge_home_page.dart';
 
 class WeeklyChallengeLandingPage extends StatelessWidget {
   const WeeklyChallengeLandingPage({super.key});
@@ -31,10 +31,12 @@ class WeeklyChallengeLandingPage extends StatelessWidget {
                   padding: const EdgeInsets.all(24.0),
                   height: MediaQuery.of(context).size.height * 0.45,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: context.isDark 
+                        ? Colors.black.withOpacity(0.6) 
+                        : Colors.white.withOpacity(0.3),
                     border: Border(
                       top: BorderSide(
-                        color: const Color(0xFFDBF500).withOpacity(0.5),
+                        color: themeColor.withOpacity(0.5),
                         width: 1,
                       ),
                     ),
@@ -54,29 +56,37 @@ class WeeklyChallengeLandingPage extends StatelessWidget {
                         width: 43.3,
                       ),
                       const SizedBox(height: 20),
-                      const Text(
+                      Text(
                         'Weekly Challenge',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: context.isDark ? Colors.white : Colors.black,
                         ),
                       ),
-                      const SizedBox(height: 60),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Complete daily challenges and earn rewards!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: context.isDark ? Colors.white70 : Colors.black54,
+                        ),
+                      ),
+                      const SizedBox(height: 40),
                       ElevatedButton(
                         onPressed: () {
-                          // Navigate to next page
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const WeeklyChallengeHomePage(), // Replace with your next page
+                              builder: (context) => const WeeklyChallengeHomePage(),
                             ),
                           );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: themeColor,
-                          minimumSize: const Size(200, 50),
+                          minimumSize: const Size(200, 55),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(25),
                           ),
@@ -86,12 +96,33 @@ class WeeklyChallengeLandingPage extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 18,
                             color: Colors.black,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                       const SizedBox(height: 20),
                     ],
                   ),
+                ),
+              ),
+            ),
+          ),
+          
+          // Back Button
+          Positioned(
+            top: 40,
+            left: 16,
+            child: IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.arrow_back,
+                  color: Colors.white,
                 ),
               ),
             ),
