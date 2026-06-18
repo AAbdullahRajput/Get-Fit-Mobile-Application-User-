@@ -143,7 +143,7 @@ class _GymPageState extends State<GymPage> {
             // Exercise Cards
             Expanded(
               child: RefreshIndicator(
-                color: themeColor,
+                color: context.subtextColor,
                 backgroundColor: context.cardBgColor,
                 onRefresh: () async {
                   await Future.delayed(const Duration(seconds: 1));

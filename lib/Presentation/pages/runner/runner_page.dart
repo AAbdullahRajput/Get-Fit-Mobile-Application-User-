@@ -27,8 +27,17 @@ class _RunnerPageState extends State<RunnerPage> {
     return Scaffold(
       backgroundColor: context.bgColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+  child: RefreshIndicator(
+    color: context.subtextColor,
+    backgroundColor: context.cardBgColor,
+    onRefresh: () async {
+      await Future.delayed(const Duration(seconds: 2));
+      setState(() {});
+    },
+    displacement: 100,
+    child: SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -315,6 +324,7 @@ class _RunnerPageState extends State<RunnerPage> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
