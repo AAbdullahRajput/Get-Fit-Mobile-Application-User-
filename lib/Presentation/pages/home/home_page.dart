@@ -400,10 +400,10 @@ class _OverviewTab extends StatelessWidget {
                     width: 50, height: 50),
                 title: const Text("Workout Today",
                     style: TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
+                        fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
                 subtitle: const Text(
                   "let's achieve your target today",
-                  style: TextStyle(fontSize: 13),
+                  style: TextStyle(fontSize: 13, color: Colors.black),
                 ),
               ),
             ),
@@ -608,8 +608,10 @@ class _OverviewTab extends StatelessWidget {
                         const SizedBox(height: 10),
                         const Text("Yoga",
                             style: TextStyle(
-                                fontWeight: FontWeight.bold)),
-                        const Text("Time: 2h:20m"),
+                                fontWeight: FontWeight.bold, color: Colors.black,)),
+                        const Text("Time: 2h:20m",style: TextStyle(
+                          color: Colors.black
+                        ),),
                         const Spacer(),
                         SizedBox(
                           width: 75,

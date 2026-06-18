@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Domain/models/exercise_model.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Presentation/pages/gym/gym_exercises/chest/chest_exercises_screen.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class GymPage extends StatefulWidget {
   const GymPage({super.key});
@@ -11,7 +13,7 @@ class GymPage extends StatefulWidget {
 
 class _GymPageState extends State<GymPage> {
   static bool _hasLoaded = false;
-  bool _isLoading = true;
+  bool _isLoading = false;
   int selectedCategory = 0;
 
   final List<String> categories = [
@@ -39,32 +41,34 @@ class _GymPageState extends State<GymPage> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_hasLoaded) _loadData();
+  void initState() {
+    super.initState();
+    _hasLoaded = true;
+    _isLoading = false;
   }
 
-  Future<void> _loadData() async {
-    if (_hasLoaded) {
-      setState(() => _isLoading = false);
-      return;
-    }
-    // Precache all exercise images
-    await Future.wait(
-      dummyExercises.map(
-        (e) => precacheImage(NetworkImage(e.imageUrl), context),
-      ),
-    );
-    if (mounted) {
-      _hasLoaded = true;
-      setState(() => _isLoading = false);
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _precacheImages();
+  }
+
+  Future<void> _precacheImages() async {
+    try {
+      await Future.wait(
+        dummyExercises.map(
+          (e) => precacheImage(NetworkImage(e.imageUrl), context),
+        ),
+      );
+    } catch (e) {
+      // Silently handle errors
     }
   }
 
   Future<void> _onRefresh() async {
     setState(() => _isLoading = true);
     await Future.wait([
-      Future.delayed(const Duration(milliseconds: 800)),
+      Future.delayed(const Duration(milliseconds: 500)),
       ...dummyExercises.map(
         (e) => precacheImage(NetworkImage(e.imageUrl), context),
       ),
@@ -73,6 +77,127 @@ class _GymPageState extends State<GymPage> {
       setState(() => _isLoading = false);
     }
   }
+
+  void _navigateToCategoryScreen(String category) {
+    switch(category) {
+      case 'Chest':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ChestExercisesScreen(),
+          ),
+        );
+        break;
+      case 'Back':
+        _showComingSoon(category);
+        break;
+      case 'Shoulders':
+        _showComingSoon(category);
+        break;
+      case 'Legs':
+        _showComingSoon(category);
+        break;
+      case 'Arms':
+        _showComingSoon(category);
+        break;
+      case 'Core':
+        _showComingSoon(category);
+        break;
+      default:
+        _showComingSoon(category);
+    }
+  }
+
+  void _showComingSoon(String category) {
+  // Get hex color without # prefix
+  final colorHex = themeColor.value.toRadixString(16).padLeft(8, '0').substring(2);
+  
+  showDialog(
+    context: context,
+    barrierDismissible: true,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        backgroundColor: context.bgColor,
+        elevation: 8,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: context.bgColor,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // SVG Icon - Using simple dumbbell
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.fitness_center,
+                  color: themeColor,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Title
+              Text(
+                'Coming Soon!',
+                style: TextStyle(
+                  color: context.textColor,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              // Message
+              Text(
+                '$category exercises are being added.\nStay tuned for updates!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: context.subtextColor,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: themeColor,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Got it!',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -134,8 +259,7 @@ class _GymPageState extends State<GymPage> {
                 itemBuilder: (context, index) {
                   final selected = selectedCategory == index;
                   return GestureDetector(
-                    onTap: () =>
-                        setState(() => selectedCategory = index),
+                    onTap: () => setState(() => selectedCategory = index),
                     child: Container(
                       margin: const EdgeInsets.only(right: 8),
                       padding: const EdgeInsets.symmetric(
@@ -212,7 +336,7 @@ class _GymPageState extends State<GymPage> {
         return _ShimmerWidget(
           child: Container(
             margin: const EdgeInsets.only(bottom: 16),
-            height: 200,
+            height: 180,
             decoration: BoxDecoration(
               color: context.isDark
                   ? const Color(0xff3a3a3a)
@@ -226,161 +350,148 @@ class _GymPageState extends State<GymPage> {
   }
 
   Widget _exerciseCard(BuildContext context, Exercise exercise) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      height: 200,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            // Background Image - using cacheWidth for better performance
-            Positioned.fill(
-              child: Image.network(
-                exercise.imageUrl,
-                fit: BoxFit.cover,
-                cacheWidth: 600, // Limit cache size
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return Container(
-                    color: context.cardBgColor,
-                    child: const Center(
-                      child: CircularProgressIndicator(color: themeColor),
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stack) => Container(
-                  color: context.cardBgColor,
-                  child: const Icon(Icons.fitness_center,
-                      color: themeColor, size: 48),
+    return GestureDetector(
+      onTap: () => _navigateToCategoryScreen(exercise.category),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        height: 180,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              // Background Image
+              Positioned.fill(
+                child: Image.network(
+                  exercise.imageUrl,
+                  fit: BoxFit.cover,
+                  cacheWidth: 600,
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return Container(
+                      color: context.cardBgColor,
+                      child: const Center(
+  child: CircularProgressIndicator(color: Colors.black),
+),
+                    );
+                  },
+                  errorBuilder: (context, error, stack) => Container(
+  color: context.cardBgColor,
+  child: Icon(Icons.fitness_center,
+      color: context.isDark ? themeColor : Colors.black, size: 48),
+),
                 ),
               ),
-            ),
-
-            // Dark gradient overlay
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.85),
+              // Dark Gradient Overlay
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.85),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Content
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _levelColor(exercise.level).withOpacity(0.85),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              exercise.level,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              exercise.category,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        exercise.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        exercise.description,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            'View ${exercise.category} Exercises →',
+                            style: const TextStyle(
+                              color: themeColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ),
-            ),
-
-            // Content
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Category Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _levelColor(exercise.level).withOpacity(0.85),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        exercise.category,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-
-                    // Title
-                    Text(
-                      exercise.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-
-                    // Description
-                    Text(
-                      exercise.description,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Sets / Reps / Rest chips + Arrow
-                    Row(
-                      children: [
-                        _chip(exercise.sets),
-                        const SizedBox(width: 8),
-                        _chip(exercise.reps),
-                        const SizedBox(width: 8),
-                        _chip(exercise.rest),
-                        const Spacer(),
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: const BoxDecoration(
-                            color: themeColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.arrow_forward,
-                            color: Colors.black,
-                            size: 18,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _chip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
+            ],
+          ),
         ),
       ),
     );
