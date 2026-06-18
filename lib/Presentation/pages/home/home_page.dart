@@ -4,6 +4,7 @@ import 'package:get_fit/Presentation/widgets/yoga_navbar_item_content.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Domain/models/fitness_trainer_model.dart';
 import 'package:get_fit/Presentation/pages/setup-2.0/fitness_tainer_detail_page.dart';
+import 'package:get_fit/Presentation/pages/runner/runner_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -132,9 +133,8 @@ class _HomePageState extends State<HomePage> {
             child: Text('Gym Coming Soon',
                 style: TextStyle(color: context.textColor)));
       case 4:
-        return Center(
-            child: Text('Running Coming Soon',
-                style: TextStyle(color: context.textColor)));
+        case 4:
+        return const RunnerPage();
       default:
         return const SizedBox();
     }
