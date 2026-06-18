@@ -16,7 +16,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedTab = 0;
-  bool _isLoading = false;
+  static bool _hasLoaded = false;
+  bool _isLoading = true;
 
   final List<Map<String, dynamic>> _tabs = const [
     {'label': 'Overview', 'icon': Icons.grid_view_rounded},
@@ -27,15 +28,32 @@ class _HomePageState extends State<HomePage> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-  }
+void initState() {
+  super.initState();
+  _loadData();
+}
 
-  Future<void> _onRefresh() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
-    if (mounted) setState(() => _isLoading = false);
+Future<void> _loadData() async {
+  if (_hasLoaded) {
+    setState(() => _isLoading = false);
+    return;
   }
+  await Future.delayed(const Duration(seconds: 1));
+  if (mounted) {
+    _hasLoaded = true;
+    setState(() => _isLoading = false);
+  }
+}
+
+Future<void> _onRefresh() async {
+  _hasLoaded = false;
+  setState(() => _isLoading = true);
+  await Future.delayed(const Duration(seconds: 1));
+  if (mounted) {
+    _hasLoaded = true;
+    setState(() => _isLoading = false);
+  }
+}
 
   Widget _getTabContent(BuildContext context) {
     if (_isLoading) return _buildSkeleton(context);
