@@ -189,7 +189,7 @@ class _SettingHomePageState extends State<SettingHomePage> {
               child: SizedBox(
                 height: 420,
                 child: RefreshIndicator(
-                  color: themeColor,
+                  color: context.subtextColor,
                   backgroundColor: context.cardBgColor,
                   displacement: 100,
                   onRefresh: _onRefresh,
