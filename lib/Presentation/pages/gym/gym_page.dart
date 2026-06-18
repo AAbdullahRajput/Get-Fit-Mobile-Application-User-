@@ -3,6 +3,8 @@ import 'package:get_fit/Domain/models/exercise_model.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/chest/chest_exercises_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:get_fit/Presentation/pages/gym/gym_exercises/back/back_exercises_screen.dart';
+
 
 class GymPage extends StatefulWidget {
   const GymPage({super.key});
@@ -89,7 +91,12 @@ class _GymPageState extends State<GymPage> {
         );
         break;
       case 'Back':
-        _showComingSoon(category);
+        Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const BackExercisesScreen(),
+        ),
+      );
         break;
       case 'Shoulders':
         _showComingSoon(category);
