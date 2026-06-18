@@ -38,10 +38,10 @@ class _GymPageState extends State<GymPage> {
     }
   }
 
-  @override
-void initState() {
-  super.initState();
-  _loadData();
+@override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  if (!_hasLoaded) _loadData();
 }
 
 Future<void> _loadData() async {
@@ -49,7 +49,12 @@ Future<void> _loadData() async {
     setState(() => _isLoading = false);
     return;
   }
-  await Future.delayed(const Duration(seconds: 1));
+  // Precache all exercise images
+  await Future.wait(
+    dummyExercises.map(
+      (e) => precacheImage(NetworkImage(e.imageUrl), context),
+    ),
+  );
   if (mounted) {
     _hasLoaded = true;
     setState(() => _isLoading = false);
@@ -237,25 +242,25 @@ Widget _buildSkeleton(BuildContext context) {
           children: [
             // Background Image
             Positioned.fill(
-              child: Image.network(
-                exercise.imageUrl,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return Container(
+                child: Image.network(
+                  exercise.imageUrl,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return Container(
+                      color: context.cardBgColor,
+                      child: const Center(
+                        child: CircularProgressIndicator(color: themeColor),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stack) => Container(
                     color: context.cardBgColor,
-                    child: const Center(
-                      child: CircularProgressIndicator(color: themeColor),
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stack) => Container(
-                  color: context.cardBgColor,
-                  child: const Icon(Icons.fitness_center,
-                      color: themeColor, size: 48),
+                    child: const Icon(Icons.fitness_center,
+                        color: themeColor, size: 48),
+                  ),
                 ),
               ),
-            ),
 
             // Dark gradient overlay
             Positioned.fill(

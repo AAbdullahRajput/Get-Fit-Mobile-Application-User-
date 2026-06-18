@@ -14,7 +14,7 @@ dependencies:
   animated_weight_picker: any
   omni_datetime_picker: any
   payment_card: any
-
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
