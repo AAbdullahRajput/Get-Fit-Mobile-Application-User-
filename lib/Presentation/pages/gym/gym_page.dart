@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Domain/models/exercise_model.dart';
+import 'package:get_fit/Presentation/pages/gym/gym_exercises/shoulders/shoulders_exercises_screen.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/chest/chest_exercises_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -99,7 +100,12 @@ class _GymPageState extends State<GymPage> {
       );
         break;
       case 'Shoulders':
-        _showComingSoon(category);
+        Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const ShouldersExercisesScreen(),
+        ),
+      );
         break;
       case 'Legs':
         _showComingSoon(category);

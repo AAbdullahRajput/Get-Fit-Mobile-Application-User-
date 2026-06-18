@@ -279,15 +279,23 @@ class BackExerciseDetail extends StatelessWidget {
   }
 
   Widget _muscleChip(BuildContext context, String muscle) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: themeColor.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(20),
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    decoration: BoxDecoration(
+      color: isDark ? themeColor.withOpacity(0.2) : Colors.grey.shade200,
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      muscle,
+      style: TextStyle(
+        color: isDark ? themeColor : Colors.black87,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
       ),
-      child: Text(muscle, style: TextStyle(color: themeColor, fontSize: 13, fontWeight: FontWeight.w500)),
-    );
-  }
+    ),
+  );
+}
 
   Widget _instructionItem(BuildContext context, String number, String instruction) {
     return Padding(

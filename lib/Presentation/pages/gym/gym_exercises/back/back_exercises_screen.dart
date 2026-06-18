@@ -91,7 +91,7 @@ class _BackExercisesScreenState extends State<BackExercisesScreen> {
         centerTitle: false,
       ),
       body: RefreshIndicator(
-        color: themeColor,
+        color: context.subtextColor,
         backgroundColor: context.cardBgColor,
         displacement: 100,
         onRefresh: _onRefresh,
