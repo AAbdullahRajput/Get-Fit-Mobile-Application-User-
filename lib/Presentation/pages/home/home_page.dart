@@ -16,7 +16,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedTab = 0;
-  bool _isLoading = true;
+  bool _isLoading = false;
 
   final List<Map<String, dynamic>> _tabs = const [
     {'label': 'Overview', 'icon': Icons.grid_view_rounded},
@@ -29,12 +29,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    await Future.delayed(const Duration(seconds: 2));
-    if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _onRefresh() async {
@@ -283,8 +277,6 @@ class _HomePageState extends State<HomePage> {
             return GestureDetector(
               onTap: () => setState(() {
                 _selectedTab = i;
-                _isLoading = true;
-                _loadData();
               }),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

@@ -1,6 +1,4 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:get_fit/Presentation/pages/setting/app_settings_page.dart';
 import 'package:get_fit/Presentation/pages/setting/favorites_page.dart';
 import 'package:get_fit/Presentation/pages/setting/help_and_faq_page.dart';
@@ -17,6 +15,8 @@ class SettingHomePage extends StatefulWidget {
 }
 
 class _SettingHomePageState extends State<SettingHomePage> {
+  bool _isLoading = true;
+
   final List<Map<String, dynamic>> settingsItems = const [
     {'title': 'Profile', 'icon': Icons.person},
     {'title': 'Favourite', 'icon': Icons.star},
@@ -28,40 +28,56 @@ class _SettingHomePageState extends State<SettingHomePage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+  await Future.delayed(const Duration(seconds: 1));
+  if (mounted) setState(() => _isLoading = false);
+}
+
+
+  Future<void> _onRefresh() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.bgColor,
       body: Stack(
         children: [
+          // Yellow header bg
           Container(
             height: 337,
             width: double.infinity,
-            decoration: const BoxDecoration(
-              color: themeColor,
-            ),
+            decoration: const BoxDecoration(color: themeColor),
           ),
+
+          // Back button
           SafeArea(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
+                  onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
                     shape: const CircleBorder(),
                     padding: const EdgeInsets.all(10),
                     backgroundColor: Colors.black54,
                   ),
-                  child: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.arrow_back, color: Colors.white),
                 ),
               ],
             ),
           ),
+
+          // Profile section (always visible, not skeletonized — it's above the fold)
           SafeArea(
             child: Center(
               child: Padding(
@@ -69,10 +85,10 @@ class _SettingHomePageState extends State<SettingHomePage> {
                 child: Column(
                   children: [
                     CircleAvatar(
-                        radius: 65,
-                        backgroundColor: context.bgColor,
-                        child: Icon(Icons.person,
-                            size: 100, color: context.textColor)),
+                      radius: 65,
+                      backgroundColor: context.bgColor,
+                      child: Icon(Icons.person, size: 100, color: context.textColor),
+                    ),
                     const SizedBox(height: 20),
                     Text(
                       'Name Surname',
@@ -85,16 +101,15 @@ class _SettingHomePageState extends State<SettingHomePage> {
                     const SizedBox(height: 10),
                     Text(
                       "email@gmail.com",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: context.subtextColor,
-                      ),
+                      style: TextStyle(fontSize: 16, color: context.subtextColor),
                     ),
                   ],
                 ),
               ),
             ),
           ),
+
+          // Stats bar
           Positioned(
             top: 295,
             left: 0,
@@ -115,64 +130,34 @@ class _SettingHomePageState extends State<SettingHomePage> {
                     children: [
                       Column(
                         children: [
-                          Text(
-                            "75 kg",
-                            style: TextStyle(
-                              fontSize: 20,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            "Weight",
-                            style: TextStyle(
-                              color: Colors.white70,
-                            ),
-                          ),
+                          Text("75 kg",
+                              style: TextStyle(
+                                  fontSize: 20,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
+                          Text("Weight", style: TextStyle(color: Colors.white70)),
                         ],
                       ),
-                      VerticalDivider(
-                        color: Colors.white,
-                        thickness: 2,
-                      ),
+                      VerticalDivider(color: Colors.white, thickness: 2),
                       Column(
                         children: [
-                          Text(
-                            "28",
-                            style: TextStyle(
-                              fontSize: 20,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            "Years Old",
-                            style: TextStyle(
-                              color: Colors.white70,
-                            ),
-                          ),
+                          Text("28",
+                              style: TextStyle(
+                                  fontSize: 20,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
+                          Text("Years Old", style: TextStyle(color: Colors.white70)),
                         ],
                       ),
-                      VerticalDivider(
-                        color: Colors.white,
-                        thickness: 2,
-                      ),
+                      VerticalDivider(color: Colors.white, thickness: 2),
                       Column(
                         children: [
-                          Text(
-                            "180 cm",
-                            style: TextStyle(
-                              fontSize: 20,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            "Height",
-                            style: TextStyle(
-                              color: Colors.white70,
-                            ),
-                          ),
+                          Text("180 cm",
+                              style: TextStyle(
+                                  fontSize: 20,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
+                          Text("Height", style: TextStyle(color: Colors.white70)),
                         ],
                       ),
                     ],
@@ -181,6 +166,8 @@ class _SettingHomePageState extends State<SettingHomePage> {
               ),
             ),
           ),
+
+          // Settings list with skeleton + refresh
           Positioned(
             top: 350,
             left: 0,
@@ -189,145 +176,14 @@ class _SettingHomePageState extends State<SettingHomePage> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox(
                 height: 420,
-                child: ListView.builder(
-                  itemCount: settingsItems.length,
-                  itemBuilder: (context, index) {
-                    final item = settingsItems[index];
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: themeColor,
-                        child: Icon(
-                          item['icon'],
-                          color: Colors.black,
-                          size: 24,
-                        ),
-                      ),
-                      title: Text(
-                        item['title'],
-                        style: TextStyle(
-                          color: context.textColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      trailing: item['title'] == 'Dark Mode'
-                          ? ValueListenableBuilder<ThemeMode>(
-                              valueListenable: themeNotifier,
-                              builder: (context, mode, _) {
-                                return Switch(
-                                  value: mode == ThemeMode.dark,
-                                  activeColor: themeColor,
-                                  onChanged: (val) {
-                                    themeNotifier.value = val
-                                        ? ThemeMode.dark
-                                        : ThemeMode.light;
-                                  },
-                                );
-                              },
-                            )
-                          : Icon(
-                              Icons.arrow_forward_ios,
-                              color: context.isDark ? themeColor : Colors.black,
-                              size: 18,
-                            ),
-                      onTap: () {
-                        switch (item['title']) {
-                          case 'Profile':
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ProfilePage(),
-                              ),
-                            );
-                            break;
-
-                          case 'Favourite':
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => FavoritesPage(),
-                              ),
-                            );
-                            break;
-
-                          case 'Privacy Policy':
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const PrivacyPolicyPage(),
-                              ),
-                            );
-                            break;
-
-                          case 'Settings':
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AppSettingsPage(),
-                              ),
-                            );
-                            break;
-
-                          case 'Help':
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => const HelpAndFaqPage(),
-                              ),
-                            );
-                            break;
-
-                          case 'Dark Mode':
-                            themeNotifier.value =
-                                themeNotifier.value == ThemeMode.dark
-                                    ? ThemeMode.light
-                                    : ThemeMode.dark;
-                            break;
-
-                          case 'Logout':
-                            showDialog(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return AlertDialog(
-                                  backgroundColor: context.bgColor,
-                                  title: Text('Logout',
-                                      style:
-                                          TextStyle(color: context.textColor)),
-                                  content: Text(
-                                    'Are you sure you want to logout?',
-                                    style:
-                                        TextStyle(color: context.subtextColor),
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context),
-                                      child: Text('Cancel',
-                                          style: TextStyle(
-                                              color: context.subtextColor)),
-                                    ),
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.pushAndRemoveUntil(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                const LoginPage(),
-                                          ),
-                                          (route) => false,
-                                        );
-                                      },
-                                      child: const Text('Logout',
-                                          style:TextStyle(color: themeColor)),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                            break;
-                        }
-                      },
-                    );
-                  },
+                child: RefreshIndicator(
+                  color: themeColor,
+                  backgroundColor: context.cardBgColor,
+                  displacement: 100,
+                  onRefresh: _onRefresh,
+                  child: _isLoading
+                      ? _buildSkeleton(context)
+                      : _buildList(context),
                 ),
               ),
             ),
@@ -335,5 +191,186 @@ class _SettingHomePageState extends State<SettingHomePage> {
         ],
       ),
     );
+  }
+
+  Widget _buildList(BuildContext context) {
+    return ListView.builder(
+  physics: const AlwaysScrollableScrollPhysics(),
+  itemCount: settingsItems.length,
+  itemBuilder: (context, index) {
+        final item = settingsItems[index];
+        final isLogout = item['title'] == 'Logout';
+        return ListTile(
+          leading: CircleAvatar(
+            backgroundColor: themeColor,
+            child: Icon(item['icon'], color: Colors.black, size: 24),
+          ),
+          title: Text(
+            item['title'],
+            style: TextStyle(
+              color: isLogout
+                  ? (context.isDark ? themeColor : Colors.red)
+                  : context.textColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          trailing: item['title'] == 'Dark Mode'
+              ? ValueListenableBuilder<ThemeMode>(
+                  valueListenable: themeNotifier,
+                  builder: (context, mode, _) {
+                    return Switch(
+                      value: mode == ThemeMode.dark,
+                      activeColor: themeColor,
+                      onChanged: (val) {
+                        themeNotifier.value =
+                            val ? ThemeMode.dark : ThemeMode.light;
+                      },
+                    );
+                  },
+                )
+              : Icon(
+                  Icons.arrow_forward_ios,
+                  color: context.isDark ? themeColor : Colors.black,
+                  size: 18,
+                ),
+          onTap: () => _handleTap(item['title']),
+        );
+      },
+    );
+  }
+
+  Widget _buildSkeleton(BuildContext context) {
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: settingsItems.length,
+      itemBuilder: (context, index) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              _shimmer(context, width: 40, height: 40, radius: 20),
+              const SizedBox(width: 16),
+              _shimmer(context, width: 140, height: 16),
+              const Spacer(),
+              _shimmer(context, width: 20, height: 20, radius: 4),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _shimmer(BuildContext context,
+      {required double width, required double height, double radius = 8}) {
+    return _ShimmerWidget(
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: context.isDark
+              ? const Color(0xff3a3a3a)
+              : Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(radius),
+        ),
+      ),
+    );
+  }
+
+  void _handleTap(String title) {
+    switch (title) {
+      case 'Profile':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => ProfilePage()));
+        break;
+      case 'Favourite':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => FavoritesPage()));
+        break;
+      case 'Privacy Policy':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const PrivacyPolicyPage()));
+        break;
+      case 'Settings':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => AppSettingsPage()));
+        break;
+      case 'Help':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const HelpAndFaqPage()));
+        break;
+      case 'Dark Mode':
+        themeNotifier.value = themeNotifier.value == ThemeMode.dark
+            ? ThemeMode.light
+            : ThemeMode.dark;
+        break;
+      case 'Logout':
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: context.bgColor,
+            title: Text('Logout', style: TextStyle(color: context.textColor)),
+            content: Text('Are you sure you want to logout?',
+                style: TextStyle(color: context.subtextColor)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel',
+                    style: TextStyle(color: context.subtextColor)),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                    (route) => false,
+                  );
+                },
+                child: Text('Logout',
+                    style: TextStyle(
+                        color: context.isDark ? themeColor : Colors.red)),
+              ),
+            ],
+          ),
+        );
+        break;
+    }
+  }
+}
+
+class _ShimmerWidget extends StatefulWidget {
+  final Widget child;
+  const _ShimmerWidget({required this.child});
+
+  @override
+  State<_ShimmerWidget> createState() => _ShimmerWidgetState();
+}
+
+class _ShimmerWidgetState extends State<_ShimmerWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(opacity: _animation, child: widget.child);
   }
 }
