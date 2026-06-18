@@ -10,6 +10,8 @@ class GymPage extends StatefulWidget {
 }
 
 class _GymPageState extends State<GymPage> {
+  static bool _hasLoaded = false;
+  bool _isLoading = true;
   int selectedCategory = 0;
 
   final List<String> categories = [
@@ -37,7 +39,35 @@ class _GymPageState extends State<GymPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+void initState() {
+  super.initState();
+  _loadData();
+}
+
+Future<void> _loadData() async {
+  if (_hasLoaded) {
+    setState(() => _isLoading = false);
+    return;
+  }
+  await Future.delayed(const Duration(seconds: 1));
+  if (mounted) {
+    _hasLoaded = true;
+    setState(() => _isLoading = false);
+  }
+}
+
+Future<void> _onRefresh() async {
+  _hasLoaded = false;
+  setState(() => _isLoading = true);
+  await Future.delayed(const Duration(seconds: 1));
+  if (mounted) {
+    _hasLoaded = true;
+    setState(() => _isLoading = false);
+  }
+}
+
+@override
+Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.bgColor,
       body: SafeArea(
@@ -145,11 +175,11 @@ class _GymPageState extends State<GymPage> {
               child: RefreshIndicator(
                 color: context.subtextColor,
                 backgroundColor: context.cardBgColor,
-                onRefresh: () async {
-                  await Future.delayed(const Duration(seconds: 1));
-                  setState(() {});
-                },
-                child: ListView.builder(
+                onRefresh: _onRefresh,
+                child: _isLoading
+                ? _buildSkeleton(context)
+                : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   itemCount: filteredExercises.length,
                   itemBuilder: (context, index) {
@@ -164,6 +194,28 @@ class _GymPageState extends State<GymPage> {
       ),
     );
   }
+
+Widget _buildSkeleton(BuildContext context) {
+  return ListView.builder(
+    physics: const AlwaysScrollableScrollPhysics(),
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    itemCount: 5,
+    itemBuilder: (context, index) {
+      return _ShimmerWidget(
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          height: 200,
+          decoration: BoxDecoration(
+            color: context.isDark
+                ? const Color(0xff3a3a3a)
+                : Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+      );
+    },
+  );
+}
 
   Widget _exerciseCard(BuildContext context, Exercise exercise) {
     return Container(
@@ -323,5 +375,41 @@ class _GymPageState extends State<GymPage> {
         ),
       ),
     );
+  }
+}
+class _ShimmerWidget extends StatefulWidget {
+  final Widget child;
+  const _ShimmerWidget({required this.child});
+
+  @override
+  State<_ShimmerWidget> createState() => _ShimmerWidgetState();
+}
+
+class _ShimmerWidgetState extends State<_ShimmerWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(opacity: _animation, child: widget.child);
   }
 }
