@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Domain/models/exercise_model.dart';
+import 'package:get_fit/Presentation/pages/gym/gym_exercises/legs/legs_exercises_screen.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/shoulders/shoulders_exercises_screen.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/chest/chest_exercises_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/back/back_exercises_screen.dart';
+import 'package:get_fit/Presentation/pages/gym/gym_exercises/legs/legs_exercises_screen.dart';
+import 'package:get_fit/Presentation/pages/gym/gym_exercises/arms/arms_exercises_screen.dart';
 
 
 class GymPage extends StatefulWidget {
@@ -108,10 +111,21 @@ class _GymPageState extends State<GymPage> {
       );
         break;
       case 'Legs':
-        _showComingSoon(category);
+        Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const LegsExercisesScreen(),
+        ),
+      );
         break;
       case 'Arms':
-        _showComingSoon(category);
+        case 'Arms':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ArmsExercisesScreen(),
+          ),
+        );
         break;
       case 'Core':
         _showComingSoon(category);
