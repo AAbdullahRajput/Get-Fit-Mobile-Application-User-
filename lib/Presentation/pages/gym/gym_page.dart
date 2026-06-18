@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_fit/Domain/models/exercise_model.dart';
 import 'package:get_fit/Utils/constants.dart';
 
 class GymPage extends StatefulWidget {
@@ -11,79 +12,14 @@ class GymPage extends StatefulWidget {
 class _GymPageState extends State<GymPage> {
   int selectedCategory = 0;
 
-  final List<String> categories = ['All', 'Chest', 'Back', 'Legs', 'Arms', 'Core'];
-
-  final List<Map<String, dynamic>> exercises = [
-    {
-      'title': 'Bench Press',
-      'category': 'Chest',
-      'sets': '4 Sets',
-      'reps': '12 Reps',
-      'level': 'Intermediate',
-      'icon': Icons.fitness_center,
-    },
-    {
-      'title': 'Pull Ups',
-      'category': 'Back',
-      'sets': '3 Sets',
-      'reps': '10 Reps',
-      'level': 'Advanced',
-      'icon': Icons.accessibility_new,
-    },
-    {
-      'title': 'Squats',
-      'category': 'Legs',
-      'sets': '4 Sets',
-      'reps': '15 Reps',
-      'level': 'Beginner',
-      'icon': Icons.directions_walk,
-    },
-    {
-      'title': 'Bicep Curls',
-      'category': 'Arms',
-      'sets': '3 Sets',
-      'reps': '12 Reps',
-      'level': 'Beginner',
-      'icon': Icons.sports_gymnastics,
-    },
-    {
-      'title': 'Deadlift',
-      'category': 'Back',
-      'sets': '4 Sets',
-      'reps': '8 Reps',
-      'level': 'Advanced',
-      'icon': Icons.fitness_center,
-    },
-    {
-      'title': 'Plank',
-      'category': 'Core',
-      'sets': '3 Sets',
-      'reps': '60 Secs',
-      'level': 'Beginner',
-      'icon': Icons.self_improvement,
-    },
-    {
-      'title': 'Leg Press',
-      'category': 'Legs',
-      'sets': '4 Sets',
-      'reps': '12 Reps',
-      'level': 'Intermediate',
-      'icon': Icons.directions_walk,
-    },
-    {
-      'title': 'Tricep Dips',
-      'category': 'Arms',
-      'sets': '3 Sets',
-      'reps': '15 Reps',
-      'level': 'Intermediate',
-      'icon': Icons.sports_gymnastics,
-    },
+  final List<String> categories = [
+    'All', 'Chest', 'Back', 'Shoulders', 'Legs', 'Arms', 'Core'
   ];
 
-  List<Map<String, dynamic>> get filteredExercises {
-    if (selectedCategory == 0) return exercises;
-    return exercises
-        .where((e) => e['category'] == categories[selectedCategory])
+  List<Exercise> get filteredExercises {
+    if (selectedCategory == 0) return dummyExercises;
+    return dummyExercises
+        .where((e) => e.category == categories[selectedCategory])
         .toList();
   }
 
@@ -150,78 +86,7 @@ class _GymPageState extends State<GymPage> {
             ),
             const SizedBox(height: 16),
 
-            // Today's Goal Banner
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: themeColor,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.emoji_events,
-                        color: Colors.black, size: 36),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          "Today's Goal",
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          "Complete 4 exercises • Burn 600 Kcal",
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Stats Row
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  _statCard(context, Icons.timer_outlined, '45 Min',
-                      'Duration'),
-                  const SizedBox(width: 12),
-                  _statCard(context, Icons.local_fire_department_outlined,
-                      '600 Kcal', 'Calories'),
-                  const SizedBox(width: 12),
-                  _statCard(context, Icons.fitness_center_outlined,
-                      '8 Exer', 'Exercises'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
             // Category Filter
-            Padding(
-              padding: const EdgeInsets.only(left: 20),
-              child: Text(
-                'Exercises',
-                style: TextStyle(
-                  color: context.textColor,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
             SizedBox(
               height: 35,
               child: ListView.builder(
@@ -238,8 +103,7 @@ class _GymPageState extends State<GymPage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 6),
                       decoration: BoxDecoration(
-                        color:
-                            selected ? themeColor : context.cardBgColor,
+                        color: selected ? themeColor : context.cardBgColor,
                         borderRadius: BorderRadius.circular(20),
                         border: selected
                             ? null
@@ -252,9 +116,7 @@ class _GymPageState extends State<GymPage> {
                       child: Text(
                         categories[index],
                         style: TextStyle(
-                          color: selected
-                              ? Colors.black
-                              : context.textColor,
+                          color: selected ? Colors.black : context.textColor,
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),
@@ -264,97 +126,29 @@ class _GymPageState extends State<GymPage> {
                 },
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Exercise count
+            Padding(
+              padding: const EdgeInsets.only(left: 20),
+              child: Text(
+                '${filteredExercises.length} exercises',
+                style: TextStyle(
+                  color: context.subtextColor,
+                  fontSize: 13,
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
 
-            // Exercise List
+            // Exercise Cards
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 itemCount: filteredExercises.length,
                 itemBuilder: (context, index) {
                   final exercise = filteredExercises[index];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: context.cardBgColor,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: themeColor,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            exercise['icon'] as IconData,
-                            color: Colors.black,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                exercise['title'],
-                                style: TextStyle(
-                                  color: context.textColor,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Text(
-                                    exercise['sets'],
-                                    style: TextStyle(
-                                      color: context.subtextColor,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  Text(
-                                    ' • ',
-                                    style: TextStyle(
-                                        color: context.subtextColor),
-                                  ),
-                                  Text(
-                                    exercise['reps'],
-                                    style: TextStyle(
-                                      color: context.subtextColor,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _levelColor(exercise['level'])
-                                .withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            exercise['level'],
-                            style: TextStyle(
-                              color: _levelColor(exercise['level']),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+                  return _exerciseCard(context, exercise);
                 },
               ),
             ),
@@ -364,35 +158,161 @@ class _GymPageState extends State<GymPage> {
     );
   }
 
-  Widget _statCard(
-      BuildContext context, IconData icon, String value, String label) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: context.cardBgColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
+  Widget _exerciseCard(BuildContext context, Exercise exercise) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      height: 200,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
           children: [
-            Icon(icon, color: themeColor, size: 20),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                color: context.textColor,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
+            // Background Image
+            Positioned.fill(
+              child: Image.network(
+                exercise.imageUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
+                    color: context.cardBgColor,
+                    child: const Center(
+                      child: CircularProgressIndicator(color: themeColor),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stack) => Container(
+                  color: context.cardBgColor,
+                  child: const Icon(Icons.fitness_center,
+                      color: themeColor, size: 48),
+                ),
               ),
             ),
-            Text(
-              label,
-              style: TextStyle(
-                color: context.subtextColor,
-                fontSize: 11,
+
+            // Dark gradient overlay
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.85),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Content
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Category Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _levelColor(exercise.level).withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        exercise.category,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+
+                    // Title
+                    Text(
+                      exercise.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Description
+                    Text(
+                      exercise.description,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Sets / Reps / Rest chips + Arrow
+                    Row(
+                      children: [
+                        _chip(exercise.sets),
+                        const SizedBox(width: 8),
+                        _chip(exercise.reps),
+                        const SizedBox(width: 8),
+                        _chip(exercise.rest),
+                        const Spacer(),
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: const BoxDecoration(
+                            color: themeColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.arrow_forward,
+                            color: Colors.black,
+                            size: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
