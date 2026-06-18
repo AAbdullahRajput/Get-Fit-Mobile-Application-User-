@@ -12,26 +12,29 @@ class YogaNavbarItemContent extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SizedBox(height: 16),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Text(
             "Today's Schedule",
             style: TextStyle(
-                color: context.textColor,
-                fontSize: 23,
-                fontWeight: FontWeight.bold),
+              color: context.textColor,
+              fontSize: 23,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _yogaContainers(context, "assets/home/yoga-img-1.png", "Plates"),
+            _yogaContainers(context, "assets/home/yoga-img-1.png", "Pilates"),
             _yogaContainers(context, "assets/home/yoga-img-2.png", "HIT Express"),
             _yogaContainers(context, "assets/home/yoga-img-3.png", "Evening Yoga"),
           ],
         ),
         const SizedBox(height: 20),
+        // Motivation Card
         Container(
           height: 194,
           width: double.infinity,
@@ -51,30 +54,35 @@ class YogaNavbarItemContent extends StatelessWidget {
                       Text(
                         "Don't break the chain",
                         style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold),
+                          color: Colors.black,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      Text("You've done 3 of 5 workouts this week."),
+                      SizedBox(height: 8),
+                      Text(
+                        "You've done 3 of 5 workouts this week.",
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 13,
+                        ),
+                      ),
                       Spacer(),
-                      Icon(Icons.bubble_chart_rounded),
+                      Icon(Icons.bubble_chart_rounded, color: Colors.black54),
                     ],
                   ),
                 ),
               ),
               Expanded(
-                child: Container(
-                  height: 200,
-                  width: 200,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.asset(
-                      "assets/home/yoga-handclosed-big-img.jpg",
-                      fit: BoxFit.fitHeight,
-                    ),
+                  child: Image.asset(
+                    "assets/home/yoga-handclosed-big-img.jpg",
+                    height: 194,
+                    fit: BoxFit.cover,
                   ),
                 ),
               ),
@@ -82,17 +90,19 @@ class YogaNavbarItemContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
+        // News Feed Header
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 "News Feed",
                 style: TextStyle(
-                    color: context.textColor,
-                    fontSize: 23,
-                    fontWeight: FontWeight.bold),
+                  color: context.textColor,
+                  fontSize: 23,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               InkWell(
                 onTap: () {
@@ -111,11 +121,9 @@ class YogaNavbarItemContent extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 20),
-        // News card 1
+        const SizedBox(height: 16),
         _newsCard(context),
-        const SizedBox(height: 20),
-        // News card 2
+        const SizedBox(height: 16),
         _newsCard(context),
         const SizedBox(height: 20),
       ],
@@ -128,15 +136,17 @@ class YogaNavbarItemContent extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
+        color: context.cardBgColor,
       ),
       child: Column(
         children: [
           Expanded(
-            flex: 1,
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: context.isDark ? Colors.white : Colors.grey[200],
+                color: context.isDark
+                    ? const Color(0xff3a3a3a)
+                    : Colors.grey[200],
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
@@ -150,12 +160,11 @@ class YogaNavbarItemContent extends StatelessWidget {
             ),
           ),
           Expanded(
-            flex: 1,
             child: Container(
               decoration: BoxDecoration(
                 color: context.isDark
                     ? const Color(0xff2f2f2f)
-                    : const Color(0xff1A1A1A),
+                    : const Color(0xff2a2a2a),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(16),
                   bottomRight: Radius.circular(16),
@@ -188,7 +197,7 @@ class YogaNavbarItemContent extends StatelessWidget {
       height: 100,
       width: 100,
       decoration: BoxDecoration(
-        color: context.isDark ? Colors.white : Colors.grey[200],
+        color: context.isDark ? const Color(0xff2f2f2f) : Colors.grey[200],
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
@@ -196,26 +205,33 @@ class YogaNavbarItemContent extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: context.textColor,
+            ),
           ),
           Image.asset(
             imgPath,
-            height: 60,
-            width: 60,
+            height: 55,
+            width: 55,
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(CupertinoIcons.clock,
-                  size: 12,
-                  color: context.isDark ? Colors.grey : Colors.black54),
+              Icon(
+                CupertinoIcons.clock,
+                size: 11,
+                color: context.subtextColor,
+              ),
+              const SizedBox(width: 2),
               Text(
                 "7:00AM",
                 style: TextStyle(
-                    fontSize: 12,
-                    color: context.isDark ? Colors.grey : Colors.black54,
-                    fontWeight: FontWeight.w400),
+                  fontSize: 11,
+                  color: context.subtextColor,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
             ],
           ),
