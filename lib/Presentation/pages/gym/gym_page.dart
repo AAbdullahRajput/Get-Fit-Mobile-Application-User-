@@ -38,41 +38,44 @@ class _GymPageState extends State<GymPage> {
     }
   }
 
-@override
-void didChangeDependencies() {
-  super.didChangeDependencies();
-  if (!_hasLoaded) _loadData();
-}
-
-Future<void> _loadData() async {
-  if (_hasLoaded) {
-    setState(() => _isLoading = false);
-    return;
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
   }
-  // Precache all exercise images
-  await Future.wait(
-    dummyExercises.map(
-      (e) => precacheImage(NetworkImage(e.imageUrl), context),
-    ),
-  );
-  if (mounted) {
-    _hasLoaded = true;
-    setState(() => _isLoading = false);
-  }
-}
 
-Future<void> _onRefresh() async {
-  _hasLoaded = false;
-  setState(() => _isLoading = true);
-  await Future.delayed(const Duration(seconds: 1));
-  if (mounted) {
-    _hasLoaded = true;
-    setState(() => _isLoading = false);
+  Future<void> _loadData() async {
+    if (_hasLoaded) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    // Precache all exercise images
+    await Future.wait(
+      dummyExercises.map(
+        (e) => precacheImage(NetworkImage(e.imageUrl), context),
+      ),
+    );
+    if (mounted) {
+      _hasLoaded = true;
+      setState(() => _isLoading = false);
+    }
   }
-}
 
-@override
-Widget build(BuildContext context) {
+  Future<void> _onRefresh() async {
+    setState(() => _isLoading = true);
+    await Future.wait([
+      Future.delayed(const Duration(milliseconds: 800)),
+      ...dummyExercises.map(
+        (e) => precacheImage(NetworkImage(e.imageUrl), context),
+      ),
+    ]);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.bgColor,
       body: SafeArea(
@@ -178,7 +181,7 @@ Widget build(BuildContext context) {
             // Exercise Cards
             Expanded(
               child: RefreshIndicator(
-                color: context.subtextColor,
+                color: themeColor,
                 backgroundColor: context.cardBgColor,
                 onRefresh: _onRefresh,
                 child: _isLoading
@@ -200,27 +203,27 @@ Widget build(BuildContext context) {
     );
   }
 
-Widget _buildSkeleton(BuildContext context) {
-  return ListView.builder(
-    physics: const AlwaysScrollableScrollPhysics(),
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    itemCount: 5,
-    itemBuilder: (context, index) {
-      return _ShimmerWidget(
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          height: 200,
-          decoration: BoxDecoration(
-            color: context.isDark
-                ? const Color(0xff3a3a3a)
-                : Colors.grey.shade300,
-            borderRadius: BorderRadius.circular(20),
+  Widget _buildSkeleton(BuildContext context) {
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: 5,
+      itemBuilder: (context, index) {
+        return _ShimmerWidget(
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            height: 200,
+            decoration: BoxDecoration(
+              color: context.isDark
+                  ? const Color(0xff3a3a3a)
+                  : Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(20),
+            ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   Widget _exerciseCard(BuildContext context, Exercise exercise) {
     return Container(
@@ -240,27 +243,28 @@ Widget _buildSkeleton(BuildContext context) {
         borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
-            // Background Image
+            // Background Image - using cacheWidth for better performance
             Positioned.fill(
-                child: Image.network(
-                  exercise.imageUrl,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) return child;
-                    return Container(
-                      color: context.cardBgColor,
-                      child: const Center(
-                        child: CircularProgressIndicator(color: themeColor),
-                      ),
-                    );
-                  },
-                  errorBuilder: (context, error, stack) => Container(
+              child: Image.network(
+                exercise.imageUrl,
+                fit: BoxFit.cover,
+                cacheWidth: 600, // Limit cache size
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
                     color: context.cardBgColor,
-                    child: const Icon(Icons.fitness_center,
-                        color: themeColor, size: 48),
-                  ),
+                    child: const Center(
+                      child: CircularProgressIndicator(color: themeColor),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stack) => Container(
+                  color: context.cardBgColor,
+                  child: const Icon(Icons.fitness_center,
+                      color: themeColor, size: 48),
                 ),
               ),
+            ),
 
             // Dark gradient overlay
             Positioned.fill(
@@ -382,6 +386,7 @@ Widget _buildSkeleton(BuildContext context) {
     );
   }
 }
+
 class _ShimmerWidget extends StatefulWidget {
   final Widget child;
   const _ShimmerWidget({required this.child});

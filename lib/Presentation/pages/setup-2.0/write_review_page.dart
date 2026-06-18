@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/widgets/reuseable_button.dart';
 import 'package:get_fit/Utils/constants.dart';
@@ -10,7 +11,10 @@ class WriteReviewPage extends StatefulWidget {
 }
 
 class _WriteReviewPageState extends State<WriteReviewPage> {
+  static bool _hasLoaded = false;
   bool _isLoading = true;
+  double _selectedRating = 0;
+  final TextEditingController _reviewController = TextEditingController();
 
   @override
   void initState() {
@@ -19,18 +23,31 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
   }
 
   Future<void> _loadData() async {
-    await Future.delayed(const Duration(seconds: 2));
+    if (_hasLoaded) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    await Future.delayed(const Duration(seconds: 1));
     if (mounted) {
+      _hasLoaded = true;
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _onRefresh() async {
+    _hasLoaded = false;
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 1));
     if (mounted) {
+      _hasLoaded = true;
       setState(() => _isLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _reviewController.dispose();
+    super.dispose();
   }
 
   @override
@@ -68,10 +85,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
                     padding: const EdgeInsets.all(10),
                     backgroundColor: Colors.black54,
                   ),
-                  child: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.arrow_back, color: Colors.white),
                 ),
               ),
             ),
@@ -83,17 +97,69 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
 
   Widget _buildContent(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          'Write a Review',
+          style: TextStyle(
+            color: context.textColor,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Share your experience with this trainer',
+          style: TextStyle(color: context.subtextColor, fontSize: 13),
+        ),
+        const SizedBox(height: 20),
+
+        // Star rating selector
+        Text(
+          'Your Rating',
+          style: TextStyle(
+            color: context.textColor,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: List.generate(5, (index) {
+            return GestureDetector(
+              onTap: () =>
+                  setState(() => _selectedRating = index + 1.0),
+              child: Icon(
+                index < _selectedRating ? Icons.star : Icons.star_border,
+                color: themeColor,
+                size: 36,
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 20),
+
+        // Review text field
+        Text(
+          'Your Review',
+          style: TextStyle(
+            color: context.textColor,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
             color: context.cardBgColor,
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(12.0),
             child: TextField(
-              maxLines: 10,
+              controller: _reviewController,
+              maxLines: 8,
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: 'Write your review here...',
@@ -103,10 +169,21 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
+
         ReuseableButton(
-          title: "Send",
-          onPressed: () {},
+          title: "Submit Review",
+          onPressed: () {
+            // TODO: send to Supabase
+            // supabase.from('reviews').insert({
+            //   'trainer_id': trainerId,
+            //   'user_id': currentUser.id,
+            //   'rating': _selectedRating,
+            //   'comment': _reviewController.text,
+            //   'created_at': DateTime.now().toIso8601String(),
+            // });
+            Navigator.pop(context);
+          },
         ),
       ],
     );
@@ -114,41 +191,44 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
 
   Widget _buildSkeleton(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // TextField skeleton
-        _ShimmerWidget(
-          child: Container(
-            width: double.infinity,
-            height: 220,
-            decoration: BoxDecoration(
-              color: context.isDark
-                  ? const Color(0xff3a3a3a)
-                  : Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(30),
-            ),
-          ),
-        ),
+        _shimmer(context, width: 160, height: 24),
+        const SizedBox(height: 8),
+        _shimmer(context, width: 220, height: 14),
         const SizedBox(height: 20),
-
-        // Button skeleton
-        _ShimmerWidget(
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.7,
-            height: 50,
-            decoration: BoxDecoration(
-              color: context.isDark
-                  ? const Color(0xff3a3a3a)
-                  : Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(25),
-            ),
-          ),
-        ),
+        _shimmer(context, width: 100, height: 14),
+        const SizedBox(height: 8),
+        _shimmer(context, width: 180, height: 36, radius: 6),
+        const SizedBox(height: 20),
+        _shimmer(context, width: 100, height: 14),
+        const SizedBox(height: 8),
+        _shimmer(context, width: double.infinity, height: 180, radius: 16),
+        const SizedBox(height: 24),
+        _shimmer(context, width: double.infinity, height: 50, radius: 25),
       ],
+    );
+  }
+
+  Widget _shimmer(BuildContext context,
+      {required double width,
+      required double height,
+      double radius = 8}) {
+    return _ShimmerWidget(
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: context.isDark
+              ? const Color(0xff3a3a3a)
+              : Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(radius),
+        ),
+      ),
     );
   }
 }
 
-// Shimmer animation widget
 class _ShimmerWidget extends StatefulWidget {
   final Widget child;
   const _ShimmerWidget({required this.child});
@@ -182,9 +262,6 @@ class _ShimmerWidgetState extends State<_ShimmerWidget>
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _animation,
-      child: widget.child,
-    );
+    return FadeTransition(opacity: _animation, child: widget.child);
   }
 }
