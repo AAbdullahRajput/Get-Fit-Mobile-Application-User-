@@ -9,6 +9,8 @@ class RunnerPage extends StatefulWidget {
 }
 
 class _RunnerPageState extends State<RunnerPage> {
+  static bool _hasLoaded = false;
+  bool _isLoading = true;
   int selectedFilter = 1; // default 7 Days
 
   final List<String> filters = ['Today', '7 Days', '14 Days', '30 Days'];
@@ -23,22 +25,47 @@ class _RunnerPageState extends State<RunnerPage> {
   ];
 
   @override
-  Widget build(BuildContext context) {
+void initState() {
+  super.initState();
+  _loadData();
+}
+
+Future<void> _loadData() async {
+  if (_hasLoaded) {
+    setState(() => _isLoading = false);
+    return;
+  }
+  await Future.delayed(const Duration(seconds: 1));
+  if (mounted) {
+    _hasLoaded = true;
+    setState(() => _isLoading = false);
+  }
+}
+
+Future<void> _onRefresh() async {
+  _hasLoaded = false;
+  setState(() => _isLoading = true);
+  await Future.delayed(const Duration(seconds: 1));
+  if (mounted) {
+    _hasLoaded = true;
+    setState(() => _isLoading = false);
+  }
+}
+
+@override
+Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.bgColor,
       body: SafeArea(
   child: RefreshIndicator(
     color: context.subtextColor,
     backgroundColor: context.cardBgColor,
-    onRefresh: () async {
-      await Future.delayed(const Duration(seconds: 2));
-      setState(() {});
-    },
+    onRefresh: _onRefresh,
     displacement: 100,
     child: SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          child: Column(
+  physics: const AlwaysScrollableScrollPhysics(),
+  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+  child: _isLoading ? _buildSkeleton(context) : Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Title
@@ -327,6 +354,82 @@ class _RunnerPageState extends State<RunnerPage> {
       ),
       ),
     );
+  }
+  Widget _buildSkeleton(BuildContext context) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _shimmer(context, width: 140, height: 32),
+      const SizedBox(height: 16),
+      Row(
+        children: List.generate(4, (i) => Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: _shimmer(context, width: 70, height: 34, radius: 20),
+        )),
+      ),
+      const SizedBox(height: 16),
+      _shimmer(context, width: double.infinity, height: 40),
+      const SizedBox(height: 16),
+      _shimmer(context, width: double.infinity, height: 80, radius: 16),
+      const SizedBox(height: 16),
+      _shimmer(context, width: double.infinity, height: 200, radius: 16),
+      const SizedBox(height: 16),
+      _shimmer(context, width: double.infinity, height: 160, radius: 16),
+    ],
+  );
+}
+
+Widget _shimmer(BuildContext context,
+    {required double width, required double height, double radius = 8}) {
+  return _ShimmerWidget(
+    child: Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: context.isDark
+            ? const Color(0xff3a3a3a)
+            : Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    ),
+  );
+}
+}
+
+class _ShimmerWidget extends StatefulWidget {
+  final Widget child;
+  const _ShimmerWidget({required this.child});
+
+  @override
+  State<_ShimmerWidget> createState() => _ShimmerWidgetState();
+}
+
+class _ShimmerWidgetState extends State<_ShimmerWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(opacity: _animation, child: widget.child);
   }
 }
 
