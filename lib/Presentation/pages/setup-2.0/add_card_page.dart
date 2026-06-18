@@ -42,7 +42,7 @@ class _AddCardPageState extends State<AddCardPage> {
         children: [
           SafeArea(
             child: RefreshIndicator(
-              color: themeColor,
+              color: context.subtextColor,
               backgroundColor: context.cardBgColor,
               displacement: 100,
               onRefresh: _onRefresh,
