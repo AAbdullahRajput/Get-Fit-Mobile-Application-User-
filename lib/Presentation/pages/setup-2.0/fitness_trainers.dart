@@ -15,17 +15,17 @@ class _FitnessTrainersState extends State<FitnessTrainers> {
   bool _isLoading = true;
 
   @override
-  void initState() {
-    super.initState();
-    _loadData();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasLoaded) _loadData();
   }
 
   Future<void> _loadData() async {
-    if (_hasLoaded) {
-      setState(() => _isLoading = false);
-      return;
-    }
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.wait(
+      contents.map(
+        (t) => precacheImage(NetworkImage(t.image), context),
+      ),
+    );
     if (mounted) {
       _hasLoaded = true;
       setState(() => _isLoading = false);
@@ -35,7 +35,11 @@ class _FitnessTrainersState extends State<FitnessTrainers> {
   Future<void> _onRefresh() async {
     _hasLoaded = false;
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.wait(
+      contents.map(
+        (t) => precacheImage(NetworkImage(t.image), context),
+      ),
+    );
     if (mounted) {
       _hasLoaded = true;
       setState(() => _isLoading = false);
@@ -121,7 +125,32 @@ class _FitnessTrainersState extends State<FitnessTrainers> {
               leading: CircleAvatar(
                 backgroundColor: themeColor,
                 radius: 30,
-                backgroundImage: NetworkImage(trainer.image),
+                child: ClipOval(
+                  child: Image.network(
+                    trainer.image,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.black,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stack) => const Icon(
+                      Icons.person,
+                      color: Colors.black,
+                      size: 30,
+                    ),
+                  ),
+                ),
               ),
               title: Text(
                 trainer.name,
@@ -133,12 +162,13 @@ class _FitnessTrainersState extends State<FitnessTrainers> {
                 children: [
                   Text(
                     trainer.trainingType,
-                    style:
-                        TextStyle(color: context.subtextColor, fontSize: 14),
+                    style: TextStyle(
+                        color: context.subtextColor, fontSize: 14),
                   ),
                   Text(
                     '${trainer.experience} years experience',
-                    style: TextStyle(color: context.textColor, fontSize: 14),
+                    style:
+                        TextStyle(color: context.textColor, fontSize: 14),
                   ),
                 ],
               ),
@@ -197,6 +227,49 @@ class _FitnessTrainersState extends State<FitnessTrainers> {
                     ? const Color(0xff3a3a3a)
                     : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 16),
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: context.isDark
+                          ? const Color(0xff4a4a4a)
+                          : Colors.grey.shade400,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 120,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: context.isDark
+                              ? const Color(0xff4a4a4a)
+                              : Colors.grey.shade400,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 80,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: context.isDark
+                              ? const Color(0xff4a4a4a)
+                              : Colors.grey.shade400,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
