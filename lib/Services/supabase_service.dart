@@ -149,7 +149,7 @@ class SupabaseService {
     debugPrint('\x1B[33m[API] GET /rest/v1/users+user_setup | userId: $userId\x1B[0m');
     final profile = await client
         .from('users')
-        .select('username, email')
+        .select('username, email, mobile_no, avatar_url')
         .eq('id', userId)
         .maybeSingle();
     final setup = await client

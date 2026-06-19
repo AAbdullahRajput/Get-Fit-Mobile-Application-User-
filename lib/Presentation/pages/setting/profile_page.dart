@@ -1,5 +1,8 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -9,8 +12,18 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  static bool _hasLoaded = false;
   bool _isLoading = true;
+  bool _isEditing = false;
+  bool _isSaving = false;
+  Uint8List? _pickedImageBytes;
+  String? _avatarUrl;
+
+  final _nameController = TextEditingController();
+  final _mobileController = TextEditingController();
+  final _dobController = TextEditingController();
+  final _weightController = TextEditingController();
+  final _heightController = TextEditingController();
+  String _email = '';
 
   @override
   void initState() {
@@ -18,26 +31,170 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadData();
   }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _mobileController.dispose();
+    _dobController.dispose();
+    _weightController.dispose();
+    _heightController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadData() async {
-    if (_hasLoaded) {
+    setState(() => _isLoading = true);
+    final data = await SupabaseService.getUserProfile();
+    if (mounted && data != null) {
+      _nameController.text = data['username'] ?? '';
+      _email = data['email'] ?? '';
+      _mobileController.text = data['mobile_no'] ?? '';
+      _dobController.text = data['dob'] ?? '';
+      _weightController.text = data['weight']?.toString() ?? '';
+      _heightController.text = data['height']?.toString() ?? '';
+      _avatarUrl = data['avatar_url'];
       setState(() => _isLoading = false);
-      return;
-    }
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) {
-      _hasLoaded = true;
+    } else {
       setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _onRefresh() async {
-    _hasLoaded = false;
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) {
-      _hasLoaded = true;
-      setState(() => _isLoading = false);
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+        source: ImageSource.gallery, imageQuality: 70);
+    if (picked != null) {
+      final bytes = await picked.readAsBytes();
+      setState(() => _pickedImageBytes = bytes);
     }
+  }
+
+  Future<void> _saveProfile() async {
+    setState(() => _isSaving = true);
+    try {
+      final userId = SupabaseService.currentUser?.id;
+      if (userId == null) return;
+
+      String? newAvatarUrl = _avatarUrl;
+
+      if (_pickedImageBytes != null) {
+        newAvatarUrl = await SupabaseService.uploadAvatar(
+          userId,
+          _pickedImageBytes!,
+          'avatar.jpg',
+        );
+      }
+
+      await SupabaseService.updateUserProfile(
+        userId: userId,
+        data: {
+          'username': _nameController.text.trim(),
+          'mobile_no': _mobileController.text.trim(),
+          'avatar_url': newAvatarUrl,
+        },
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isEditing = false;
+        _avatarUrl = newAvatarUrl;
+        _isSaving = false;
+      });
+
+      _showSuccessDialog();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      _showErrorDialog(e.toString());
+    }
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF4A5240),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Icon(Icons.check_circle_outline,
+            color: Color(0xFFDBF500), size: 48),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Profile Updated!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Text('Your profile has been updated successfully.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, fontSize: 14)),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDBF500),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text('OK',
+                  style: TextStyle(
+                      color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF4A5240),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Icon(Icons.error_outline,
+            color: Colors.redAccent, size: 48),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Update Failed',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(message.replaceAll('PostgrestException: ', ''),
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(color: Colors.white70, fontSize: 14)),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDBF500),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text('OK',
+                  style: TextStyle(
+                      color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -46,25 +203,24 @@ class _ProfilePageState extends State<ProfilePage> {
       color: context.bgColor,
       child: Stack(
         children: [
-          // Main scrollable content
           RefreshIndicator(
-            color: context.subtextColor,
+            color: themeColor,
             backgroundColor: context.cardBgColor,
             displacement: 100,
-            onRefresh: _onRefresh,
+            onRefresh: _loadData,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 children: [
-                  // Top yellow header
+                  // Header
                   Container(
                     width: double.infinity,
                     padding: EdgeInsets.only(
                       top: MediaQuery.of(context).padding.top + 20,
                       bottom: 40,
                     ),
-                    decoration: BoxDecoration(
-                      color: context.subtextColor,
+                    decoration: const BoxDecoration(
+                      color: themeColor,
                       borderRadius: BorderRadius.only(
                         bottomLeft: Radius.circular(30),
                         bottomRight: Radius.circular(30),
@@ -72,25 +228,56 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     child: Column(
                       children: [
-                        CircleAvatar(
-                          radius: 55,
-                          backgroundColor: context.bgColor,
-                          child: Icon(Icons.person,
-                              size: 80, color: context.textColor),
+                        Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 55,
+                              backgroundColor: Colors.white,
+                              backgroundImage: _pickedImageBytes != null
+                                  ? MemoryImage(_pickedImageBytes!)
+                                  : (_avatarUrl != null
+                                      ? NetworkImage(_avatarUrl!)
+                                      : null) as ImageProvider?,
+                              child: (_pickedImageBytes == null &&
+                                      _avatarUrl == null)
+                                  ? Icon(Icons.person,
+                                      size: 80, color: context.textColor)
+                                  : null,
+                            ),
+                            if (_isEditing)
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: GestureDetector(
+                                  onTap: _pickImage,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.black,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.edit,
+                                        color: themeColor, size: 18),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 16),
-                        const Text(
-                          'Name Surname',
-                          style: TextStyle(
+                        Text(
+                          _nameController.text.isEmpty
+                              ? 'Your Name'
+                              : _nameController.text,
+                          style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: Colors.black,
                           ),
                         ),
                         const SizedBox(height: 6),
-                        const Text(
-                          "email@gmail.com",
-                          style: TextStyle(
+                        Text(
+                          _email,
+                          style: const TextStyle(
                             fontSize: 14,
                             color: Colors.black87,
                           ),
@@ -99,9 +286,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
 
-                  SizedBox(height: MediaQuery.of(context).padding.top + 60),
+                  SizedBox(
+                      height: MediaQuery.of(context).padding.top + 60),
 
-                  // Form fields or skeleton
+                  // Form
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: _isLoading
@@ -113,7 +301,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
 
-          // Stats box
+          // Stats bar
           Positioned(
             top: MediaQuery.of(context).padding.top + 220,
             left: 0,
@@ -132,46 +320,60 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     Expanded(
                       child: Column(
-                        children: const [
-                          Text("75 kg",
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold)),
-                          SizedBox(height: 4),
-                          Text("Weight",
-                              style: TextStyle(
-                                  color: Colors.white70, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    Container(width: 1, height: 40, color: Colors.white54),
-                    Expanded(
-                      child: Column(
-                        children: const [
-                          Text("28",
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold)),
-                          SizedBox(height: 4),
-                          Text("Years Old",
+                        children: [
+                          Text(
+                            _weightController.text.isEmpty
+                                ? '--'
+                                : '${_weightController.text} kg',
+                            style: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text('Weight',
                               style: TextStyle(
                                   color: Colors.white70, fontSize: 12)),
                         ],
                       ),
                     ),
-                    Container(width: 1, height: 40, color: Colors.white54),
+                    Container(
+                        width: 1, height: 40, color: Colors.white54),
                     Expanded(
                       child: Column(
-                        children: const [
-                          Text("180 cm",
+                        children: [
+                          Text(
+                            _dobController.text.isEmpty
+                                ? '--'
+                                : _dobController.text,
+                            style: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text('Age',
                               style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold)),
-                          SizedBox(height: 4),
-                          Text("Height",
+                                  color: Colors.white70, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    Container(
+                        width: 1, height: 40, color: Colors.white54),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            _heightController.text.isEmpty
+                                ? '--'
+                                : '${_heightController.text} cm',
+                            style: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text('Height',
                               style: TextStyle(
                                   color: Colors.white70, fontSize: 12)),
                         ],
@@ -183,21 +385,38 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
 
-          // Back button
+          // Back + Edit buttons
           SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(10),
-                    backgroundColor: Colors.black54,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      shape: const CircleBorder(),
+                      padding: const EdgeInsets.all(10),
+                      backgroundColor: Colors.black54,
+                    ),
+                    child: const Icon(Icons.arrow_back,
+                        color: Colors.white),
                   ),
-                  child: const Icon(Icons.arrow_back, color: Colors.white),
-                ),
+                  if (!_isLoading)
+                    ElevatedButton(
+                      onPressed: () =>
+                          setState(() => _isEditing = !_isEditing),
+                      style: ElevatedButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(10),
+                        backgroundColor: Colors.black54,
+                      ),
+                      child: Icon(
+                          _isEditing ? Icons.close : Icons.edit,
+                          color: themeColor),
+                    ),
+                ],
               ),
             ),
           ),
@@ -209,53 +428,90 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildForm(BuildContext context) {
     return Column(
       children: [
-        ...formFields.map((field) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: context.cardBgColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TextFormField(
-                  style: TextStyle(color: context.textColor),
-                  decoration: InputDecoration(
-                    labelText: field['label'],
-                    labelStyle: TextStyle(color: context.subtextColor),
-                    hintText: field['hint'],
-                    hintStyle: TextStyle(color: context.subtextColor),
-                    prefixIcon: Icon(field['icon'],
-                        color: context.subtextColor),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                        vertical: 14, horizontal: 12),
-                  ),
-                ),
-              ),
-            )),
+        _buildField('Full Name', _nameController,
+            Icons.person_outline, enabled: _isEditing),
+        _buildField('Email', null, Icons.email_outlined,
+            value: _email, enabled: false),
+        _buildField('Mobile Number', _mobileController,
+            Icons.phone_outlined,
+            enabled: _isEditing,
+            keyboardType: TextInputType.phone),
+        _buildField('Weight (kg)', _weightController,
+            Icons.monitor_weight_outlined,
+            enabled: _isEditing,
+            keyboardType: TextInputType.number),
+        _buildField('Height (cm)', _heightController,
+            Icons.height_outlined,
+            enabled: _isEditing,
+            keyboardType: TextInputType.number),
         const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: themeColor,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
+        if (_isEditing)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isSaving ? null : _saveProfile,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeColor,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
               ),
-            ),
-            child: const Text(
-              'Update Profile',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.5, color: Colors.black),
+                    )
+                  : const Text(
+                      'Update Profile',
+                      style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
+                    ),
             ),
           ),
-        ),
         const SizedBox(height: 30),
       ],
+    );
+  }
+
+  Widget _buildField(
+    String label,
+    TextEditingController? controller,
+    IconData icon, {
+    bool enabled = true,
+    String? value,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.cardBgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: enabled
+              ? Border.all(color: themeColor, width: 1.5)
+              : null,
+        ),
+        child: TextFormField(
+          controller: controller,
+          enabled: enabled,
+          keyboardType: keyboardType,
+          initialValue: controller == null ? value : null,
+          style: TextStyle(color: context.textColor),
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle: TextStyle(color: context.subtextColor),
+            prefixIcon: Icon(icon, color: context.subtextColor),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(
+                vertical: 14, horizontal: 12),
+          ),
+        ),
+      ),
     );
   }
 
@@ -263,7 +519,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       children: [
         ...List.generate(
-          formFields.length,
+          5,
           (index) => Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: _ShimmerWidget(
@@ -279,33 +535,11 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         ),
-        const SizedBox(height: 10),
-        _ShimmerWidget(
-          child: Container(
-            width: double.infinity,
-            height: 52,
-            decoration: BoxDecoration(
-              color: context.isDark
-                  ? const Color(0xff3a3a3a)
-                  : Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(25),
-            ),
-          ),
-        ),
         const SizedBox(height: 30),
       ],
     );
   }
 }
-
-final List<Map<String, dynamic>> formFields = [
-  {'label': 'Full Name', 'hint': 'Enter your full name', 'icon': Icons.person_outline},
-  {'label': 'Email', 'hint': 'Enter your email', 'icon': Icons.email_outlined},
-  {'label': 'Mobile Number', 'hint': 'Enter your mobile number', 'icon': Icons.phone_outlined},
-  {'label': 'Date of Birth', 'hint': 'DD/MM/YYYY', 'icon': Icons.calendar_today_outlined},
-  {'label': 'Weight (kg)', 'hint': 'Enter your weight', 'icon': Icons.monitor_weight_outlined},
-  {'label': 'Height (cm)', 'hint': 'Enter your height', 'icon': Icons.height_outlined},
-];
 
 class _ShimmerWidget extends StatefulWidget {
   final Widget child;
