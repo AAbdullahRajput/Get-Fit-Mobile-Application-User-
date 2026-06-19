@@ -5,6 +5,7 @@ import 'package:get_fit/Presentation/pages/auth/register_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/home/home_page.dart';
+import 'package:get_fit/Presentation/pages/setup/setup_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -135,12 +136,23 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
 
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(const Duration(seconds: 2), () async {
       if (!mounted) return;
       Navigator.pop(context);
+
+      final userId = SupabaseService.currentUser?.id;
+      final setup = await SupabaseService.client
+          .from('user_setup')
+          .select('id')
+          .eq('id', userId!)
+          .maybeSingle();
+
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
+        MaterialPageRoute(
+          builder: (context) => setup != null ? const HomePage() : const SetupPage(),
+        ),
       );
     });
   }

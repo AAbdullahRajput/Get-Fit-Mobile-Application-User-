@@ -1,6 +1,8 @@
 import 'package:animated_weight_picker/animated_weight_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/home/home_page.dart';
+import 'package:get_fit/Services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SetupPage extends StatefulWidget {
   const SetupPage({super.key});
@@ -18,6 +20,7 @@ class _SetupPageState extends State<SetupPage> {
   int? selectedActivityLevel;
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -25,18 +28,88 @@ class _SetupPageState extends State<SetupPage> {
     super.dispose();
   }
 
-  void _nextPage() {
-    if (_currentPage < 5) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomePage()),
-      );
-    }
+  final List<String> goals = [
+  'Lose Weight', 'Gain Weight', 'Build Muscle',
+  'Stay Fit', 'Improve Endurance', 'General Fitness'
+];
+
+final List<String> activityLevels = [
+  'Sedentary', 'Lightly Active', 'Moderately Active',
+  'Very Active', 'Extremely Active'
+];
+
+  Future<void> _nextPage() async {
+  if (_currentPage < 5) {
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  } else {
+    await _saveSetupData();
   }
+}
+
+Future<void> _saveSetupData() async {
+  setState(() => _isLoading = true);
+  try {
+    final userId = SupabaseService.currentUser?.id;
+    if (userId == null) return;
+
+    await SupabaseService.client.from('user_setup').upsert({
+      'id': userId,
+      'gender': selectedGender,
+      'age': selectedAge,
+      'weight': selectedWeight,
+      'height': selectedHeight,
+      'goal': goals[selectedGoal ?? 0],
+      'activity_level': activityLevels[selectedActivityLevel ?? 2],
+    });
+
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const HomePage()),
+    );
+  } catch (e) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF4A5240),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Setup Failed',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(e.toString().replaceAll('PostgrestException: ', ''),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14)),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDBF500),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text('OK',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +197,7 @@ class _SetupPageState extends State<SetupPage> {
                                 (_currentPage == 5 &&
                                     selectedActivityLevel !=
                                         null)
-                            ? _nextPage
+                            ? () => _nextPage()
                             : null,
                         child: Container(
                           width: 120,

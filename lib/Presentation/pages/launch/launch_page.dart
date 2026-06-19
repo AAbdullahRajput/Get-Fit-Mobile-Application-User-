@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/auth/auth_landing_page.dart';
 import 'package:get_fit/Presentation/pages/home/home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:get_fit/Presentation/pages/setup/setup_page.dart';
 
 class LaunchPage extends StatefulWidget {
   const LaunchPage({super.key});
@@ -26,14 +27,30 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
       ..addListener(() {
         setState(() {});
       })
-      ..addStatusListener((status) {
+      ..addStatusListener((status) async {
         if (status == AnimationStatus.completed) {
           final isLoggedIn = Supabase.instance.client.auth.currentUser != null;
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => isLoggedIn ? const HomePage() : const AuthLandingPage(),
-            ),
-          );
+
+          if (isLoggedIn) {
+            final userId = Supabase.instance.client.auth.currentUser!.id;
+            final setup = await Supabase.instance.client
+                .from('user_setup')
+                .select('id')
+                .eq('id', userId)
+                .maybeSingle();
+
+            if (!mounted) return;
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => setup != null ? const HomePage() : const SetupPage(),
+              ),
+            );
+          } else {
+            if (!mounted) return;
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const AuthLandingPage()),
+            );
+          }
         }
       });
     

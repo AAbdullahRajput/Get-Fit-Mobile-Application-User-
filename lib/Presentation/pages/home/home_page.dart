@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/setting/setting_home_page.dart';
-// Remove this: import 'package:get_fit/Presentation/widgets/yoga_navbar_item_content.dart';
-import 'package:get_fit/Presentation/pages/yoga/yoga_tab_content.dart'; // Add this
+import 'package:get_fit/Presentation/pages/yoga/yoga_tab_content.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Domain/models/fitness_trainer_model.dart';
 import 'package:get_fit/Presentation/pages/setup-2.0/fitness_tainer_detail_page.dart';
@@ -35,7 +34,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   late final List<Widget> _pages = [
     const _OverviewTab(),
     _buildFitnessTab(),
-    const YogaTabContent(), // Updated: Using new YogaTabContent
+    const YogaTabContent(),
     const GymPage(),
     const RunnerPage(),
   ];
@@ -59,7 +58,9 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                 child: Text(
                   'Fitness Trainers',
                   style: TextStyle(
-                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
@@ -122,23 +123,20 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                                   borderRadius: BorderRadius.circular(5),
                                 ),
                                 child: Text(trainer.rating,
-                                    style: const TextStyle(
-                                        color: Colors.black)),
+                                    style: const TextStyle(color: Colors.black)),
                               ),
                             ],
                           ),
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    FitnessTrainerDetailPage(
+                                builder: (context) => FitnessTrainerDetailPage(
                                   bgImg: trainer.bg_img,
                                   trainerName: trainer.name,
                                   trainerExp: trainer.experience,
                                   trainerType: trainer.trainingType,
                                   trainerClients: trainer.active_clients,
-                                  trainingCompleted:
-                                      trainer.training_completed,
+                                  trainingCompleted: trainer.training_completed,
                                   trainerRating: trainer.rating,
                                 ),
                               ),
@@ -160,9 +158,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   Future<void> _onRefresh() async {
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 500));
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+    if (mounted) setState(() => _isLoading = false);
   }
 
   Widget _getTabContent(BuildContext context) {
@@ -176,7 +172,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header skeleton
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -200,34 +195,25 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
             ],
           ),
           const SizedBox(height: 30),
-
-          // Banner skeleton
           _skeletonBox(context, width: double.infinity, height: 77, radius: 20),
           const SizedBox(height: 30),
-
-          // Activity summary title
           _skeletonBox(context, width: 160, height: 22),
           const SizedBox(height: 20),
-
-          // Two stat cards skeleton
           Row(
             children: [
               Expanded(
                 child: _skeletonBox(context,
-                    width: double.infinity, height: 120, radius: 16),
+                    width: double.infinity, height: 160, radius: 16),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: _skeletonBox(context,
-                    width: double.infinity, height: 120, radius: 16),
+                    width: double.infinity, height: 160, radius: 16),
               ),
             ],
           ),
           const SizedBox(height: 20),
-
-          // Upcoming class card skeleton
-          _skeletonBox(context,
-              width: double.infinity, height: 194, radius: 16),
+          _skeletonBox(context, width: double.infinity, height: 194, radius: 16),
           const SizedBox(height: 20),
         ],
       ),
@@ -258,7 +244,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   Widget build(BuildContext context) {
     super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -273,29 +259,33 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: Theme.of(context).bottomNavigationBarTheme.backgroundColor ?? Colors.transparent,
+          color: Theme.of(context).bottomNavigationBarTheme.backgroundColor ??
+              Colors.transparent,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: List.generate(_tabs.length, (i) {
             final isSelected = _selectedTab == i;
-            final unselectedColor = isDark ? Colors.white54 : Colors.grey.shade600;
+            final unselectedColor =
+                isDark ? Colors.white54 : Colors.grey.shade600;
             return GestureDetector(
-              onTap: () => setState(() {
-                _selectedTab = i;
-              }),
+              onTap: () => setState(() => _selectedTab = i),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     _tabs[i]['icon'] as IconData,
-                    color: isSelected ? themeColor : unselectedColor,
+                    color: isSelected
+                        ? (isDark ? themeColor : Colors.black)
+                        : unselectedColor,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     _tabs[i]['label'] as String,
                     style: TextStyle(
-                      color: isSelected ? themeColor : unselectedColor,
+                      color: isSelected
+                          ? (isDark ? themeColor : Colors.black)
+                          : unselectedColor,
                       fontSize: 12,
                     ),
                   ),
@@ -304,7 +294,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                       margin: const EdgeInsets.only(top: 4),
                       width: 40,
                       height: 2,
-                      color: themeColor,
+                      color: isDark ? themeColor : Colors.black,
                     ),
                 ],
               ),
@@ -322,6 +312,7 @@ class _OverviewTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -346,7 +337,8 @@ class _OverviewTab extends StatelessWidget {
                       Text(
                         "It's time to challenge your limits.",
                         style: TextStyle(
-                            fontSize: 13, color: Theme.of(context).textTheme.bodyLarge?.color),
+                            fontSize: 13,
+                            color: Theme.of(context).textTheme.bodyLarge?.color),
                       ),
                     ],
                   ),
@@ -374,85 +366,85 @@ class _OverviewTab extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Container(
-  height: 80,
-  decoration: BoxDecoration(
-    color: themeColor,
-    borderRadius: BorderRadius.circular(20),
-  ),
-  child: Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 18),
-    child: Row(
-      children: [
-        Image.asset(
-          "assets/home/fire.png",
-          width: 50,
-          height: 50,
-        ),
-        const SizedBox(width: 20),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                "Workout Today",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+              height: 80,
+              decoration: BoxDecoration(
+                color: themeColor,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Row(
+                  children: [
+                    Image.asset("assets/home/fire.png", width: 50, height: 50),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            "Workout Today",
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "let's achieve your target today",
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.black.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                "let's achieve your target today",
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.black.withOpacity(0.7),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  ),
-),
+            ),
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text("Activity Summary",
-                  style: TextStyle(
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold)),
+              child: Text(
+                "Activity Summary",
+                style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold),
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
             Row(
               children: [
+                // Steps card
                 Expanded(
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
                       Container(
-                        height: 120,
-                        padding:
-                            const EdgeInsets.fromLTRB(16, 36, 16, 16),
+                        height: 160,
+                        padding: const EdgeInsets.fromLTRB(16, 36, 16, 16),
                         decoration: BoxDecoration(
                           color: isDark
-                              ? Colors.white
+                              ? const Color(0xFF2C2C2C)
                               : Colors.grey[200],
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 20),
                             Row(
                               children: [
                                 SvgPicture.asset(
                                     "assets/icons/steps_icon.svg",
-                                    width: 16, height: 16,
-                                    colorFilter: ColorFilter.mode(Colors.grey[600]!, BlendMode.srcIn)),
+                                    width: 16,
+                                    height: 16,
+                                    colorFilter: ColorFilter.mode(
+                                        Colors.grey[600]!, BlendMode.srcIn)),
                                 const SizedBox(width: 6),
                                 Text("Steps",
                                     style: TextStyle(
@@ -461,39 +453,50 @@ class _OverviewTab extends StatelessWidget {
                                         color: Colors.grey[600])),
                               ],
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 10),
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                                  textBaseline: TextBaseline.alphabetic,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text("5000",
+                                    Text("5000",
                                         style: TextStyle(
                                             fontSize: 22,
                                             fontWeight: FontWeight.bold,
-                                            color: themeColor)),
+                                            color: isDark
+                                                ? themeColor
+                                                : Colors.black)),
                                     Text("/10000",
                                         style: TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 15,
                                             color: Colors.grey[500])),
                                   ],
                                 ),
-                                Row(
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    SvgPicture.asset(
-                                        "assets/icons/clock_icon.svg",
-                                        width: 12, height: 12,
-                                        colorFilter: ColorFilter.mode(Colors.grey[500]!, BlendMode.srcIn)),
-                                    const SizedBox(width: 2),
-                                    Text("Last\n7 Days",
-                                        textAlign: TextAlign.right,
+                                    Row(
+                                      children: [
+                                        SvgPicture.asset(
+                                            "assets/icons/clock_icon.svg",
+                                            width: 12,
+                                            height: 12,
+                                            colorFilter: ColorFilter.mode(
+                                                Colors.grey[500]!,
+                                                BlendMode.srcIn)),
+                                        const SizedBox(width: 4),
+                                        Text("Last",
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.grey[500])),
+                                      ],
+                                    ),
+                                    Text("7 Days",
                                         style: TextStyle(
                                             fontSize: 11,
-                                            color: Colors.grey[500],
-                                            height: 1.2)),
+                                            color: Colors.grey[500])),
                                   ],
                                 ),
                               ],
@@ -502,19 +505,21 @@ class _OverviewTab extends StatelessWidget {
                         ),
                       ),
                       Positioned(
-                        top: -20,
+                        top: -30,
                         left: 0,
                         right: 0,
                         child: Center(
                           child: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor,
+                              color: isDark
+                                  ? const Color(0xFF1E1E1E)
+                                  : Colors.white,
                               shape: BoxShape.circle,
                             ),
                             child: Container(
-                              width: 40,
-                              height: 40,
+                              width: 60,
+                              height: 60,
                               decoration: const BoxDecoration(
                                 color: themeColor,
                                 shape: BoxShape.circle,
@@ -523,8 +528,8 @@ class _OverviewTab extends StatelessWidget {
                                 padding: const EdgeInsets.all(8.0),
                                 child: Image.asset(
                                   "assets/home/container-1-icon.png",
-                                  height: 24,
-                                  width: 24,
+                                  height: 36,
+                                  width: 36,
                                   fit: BoxFit.contain,
                                 ),
                               ),
@@ -536,30 +541,32 @@ class _OverviewTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
+                // Calories card
                 Expanded(
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
                       Container(
-                        height: 120,
-                        padding:
-                            const EdgeInsets.fromLTRB(16, 36, 16, 16),
+                        height: 160,
+                        padding: const EdgeInsets.fromLTRB(16, 36, 16, 16),
                         decoration: BoxDecoration(
                           color: isDark
-                              ? Colors.white
+                              ? const Color(0xFF2C2C2C)
                               : Colors.grey[200],
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 20),
                             Row(
                               children: [
                                 SvgPicture.asset(
                                     "assets/icons/calories_icon.svg",
-                                    width: 16, height: 16,
-                                    colorFilter: ColorFilter.mode(Colors.grey[600]!, BlendMode.srcIn)),
+                                    width: 16,
+                                    height: 16,
+                                    colorFilter: ColorFilter.mode(
+                                        Colors.grey[600]!, BlendMode.srcIn)),
                                 const SizedBox(width: 6),
                                 Text("Calories",
                                     style: TextStyle(
@@ -568,39 +575,50 @@ class _OverviewTab extends StatelessWidget {
                                         color: Colors.grey[600])),
                               ],
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 10),
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                                  textBaseline: TextBaseline.alphabetic,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text("1500",
+                                    Text("5000",
                                         style: TextStyle(
                                             fontSize: 22,
                                             fontWeight: FontWeight.bold,
-                                            color: themeColor)),
-                                    Text("/2000",
+                                            color: isDark
+                                                ? themeColor
+                                                : Colors.black)),
+                                    Text("/20000",
                                         style: TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 15,
                                             color: Colors.grey[500])),
                                   ],
                                 ),
-                                Row(
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    SvgPicture.asset(
-                                        "assets/icons/clock_icon.svg",
-                                        width: 12, height: 12,
-                                        colorFilter: ColorFilter.mode(Colors.grey[500]!, BlendMode.srcIn)),
-                                    const SizedBox(width: 2),
-                                    Text("Last\n7 Days",
-                                        textAlign: TextAlign.right,
+                                    Row(
+                                      children: [
+                                        SvgPicture.asset(
+                                            "assets/icons/clock_icon.svg",
+                                            width: 12,
+                                            height: 12,
+                                            colorFilter: ColorFilter.mode(
+                                                Colors.grey[500]!,
+                                                BlendMode.srcIn)),
+                                        const SizedBox(width: 4),
+                                        Text("Last",
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.grey[500])),
+                                      ],
+                                    ),
+                                    Text("7 Days",
                                         style: TextStyle(
                                             fontSize: 11,
-                                            color: Colors.grey[500],
-                                            height: 1.2)),
+                                            color: Colors.grey[500])),
                                   ],
                                 ),
                               ],
@@ -609,19 +627,21 @@ class _OverviewTab extends StatelessWidget {
                         ),
                       ),
                       Positioned(
-                        top: -20,
+                        top: -30,
                         left: 0,
                         right: 0,
                         child: Center(
                           child: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor,
+                              color: isDark
+                                  ? const Color(0xFF1E1E1E)
+                                  : Colors.white,
                               shape: BoxShape.circle,
                             ),
                             child: Container(
-                              width: 40,
-                              height: 40,
+                              width: 60,
+                              height: 60,
                               decoration: const BoxDecoration(
                                 color: themeColor,
                                 shape: BoxShape.circle,
@@ -630,8 +650,8 @@ class _OverviewTab extends StatelessWidget {
                                 padding: const EdgeInsets.all(8.0),
                                 child: Image.asset(
                                   "assets/home/container-2-icon.png",
-                                  height: 24,
-                                  width: 24,
+                                  height: 36,
+                                  width: 36,
                                   fit: BoxFit.contain,
                                 ),
                               ),
@@ -668,14 +688,16 @@ class _OverviewTab extends StatelessWidget {
                         const SizedBox(height: 5),
                         const Text("Yoga",
                             style: TextStyle(
-                                fontWeight: FontWeight.bold, color: Colors.black, fontSize: 25)),
-                        const Text("Time: 2h:20m",style: TextStyle(
-                          color: Colors.black, fontSize: 17
-                        ),),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                                fontSize: 25)),
+                        const Text("Time: 2h:20m",
+                            style:
+                                TextStyle(color: Colors.black, fontSize: 17)),
                         const Spacer(),
                         SizedBox(
-                          width: 75,
-                          height: 30,
+                          width: 100,
+                          height: 40,
                           child: ElevatedButton(
                             onPressed: () {},
                             style: ElevatedButton.styleFrom(
@@ -685,7 +707,7 @@ class _OverviewTab extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                             ),
-                            child: const Text("Join",
+                            child: const Text("Join Now",
                                 style: TextStyle(fontSize: 12)),
                           ),
                         ),
@@ -710,7 +732,6 @@ class _OverviewTab extends StatelessWidget {
   }
 }
 
-// Shimmer animation widget
 class _ShimmerWidget extends StatefulWidget {
   final Widget child;
   const _ShimmerWidget({required this.child});

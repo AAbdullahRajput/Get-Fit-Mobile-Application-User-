@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:get_fit/Presentation/pages/setup/setup_page.dart';
+import 'package:get_fit/Presentation/pages/auth/new_password_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
@@ -16,24 +16,23 @@ class VerificationPage extends StatefulWidget {
 }
 
 class _VerificationPageState extends State<VerificationPage> {
-  final TextEditingController _otpController = TextEditingController();
+  String _otpValue = '';
   int _secondsRemaining = 30;
   Timer? _timer;
   bool _canResend = false;
   bool _isLoading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _startTimer();
-  }
+ @override
+void initState() {
+  super.initState();
+  _startTimer();
+}
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _otpController.dispose();
-    super.dispose();
-  }
+@override
+void dispose() {
+  _timer?.cancel();
+  super.dispose();
+}
 
   void _startTimer() {
     _secondsRemaining = 30;
@@ -59,10 +58,10 @@ class _VerificationPageState extends State<VerificationPage> {
   }
 
   Future<void> _verifyOtp() async {
-    final otp = _otpController.text.trim();
+    final otp = _otpValue.trim();
 
-    if (otp.length < 4) {
-      _showSnackBar('Please enter the 4-digit code');
+    if (otp.length < 6) {
+      _showErrorDialog('Missing Code', 'Please enter the 6-digit code.');
       return;
     }
 
@@ -77,9 +76,8 @@ class _VerificationPageState extends State<VerificationPage> {
       if (!mounted) return;
 
       if (response.user != null) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const SetupPage()),
-          (route) => false,
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const NewPasswordPage()),
         );
       }
     } catch (e) {
@@ -91,13 +89,58 @@ class _VerificationPageState extends State<VerificationPage> {
   }
 
   Future<void> _resendOtp() async {
+    if (!mounted) return;
     try {
       await SupabaseService.resetPassword(widget.email);
+      if (!mounted) return;
       _startTimer();
-      _showSnackBar('OTP resent to ${widget.email}', isSuccess: true);
+      _showErrorDialog('Code Sent', 'A new OTP has been sent to ${widget.email}');
     } catch (e) {
-      _showSnackBar(e.toString().replaceAll('AuthException: ', ''));
+      if (!mounted) return;
+      _showErrorDialog('Error', e.toString().replaceAll('AuthException: ', ''));
     }
+  }
+
+
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF4A5240),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Icon(
+          title == 'Code Sent' ? Icons.mark_email_read_outlined : Icons.error_outline,
+          color: title == 'Code Sent' ? const Color(0xFFDBF500) : Colors.redAccent,
+          size: 48),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14)),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDBF500),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text('OK',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSnackBar(String message, {bool isSuccess = false}) {
@@ -157,7 +200,7 @@ class _VerificationPageState extends State<VerificationPage> {
                 child: Container(
                   padding: const EdgeInsets.all(24.0),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: const Color(0xFF4A5240).withOpacity(0.85),
                     border: Border(
                       top: BorderSide(
                         color: themeColor.withOpacity(0.5),
@@ -183,7 +226,7 @@ class _VerificationPageState extends State<VerificationPage> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Enter the 4-digit code we sent to your email',
+                        'Enter the 6-digit code we sent to your email',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.7),
                           fontSize: 14,
@@ -196,9 +239,13 @@ class _VerificationPageState extends State<VerificationPage> {
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: PinCodeTextField(
                             appContext: context,
-                            length: 6, // Supabase OTPs are 6-digit
-                            controller: _otpController,
-                            keyboardType: TextInputType.number,
+                            length: 6, // Supabase OTPs are 6-digit    
+                            textStyle: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),                       
+                           keyboardType: TextInputType.number,
                             animationType: AnimationType.scale,
                             pinTheme: PinTheme(
                               shape: PinCodeFieldShape.box,
@@ -215,8 +262,13 @@ class _VerificationPageState extends State<VerificationPage> {
                             animationDuration: const Duration(milliseconds: 300),
                             backgroundColor: Colors.transparent,
                             enableActiveFill: true,
-                            onCompleted: (value) => _verifyOtp(),
-                            onChanged: (_) {},
+                            onCompleted: (value) {
+                              _otpValue = value;
+                              _verifyOtp();
+                            },
+                            onChanged: (value) {
+                              _otpValue = value;
+                            },
                           ),
                         ),
                       ),

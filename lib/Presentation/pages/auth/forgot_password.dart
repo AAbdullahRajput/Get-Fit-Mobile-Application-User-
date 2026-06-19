@@ -25,38 +25,84 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     final email = _emailController.text.trim();
 
     if (email.isEmpty) {
-      _showSnackBar('Please enter your email');
+      _showErrorDialog('Missing Email', 'Please enter your email address.');
+      return;
+    }
+
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(email)) {
+      _showErrorDialog('Invalid Email', 'Please enter a valid email address.');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      await SupabaseService.resetPassword(email);
+      final exists = await SupabaseService.client
+          .from('users')
+          .select('email')
+          .eq('email', email)
+          .maybeSingle();
 
       if (!mounted) return;
 
-      // Pass email to VerificationPage so it can verify the OTP against that email
+      if (exists == null) {
+        _showErrorDialog('Account Not Found', 'No account found with this email.');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      await SupabaseService.resetPassword(email);
+
+      if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => VerificationPage(email: email),
         ),
       );
     } catch (e) {
+      debugPrint('RESET ERROR: $e');
       if (!mounted) return;
-      _showSnackBar(e.toString().replaceAll('AuthException: ', ''));
+      _showErrorDialog('Error', e.toString().replaceAll('AuthException: ', ''));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showSnackBar(String message, {bool isSuccess = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isSuccess ? Colors.green.shade700 : Colors.red.shade700,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF4A5240),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14)),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDBF500),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text('OK',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -107,7 +153,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   height: MediaQuery.of(context).size.height * 0.55,
                   padding: const EdgeInsets.all(24.0),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: const Color(0xFF4A5240).withOpacity(0.85),
                     border: Border(
                       top: BorderSide(
                         color: themeColor.withOpacity(0.5),
@@ -150,15 +196,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         child: SizedBox(
                           height: 60,
                           child: TextField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            style: const TextStyle(color: Colors.black),
+            decoration: const InputDecoration(
                               hintText: 'Email',
-                              hintStyle: TextStyle(color: Color(0xff333333)),
-                              prefixIcon: Icon(
-                                Icons.email_outlined,
-                                color: Color(0xff333333),
-                              ),
+                              hintStyle: TextStyle(color: Colors.black54),
+prefixIcon: Icon(
+  Icons.email_outlined,
+  color: Colors.black54,
+),
                             ),
                           ),
                         ),
