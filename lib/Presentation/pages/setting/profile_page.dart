@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -48,7 +49,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _nameController.text = data['username'] ?? '';
       _email = data['email'] ?? '';
       _mobileController.text = data['mobile_no'] ?? '';
-      _dobController.text = data['dob'] ?? '';
+      _dobController.text = data['age']?.toString() ?? '';
       _weightController.text = data['weight']?.toString() ?? '';
       _heightController.text = data['height']?.toString() ?? '';
       _avatarUrl = data['avatar_url'];
@@ -85,13 +86,21 @@ class _ProfilePageState extends State<ProfilePage> {
       }
 
       await SupabaseService.updateUserProfile(
-        userId: userId,
-        data: {
-          'username': _nameController.text.trim(),
-          'mobile_no': _mobileController.text.trim(),
-          'avatar_url': newAvatarUrl,
-        },
-      );
+  userId: userId,
+  data: {
+    'username': _nameController.text.trim(),
+    'mobile_no': _mobileController.text.trim(),
+    'avatar_url': newAvatarUrl,
+  },
+);
+
+await SupabaseService.saveUserSetup(
+  userId: userId,
+  data: {
+    'weight': int.tryParse(_weightController.text.trim()),
+    'height': int.tryParse(_heightController.text.trim()),
+  },
+);
 
       if (!mounted) return;
       setState(() {
@@ -256,8 +265,13 @@ class _ProfilePageState extends State<ProfilePage> {
                                       color: Colors.black,
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(Icons.edit,
-                                        color: themeColor, size: 18),
+                                    child: SvgPicture.asset(
+  'assets/icons/pencil_icon.svg',
+  width: 18,
+  height: 18,
+  colorFilter: const ColorFilter.mode(
+    themeColor, BlendMode.srcIn),
+),
                                   ),
                                 ),
                               ),
