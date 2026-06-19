@@ -2,7 +2,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -237,45 +236,50 @@ await SupabaseService.saveUserSetup(
                     ),
                     child: Column(
                       children: [
-                        Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 55,
-                              backgroundColor: Colors.white,
-                              backgroundImage: _pickedImageBytes != null
-                                  ? MemoryImage(_pickedImageBytes!)
-                                  : (_avatarUrl != null
-                                      ? NetworkImage(_avatarUrl!)
-                                      : null) as ImageProvider?,
-                              child: (_pickedImageBytes == null &&
-                                      _avatarUrl == null)
-                                  ? Icon(Icons.person,
-                                      size: 80, color: context.textColor)
-                                  : null,
-                            ),
-                            if (_isEditing)
+                        GestureDetector(
+                          onTap: _isEditing ? _pickImage : null,
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 55,
+                                backgroundColor: Colors.white,
+                                backgroundImage: _pickedImageBytes != null
+                                    ? MemoryImage(_pickedImageBytes!)
+                                    : (_avatarUrl != null
+                                        ? NetworkImage(_avatarUrl!)
+                                        : null) as ImageProvider?,
+                                child: (_pickedImageBytes == null &&
+                                        _avatarUrl == null)
+                                    ? Icon(Icons.person,
+                                        size: 80, color: context.textColor)
+                                    : null,
+                              ),
                               Positioned(
                                 bottom: 0,
                                 right: 0,
                                 child: GestureDetector(
-                                  onTap: _pickImage,
+                                  onTap: () {
+                                    if (_isEditing) {
+                                      _pickImage();
+                                    } else {
+                                      setState(() => _isEditing = true);
+                                    }
+                                  },
                                   child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.black,
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: themeColor,
                                       shape: BoxShape.circle,
+                                      border: Border.all(
+                                          color: Colors.white, width: 2),
                                     ),
-                                    child: SvgPicture.asset(
-  'assets/icons/pencil_icon.svg',
-  width: 18,
-  height: 18,
-  colorFilter: const ColorFilter.mode(
-    themeColor, BlendMode.srcIn),
-),
+                                    child: const Icon(Icons.edit,
+                                        color: Colors.black, size: 18),
                                   ),
                                 ),
                               ),
-                          ],
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -417,19 +421,6 @@ await SupabaseService.saveUserSetup(
                     child: const Icon(Icons.arrow_back,
                         color: Colors.white),
                   ),
-                  if (!_isLoading)
-                    ElevatedButton(
-                      onPressed: () =>
-                          setState(() => _isEditing = !_isEditing),
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        backgroundColor: Colors.black54,
-                      ),
-                      child: Icon(
-                          _isEditing ? Icons.close : Icons.edit,
-                          color: themeColor),
-                    ),
                 ],
               ),
             ),
