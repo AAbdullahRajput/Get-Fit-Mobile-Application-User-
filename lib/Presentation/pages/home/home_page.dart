@@ -7,6 +7,7 @@ import 'package:get_fit/Presentation/pages/setup-2.0/fitness_tainer_detail_page.
 import 'package:get_fit/Presentation/pages/runner/runner_page.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -306,8 +307,30 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   }
 }
 
-class _OverviewTab extends StatelessWidget {
+class _OverviewTab extends StatefulWidget {
   const _OverviewTab();
+
+  @override
+  State<_OverviewTab> createState() => _OverviewTabState();
+}
+
+class _OverviewTabState extends State<_OverviewTab> {
+  String _username = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsername();
+  }
+
+  Future<void> _fetchUsername() async {
+    final data = await SupabaseService.getUserProfile();
+    if (mounted) {
+      setState(() {
+        _username = data?['username'] ?? 'User';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -328,7 +351,7 @@ class _OverviewTab extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Hi, Johns!",
+                        "Hi, $_username!",
                         style: TextStyle(
                             color: isDark ? themeColor : Colors.black,
                             fontSize: 22,
@@ -429,8 +452,8 @@ class _OverviewTab extends StatelessWidget {
                         padding: const EdgeInsets.fromLTRB(16, 36, 16, 16),
                         decoration: BoxDecoration(
                           color: isDark
-                              ? const Color(0xFF2C2C2C)
-                              : Colors.grey[200],
+                              ? Colors.grey[200]
+                              : const Color(0xFF2C2C2C),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Column(
@@ -444,13 +467,13 @@ class _OverviewTab extends StatelessWidget {
                                     width: 16,
                                     height: 16,
                                     colorFilter: ColorFilter.mode(
-                                        Colors.grey[600]!, BlendMode.srcIn)),
+                                        const Color.fromARGB(255, 0, 0, 0)!, BlendMode.srcIn)),
                                 const SizedBox(width: 6),
                                 Text("Steps",
                                     style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.grey[600])),
+                                        color: const Color.fromARGB(255, 0, 0, 0))),
                               ],
                             ),
                             const SizedBox(height: 10),
@@ -466,12 +489,12 @@ class _OverviewTab extends StatelessWidget {
                                             fontSize: 22,
                                             fontWeight: FontWeight.bold,
                                             color: isDark
-                                                ? themeColor
-                                                : Colors.black)),
+                                                ? const Color.fromARGB(255, 210, 231, 16)
+                                                : Colors.black,)),
                                     Text("/10000",
                                         style: TextStyle(
                                             fontSize: 15,
-                                            color: Colors.grey[500])),
+                                            color: const Color.fromARGB(255, 0, 0, 0))),
                                   ],
                                 ),
                                 Column(
@@ -484,19 +507,19 @@ class _OverviewTab extends StatelessWidget {
                                             width: 12,
                                             height: 12,
                                             colorFilter: ColorFilter.mode(
-                                                Colors.grey[500]!,
+                                                const Color.fromARGB(255, 0, 0, 0)!,
                                                 BlendMode.srcIn)),
                                         const SizedBox(width: 4),
                                         Text("Last",
                                             style: TextStyle(
                                                 fontSize: 11,
-                                                color: Colors.grey[500])),
+                                                color: const Color.fromARGB(255, 0, 0, 0))),
                                       ],
                                     ),
                                     Text("7 Days",
                                         style: TextStyle(
                                             fontSize: 11,
-                                            color: Colors.grey[500])),
+                                            color: const Color.fromARGB(255, 0, 0, 0))),
                                   ],
                                 ),
                               ],
@@ -551,8 +574,8 @@ class _OverviewTab extends StatelessWidget {
                         padding: const EdgeInsets.fromLTRB(16, 36, 16, 16),
                         decoration: BoxDecoration(
                           color: isDark
-                              ? const Color(0xFF2C2C2C)
-                              : Colors.grey[200],
+                              ? Colors.grey[200]
+                              : const Color(0xFF2C2C2C),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Column(
@@ -566,13 +589,13 @@ class _OverviewTab extends StatelessWidget {
                                     width: 16,
                                     height: 16,
                                     colorFilter: ColorFilter.mode(
-                                        Colors.grey[600]!, BlendMode.srcIn)),
+                                        const Color.fromARGB(255, 0, 0, 0)!, BlendMode.srcIn)),
                                 const SizedBox(width: 6),
                                 Text("Calories",
                                     style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.grey[600])),
+                                        color: const Color.fromARGB(255, 0, 0, 0))),
                               ],
                             ),
                             const SizedBox(height: 10),
@@ -583,17 +606,17 @@ class _OverviewTab extends StatelessWidget {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text("5000",
+                                    Text("1500",
                                         style: TextStyle(
                                             fontSize: 22,
                                             fontWeight: FontWeight.bold,
                                             color: isDark
-                                                ? themeColor
+                                                ? const Color.fromARGB(255, 192, 207, 50)
                                                 : Colors.black)),
                                     Text("/20000",
                                         style: TextStyle(
                                             fontSize: 15,
-                                            color: Colors.grey[500])),
+                                            color: const Color.fromARGB(255, 0, 0, 0))),
                                   ],
                                 ),
                                 Column(
@@ -606,19 +629,19 @@ class _OverviewTab extends StatelessWidget {
                                             width: 12,
                                             height: 12,
                                             colorFilter: ColorFilter.mode(
-                                                Colors.grey[500]!,
+                                                const Color.fromARGB(255, 0, 0, 0)!,
                                                 BlendMode.srcIn)),
                                         const SizedBox(width: 4),
                                         Text("Last",
                                             style: TextStyle(
                                                 fontSize: 11,
-                                                color: Colors.grey[500])),
+                                                color: const Color.fromARGB(255, 0, 0, 0))),
                                       ],
                                     ),
                                     Text("7 Days",
                                         style: TextStyle(
                                             fontSize: 11,
-                                            color: Colors.grey[500])),
+                                            color: const Color.fromARGB(255, 0, 0, 0))),
                                   ],
                                 ),
                               ],

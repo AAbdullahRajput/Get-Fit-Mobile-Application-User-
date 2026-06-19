@@ -18,6 +18,7 @@ class SettingHomePage extends StatefulWidget {
 class _SettingHomePageState extends State<SettingHomePage> {
   static bool _hasLoaded = false;
   bool _isLoading = true;
+  Map<String, dynamic>? _profileData;
 
   final List<Map<String, dynamic>> settingsItems = const [
     {'title': 'Profile', 'icon': Icons.person},
@@ -29,20 +30,22 @@ class _SettingHomePageState extends State<SettingHomePage> {
     {'title': 'Logout', 'icon': Icons.logout},
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
+ @override
+void initState() {
+  super.initState();
+  _hasLoaded = false;
+  _loadData();
+}
 
   Future<void> _loadData() async {
   if (_hasLoaded) {
     setState(() => _isLoading = false);
     return;
   }
-  await Future.delayed(const Duration(seconds: 1));
+  final data = await SupabaseService.getUserProfile();
   if (mounted) {
     _hasLoaded = true;
+    _profileData = data;
     setState(() => _isLoading = false);
   }
 }
@@ -51,9 +54,10 @@ class _SettingHomePageState extends State<SettingHomePage> {
   Future<void> _onRefresh() async {
   _hasLoaded = false;
   setState(() => _isLoading = true);
-  await Future.delayed(const Duration(seconds: 1));
+  final data = await SupabaseService.getUserProfile();
   if (mounted) {
     _hasLoaded = true;
+    _profileData = data;
     setState(() => _isLoading = false);
   }
 }
@@ -104,17 +108,17 @@ class _SettingHomePageState extends State<SettingHomePage> {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      'Name Surname',
-                      style: TextStyle(
+                      _profileData?['username'] ?? 'Loading...',
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: context.textColor,
+                        color: Colors.black,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      "email@gmail.com",
-                      style: TextStyle(fontSize: 16, color: context.subtextColor),
+                                        const SizedBox(height: 10),
+                                        Text(
+                      _profileData?['email'] ?? 'Loading...',
+                      style: const TextStyle(fontSize: 16, color: Colors.black54),
                     ),
                   ],
                 ),
@@ -137,13 +141,13 @@ class _SettingHomePageState extends State<SettingHomePage> {
                       : const Color(0xff1A1A1A),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const IntrinsicHeight(
+                child: IntrinsicHeight(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       Column(
                         children: [
-                          Text("75 kg",
+                          Text("${_profileData?['weight'] ?? '--'} kg",
                               style: TextStyle(
                                   fontSize: 20,
                                   color: Colors.white,
@@ -154,7 +158,7 @@ class _SettingHomePageState extends State<SettingHomePage> {
                       VerticalDivider(color: Colors.white, thickness: 2),
                       Column(
                         children: [
-                          Text("28",
+                          Text("${_profileData?['age'] ?? '--'}",
                               style: TextStyle(
                                   fontSize: 20,
                                   color: Colors.white,
@@ -165,7 +169,7 @@ class _SettingHomePageState extends State<SettingHomePage> {
                       VerticalDivider(color: Colors.white, thickness: 2),
                       Column(
                         children: [
-                          Text("180 cm",
+                          Text("${_profileData?['height'] ?? '--'} cm",
                               style: TextStyle(
                                   fontSize: 20,
                                   color: Colors.white,

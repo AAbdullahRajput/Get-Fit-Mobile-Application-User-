@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
 
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
@@ -140,4 +141,65 @@ class SupabaseService {
       rethrow;
     }
   }
+
+  static Future<Map<String, dynamic>?> getUserProfile() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return null;
+    debugPrint('\x1B[33m[API] GET /rest/v1/users+user_setup | userId: $userId\x1B[0m');
+    final profile = await client
+        .from('users')
+        .select('username, email')
+        .eq('id', userId)
+        .maybeSingle();
+    final setup = await client
+        .from('user_setup')
+        .select('weight, age, height')
+        .eq('id', userId)
+        .maybeSingle();
+    debugPrint('\x1B[32m[API] 200 OK | Profile fetched\x1B[0m');
+    return {
+      ...?profile,
+      ...?setup,
+    };
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getUserProfile | ${e.toString()}\x1B[0m');
+    return null;
+  }
+}
+
+
+static Future<String?> uploadAvatar(String userId, List<int> fileBytes, String fileName) async {
+  try {
+    debugPrint('\x1B[33m[API] POST /storage/v1/object/avatars\x1B[0m');
+    final path = '$userId/$fileName';
+    await client.storage.from('avatars').uploadBinary(
+      path,
+      Uint8List.fromList(fileBytes),
+      fileOptions: const FileOptions(upsert: true),
+    );
+    final url = client.storage.from('avatars').getPublicUrl(path);
+    debugPrint('\x1B[32m[API] 200 OK | Avatar uploaded: $url\x1B[0m');
+    return url;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | uploadAvatar | ${e.toString()}\x1B[0m');
+    return null;
+  }
+}
+
+static Future<void> updateUserProfile({
+  required String userId,
+  required Map<String, dynamic> data,
+}) async {
+  try {
+    debugPrint('\x1B[33m[API] PATCH /rest/v1/users | userId: $userId\x1B[0m');
+    await client.from('users').update(data).eq('id', userId);
+    debugPrint('\x1B[32m[API] 200 OK | Profile updated\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | updateUserProfile | ${e.toString()}\x1B[0m');
+    rethrow;
+  }
+}
+
+
 }
