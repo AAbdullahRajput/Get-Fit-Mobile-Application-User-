@@ -1,7 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:get_fit/Presentation/pages/auth/verification_page.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Presentation/pages/auth/verification_page.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -11,12 +12,53 @@ class ForgotPasswordPage extends StatefulWidget {
 }
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
-  final _email_or_mobile_controller = TextEditingController();
+  final _emailController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    _email_or_mobile_controller.dispose();
+    _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _sendOtp() async {
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
+      _showSnackBar('Please enter your email');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await SupabaseService.resetPassword(email);
+
+      if (!mounted) return;
+
+      // Pass email to VerificationPage so it can verify the OTP against that email
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => VerificationPage(email: email),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar(e.toString().replaceAll('AuthException: ', ''));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showSnackBar(String message, {bool isSuccess = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isSuccess ? Colors.green.shade700 : Colors.red.shade700,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
@@ -29,10 +71,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             child: Column(
               children: [
                 SizedBox(height: MediaQuery.of(context).padding.top + 45),
-                Image.asset(
-                  'assets/auth/logo-2.png',
-                  height: 88,
-                ),
+                Image.asset('assets/auth/logo-2.png', height: 88),
                 const SizedBox(height: 30),
                 const Text(
                   "Forgot Password",
@@ -40,6 +79,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     color: Colors.white,
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Enter your email to receive a reset code",
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 16,
                   ),
                 ),
               ],
@@ -101,18 +148,18 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           ),
                         ),
                         child: SizedBox(
-                          height: 60, 
+                          height: 60,
                           child: TextField(
-                            controller: _email_or_mobile_controller,
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
                             decoration: const InputDecoration(
-                              hintText: 'Mobile No / Email',
+                              hintText: 'Email',
                               hintStyle: TextStyle(color: Color(0xff333333)),
                               prefixIcon: Icon(
                                 Icons.email_outlined,
                                 color: Color(0xff333333),
                               ),
                             ),
-                            keyboardType: TextInputType.emailAddress,
                           ),
                         ),
                       ),
@@ -120,13 +167,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       const SizedBox(height: 24),
 
                       ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => const VerificationPage(),
-                            ),
-                          );
-                        },
+                        onPressed: _isLoading ? null : _sendOtp,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: themeColor,
                           foregroundColor: Colors.black,
@@ -136,18 +177,26 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           ),
                           elevation: 0,
                         ),
-                        child: const Text(
-                          'Send OTP',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.black,
+                                ),
+                              )
+                            : const Text(
+                                'Send OTP',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
 
                       const SizedBox(height: 24),
                       const Spacer(),
-
                     ],
                   ),
                 ),

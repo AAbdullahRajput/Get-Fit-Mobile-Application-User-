@@ -6,6 +6,7 @@ import 'package:get_fit/Presentation/pages/setting/privacy_policy_page.dart';
 import 'package:get_fit/Presentation/pages/setting/profile_page.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/auth/login_page.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 
 class SettingHomePage extends StatefulWidget {
   const SettingHomePage({super.key});
@@ -331,7 +332,9 @@ class _SettingHomePageState extends State<SettingHomePage> {
                     style: TextStyle(color: context.subtextColor)),
               ),
               TextButton(
-                onPressed: () {
+                onPressed: () async {
+                  await SupabaseService.signOut();
+                  if (!context.mounted) return;
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (context) => const LoginPage()),

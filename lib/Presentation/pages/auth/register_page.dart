@@ -1,9 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/auth/login_page.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
-import 'package:get_fit/Presentation/pages/home/home_page.dart'; // fix this import path
-
+import 'package:get_fit/Presentation/pages/home/home_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -18,12 +18,240 @@ class _RegisterPageState extends State<RegisterPage> {
   final _mobileNoController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
+    _usernameController.dispose();
+    _mobileNoController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _register() async {
+    final email = _emailController.text.trim();
+    final username = _usernameController.text.trim();
+    final mobileNo = _mobileNoController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || username.isEmpty || mobileNo.isEmpty || password.isEmpty) {
+      _showSnackBar('Please fill in all fields');
+      return;
+    }
+
+    if (password.length < 6) {
+      _showSnackBar('Password must be at least 6 characters');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await SupabaseService.signUp(
+        email: email,
+        password: password,
+        username: username,
+        mobileNo: mobileNo,
+      );
+
+      if (!mounted) return;
+
+      if (response.user != null) {
+        _showSuccessDialog();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().replaceAll('AuthException: ', '');
+      if (msg.toLowerCase().contains('already registered') || 
+          msg.toLowerCase().contains('already exists') ||
+          msg.toLowerCase().contains('rate limit') ||
+          msg.toLowerCase().contains('email rate')) {
+        _showEmailExistsDialog(msg);
+      } else {
+        _showErrorDialog('Registration Failed', msg);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+
+void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF4A5240),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Icon(Icons.check_circle_outline, color: Color(0xFFDBF500), size: 48),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Account Created!',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your account has been created successfully. Please login to continue.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
+            ),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDBF500),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Go to Login',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+void _showEmailExistsDialog(String msg) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF4A5240),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Icon(
+  msg.toLowerCase().contains('rate limit') 
+    ? Icons.timer_outlined 
+    : Icons.email_outlined, 
+  color: const Color(0xFFDBF500), 
+  size: 48
+),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Registration Failed',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              msg.toLowerCase().contains('rate limit') 
+                ? 'Too many requests. Please wait a moment and try again.'
+                : 'This email is already registered. Please login or use a different email.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
+            ),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          if (!msg.toLowerCase().contains('rate limit'))
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDBF500),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Go to Login',
+                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Try Again',
+              style: TextStyle(color: Colors.white.withOpacity(0.7)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF4A5240),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
+            ),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDBF500),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Try Again',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+
+  void _showSnackBar(String message, {bool isSuccess = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isSuccess ? Colors.green.shade700 : Colors.red.shade700,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
@@ -36,10 +264,7 @@ class _RegisterPageState extends State<RegisterPage> {
             child: Column(
               children: [
                 SizedBox(height: MediaQuery.of(context).padding.top + 45),
-                Image.asset(
-                  'assets/auth/logo-2.png',
-                  height: 88,
-                ),
+                Image.asset('assets/auth/logo-2.png', height: 88),
                 const SizedBox(height: 30),
                 const Text(
                   "Welcome",
@@ -75,10 +300,10 @@ class _RegisterPageState extends State<RegisterPage> {
                   height: MediaQuery.of(context).size.height * 0.6,
                   padding: const EdgeInsets.all(24.0),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: const Color(0xFF4A5240).withOpacity(0.85),
                     border: Border(
                       top: BorderSide(
-                        color: themeColor.withOpacity(0.5),
+                        color: const Color.fromARGB(255, 217, 240, 8).withOpacity(0.5),
                         width: 1,
                       ),
                     ),
@@ -91,192 +316,46 @@ class _RegisterPageState extends State<RegisterPage> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Theme(
-                        data: Theme.of(context).copyWith(
-                          inputDecorationTheme: InputDecorationTheme(
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: BorderSide.none,
-                              
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFDBF500),
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                        child: SizedBox(
-                          height: 60,
-                          child: TextField(
-                            controller: _usernameController,
-                            decoration: const InputDecoration(
-                              hintText: 'Username',
-                              hintStyle: TextStyle(color: Color(0xff333333)),
-                              prefixIcon: Icon(
-                                Icons.email_outlined,
-                                color: Color(0xff333333),
-                              ),
-                            ),
-                            keyboardType: TextInputType.emailAddress,
-                          ),
-                        ),
+                      _buildTextField(
+                        controller: _usernameController,
+                        hint: 'Username',
+                        icon: Icons.person_outline,
                       ),
-
                       const SizedBox(height: 16),
-                      // Email field
-                      Theme(
-                        data: Theme.of(context).copyWith(
-                          inputDecorationTheme: InputDecorationTheme(
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: BorderSide.none,
-                              
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFDBF500),
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                        child: SizedBox(
-                          height: 60,
-                          child: TextField(
-                            controller: _emailController,
-                            decoration: const InputDecoration(
-                              hintText: 'Email',
-                              hintStyle: TextStyle(color: Color(0xff333333)),
-                              prefixIcon: Icon(
-                                Icons.email_outlined,
-                                color: Color(0xff333333),
-                              ),
-                            ),
-                            keyboardType: TextInputType.emailAddress,
-                          ),
-                        ),
+                      _buildTextField(
+                        controller: _emailController,
+                        hint: 'Email',
+                        icon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
                       ),
-
                       const SizedBox(height: 16),
-                      Theme(
-                        data: Theme.of(context).copyWith(
-                          inputDecorationTheme: InputDecorationTheme(
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: BorderSide.none,
-                              
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFDBF500),
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                        child: SizedBox(
-                          height: 60,
-                          child: TextField(
-                            controller: _mobileNoController,
-                            decoration: const InputDecoration(
-                              hintText: 'Mobile number',
-                              hintStyle: TextStyle(color: Color(0xff333333)),
-                              prefixIcon: Icon(
-                                Icons.email_outlined,
-                                color: Color(0xff333333),
-                              ),
-                            ),
-                            keyboardType: TextInputType.emailAddress,
-                          ),
-                        ),
+                      _buildTextField(
+                        controller: _mobileNoController,
+                        hint: 'Mobile number',
+                        icon: Icons.phone_outlined,
+                        keyboardType: TextInputType.phone,
                       ),
-
                       const SizedBox(height: 16),
-                      Theme(
-                        data: Theme.of(context).copyWith(
-                          inputDecorationTheme: InputDecorationTheme(
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFDBF500),
-                                width: 1.5,
-                              ),
-                            ),
+                      _buildTextField(
+                        controller: _passwordController,
+                        hint: 'Password',
+                        icon: Icons.lock_outline,
+                        obscure: _obscurePassword,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                            color: const Color(0xff333333),
                           ),
-                        ),
-                        child: SizedBox(
-                          height: 60,
-                          child: TextField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            decoration: InputDecoration(
-                          
-                              hintText: 'Password',
-                              hintStyle: const TextStyle(color: Color(0xff333333)),
-                              prefixIcon: const Icon(
-                                Icons.lock_outline,
-                                color: Color(0xff333333),
-                              ),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                                  color: const Color(0xff333333),
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                              ),
-                            ),
-                          ),
+                          onPressed: () =>
+                              setState(() => _obscurePassword = !_obscurePassword),
                         ),
                       ),
-
-
                       const SizedBox(height: 24),
 
-                      // Register button
                       ElevatedButton(
-                        onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const HomePage()),
-                        );
-                      },
+                        onPressed: _isLoading ? null : _register,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: themeColor,
                           foregroundColor: Colors.black,
@@ -286,13 +365,22 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           elevation: 0,
                         ),
-                        child: const Text(
-                          'Create Account',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.black,
+                                ),
+                              )
+                            : const Text(
+                                'Create Account',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
 
                       const SizedBox(height: 24),
@@ -303,17 +391,14 @@ class _RegisterPageState extends State<RegisterPage> {
                         children: [
                           Text(
                             "Already have an account? ",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
-                            ),
+                            style: TextStyle(color: Colors.white.withOpacity(0.7)),
                           ),
                           GestureDetector(
-                            onTap: () {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (context) => const LoginPage()),
-                              );
-                            },
+                            onTap: () => Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const LoginPage()),
+                            ),
                             child: const Text(
                               'Login',
                               style: TextStyle(
@@ -324,7 +409,6 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 16),
                     ],
                   ),
@@ -333,6 +417,53 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    bool obscure = false,
+    Widget? suffixIcon,
+  }) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Color(0xFFDBF500), width: 1.5),
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        ),
+      ),
+      child: SizedBox(
+        height: 60,
+        child: TextField(
+          controller: controller,
+          obscureText: obscure,
+          keyboardType: keyboardType,
+          style: const TextStyle(color: Colors.black),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(color: Colors.black54),
+            prefixIcon: Icon(icon, color: const Color(0xff333333)),
+            suffixIcon: suffixIcon,
+          ),
+        ),
       ),
     );
   }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/auth/auth_landing_page.dart';
+import 'package:get_fit/Presentation/pages/home/home_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LaunchPage extends StatefulWidget {
   const LaunchPage({super.key});
@@ -26,9 +28,10 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
       })
       ..addStatusListener((status) {
         if (status == AnimationStatus.completed) {
+          final isLoggedIn = Supabase.instance.client.auth.currentUser != null;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => const AuthLandingPage(),
+              builder: (context) => isLoggedIn ? const HomePage() : const AuthLandingPage(),
             ),
           );
         }

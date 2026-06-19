@@ -1,8 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_fit/Presentation/pages/home/home_page.dart';
+import 'package:get_fit/Presentation/pages/launch/launch_page.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await dotenv.load(fileName: ".env");
+
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+    debug: false,
+  );
+
   runApp(const MainApp());
 }
 
@@ -19,7 +33,7 @@ class MainApp extends StatelessWidget {
           theme: lightTheme,
           darkTheme: darkTheme,
           themeMode: mode,
-          home: const HomePage(),
+          home: SupabaseService.isLoggedIn ? const HomePage() : const LaunchPage(),
         );
       },
     );
