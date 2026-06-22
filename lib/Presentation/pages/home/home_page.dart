@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/setting/setting_home_page.dart';
 import 'package:get_fit/Presentation/pages/yoga/yoga_tab_content.dart';
 import 'package:get_fit/Utils/constants.dart';
-import 'package:get_fit/Presentation/pages/setup-2.0/fitness_tainer_detail_page.dart';
+import 'package:get_fit/Presentation/pages/fitnes_trainer/fitness_tainer_detail_page.dart';
 import 'package:get_fit/Presentation/pages/runner/runner_page.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';

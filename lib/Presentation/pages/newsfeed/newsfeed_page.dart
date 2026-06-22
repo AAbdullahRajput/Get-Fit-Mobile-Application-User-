@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/newsfeed/newsfeed_detail_page.dart';
-import 'package:get_fit/Presentation/widgets/newsfeed_card.dart';
+import 'package:get_fit/Presentation/widgets/newsfeed/newsfeed_card.dart';
 import 'package:get_fit/Utils/constants.dart';
 
 class NewsfeedPage extends StatefulWidget {

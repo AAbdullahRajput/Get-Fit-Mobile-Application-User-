@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:get_fit/Presentation/pages/setup-2.0/fitness_tainer_detail_page.dart';
+import 'package:get_fit/Presentation/pages/fitnes_trainer/fitness_tainer_detail_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
-class FitnessTrainers extends StatefulWidget {
-  const FitnessTrainers({super.key});
+class FitnessTrainerCard extends StatefulWidget {
+  const FitnessTrainerCard({super.key});
 
   @override
-  State<FitnessTrainers> createState() => _FitnessTrainersState();
+  State<FitnessTrainerCard> createState() => _FitnessTrainerCardState();
 }
 
-class _FitnessTrainersState extends State<FitnessTrainers> {
+class _FitnessTrainerCardState extends State<FitnessTrainerCard> {
   List<Map<String, dynamic>> _trainers = [];
   bool _isLoading = true;
 
@@ -30,59 +30,12 @@ class _FitnessTrainersState extends State<FitnessTrainers> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.bgColor,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 60, 14, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Fitness Trainers',
-                    style: TextStyle(
-                      color: context.isDark ? themeColor : Colors.black,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: RefreshIndicator(
-                      color: themeColor,
-                      backgroundColor: context.cardBgColor,
-                      displacement: 100,
-                      onRefresh: _onRefresh,
-                      child: _isLoading
-                          ? _buildSkeleton(context)
-                          : _buildList(context),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(10),
-                    backgroundColor: Colors.black54,
-                  ),
-                  child: const Icon(Icons.arrow_back, color: Colors.white),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return RefreshIndicator(
+      color: themeColor,
+      backgroundColor: context.cardBgColor,
+      displacement: 100,
+      onRefresh: _onRefresh,
+      child: _isLoading ? _buildSkeleton(context) : _buildList(context),
     );
   }
 
@@ -169,13 +122,10 @@ class _FitnessTrainersState extends State<FitnessTrainers> {
             child: Row(
               children: [
                 const SizedBox(width: 16),
-                Container(
-                  width: 56, height: 56,
-                  decoration: BoxDecoration(
-                    color: context.isDark ? const Color(0xff4a4a4a) : Colors.grey.shade400,
-                    shape: BoxShape.circle,
-                  ),
-                ),
+                Container(width: 56, height: 56,
+                    decoration: BoxDecoration(
+                        color: context.isDark ? const Color(0xff4a4a4a) : Colors.grey.shade400,
+                        shape: BoxShape.circle)),
                 const SizedBox(width: 16),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,

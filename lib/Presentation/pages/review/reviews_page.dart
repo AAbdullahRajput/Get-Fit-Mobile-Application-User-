@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
-import 'package:get_fit/Presentation/pages/setup-2.0/write_review_page.dart';
+import 'package:get_fit/Presentation/pages/review/write_review_page.dart';
 
 class ReviewsPage extends StatefulWidget {
   final String trainerId;

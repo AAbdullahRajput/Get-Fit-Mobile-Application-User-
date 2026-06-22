@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
-import 'package:get_fit/Presentation/pages/setup-2.0/payment_page.dart';
+import 'package:get_fit/Presentation/pages/payment/payment_page.dart';
 class AppointmentBookingPage extends StatefulWidget {
   final String trainerId;
   final String trainerName;

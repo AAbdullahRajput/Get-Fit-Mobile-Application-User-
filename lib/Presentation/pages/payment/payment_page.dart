@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:get_fit/Presentation/pages/setup-2.0/add_card_page.dart';
+import 'package:get_fit/Presentation/pages/payment/add_card_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
-import 'package:get_fit/Presentation/pages/setup-2.0/edit_card_page.dart';
-
+import 'package:get_fit/Presentation/pages/payment/edit_card_page.dart';
+import 'package:get_fit/Presentation/pages/booking/booking_confirmation_page.dart';
 class AppointmentPaymentPage extends StatefulWidget {
   final String trainerId;
   final String trainerName;
@@ -70,7 +70,19 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
         notes: widget.notes,
       );
       if (!mounted) return;
-      _showSuccessDialog();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BookingConfirmationPage(
+            trainerName: widget.trainerName,
+            trainerType: widget.trainerType,
+            trainerRating: widget.trainerRating,
+            trainerAvatarUrl: widget.trainerAvatarUrl,
+            displayDate: widget.displayDate,
+            time: widget.time,
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       final msg = e.toString().contains('unique') || e.toString().contains('duplicate')

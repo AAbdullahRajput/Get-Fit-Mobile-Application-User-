@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:get_fit/Presentation/pages/setup-2.0/appointment_booking_page.dart';
-import 'package:get_fit/Presentation/pages/setup-2.0/reviews_page.dart';
+import 'package:get_fit/Presentation/pages/booking/appointment_booking_page.dart';
+import 'package:get_fit/Presentation/pages/review/reviews_page.dart';
 import 'package:get_fit/Presentation/widgets/reuseable_button.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
