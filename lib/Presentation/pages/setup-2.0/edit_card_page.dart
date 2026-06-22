@@ -50,12 +50,8 @@ class _EditCardPageState extends State<EditCardPage> {
     switch (network) {
       case 'Visa':
         return const Text('VISA',
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                fontStyle: FontStyle.italic,
-                letterSpacing: 2));
+            style: TextStyle(color: Colors.white, fontSize: 22,
+                fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, letterSpacing: 2));
       case 'Mastercard':
         return Row(children: [
           Container(width: 22, height: 22,
@@ -136,7 +132,7 @@ class _EditCardPageState extends State<EditCardPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -163,6 +159,50 @@ class _EditCardPageState extends State<EditCardPage> {
     } finally {
       if (mounted) setState(() => _isDeleting = false);
     }
+  }
+
+  Widget _buildUnderlineField({
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+    TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter> inputFormatters = const [],
+    int? maxLength,
+    bool obscure = false,
+    Function(String)? onChanged,
+    bool readOnly = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(
+                color: context.textColor,
+                fontSize: 15,
+                fontWeight: FontWeight.w600)),
+        TextField(
+          controller: controller,
+          readOnly: readOnly,
+          keyboardType: keyboardType,
+          obscureText: obscure,
+          maxLength: maxLength,
+          inputFormatters: inputFormatters,
+          onChanged: onChanged,
+          style: TextStyle(color: context.subtextColor, fontSize: 15),
+          decoration: InputDecoration(
+            counterText: '',
+            hintText: hint,
+            hintStyle: TextStyle(color: context.subtextColor.withOpacity(0.4)),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: context.isDark ? Colors.white24 : Colors.grey.shade300),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: themeColor),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -196,7 +236,8 @@ class _EditCardPageState extends State<EditCardPage> {
                   ),
                   const SizedBox(width: 8),
                   Text('Edit Card',
-                      style: TextStyle(color: themeColor, fontSize: 22, fontWeight: FontWeight.bold)),
+                      style: TextStyle(color: themeColor, fontSize: 22,
+                          fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -213,7 +254,7 @@ class _EditCardPageState extends State<EditCardPage> {
                             fontSize: 17, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 14),
 
-                    // Live card preview
+                    // Card preview
                     Container(
                       width: double.infinity,
                       height: 190,
@@ -237,35 +278,25 @@ class _EditCardPageState extends State<EditCardPage> {
                               _buildNetworkBadge(_detectedNetwork),
                             ],
                           ),
-                          Text(
-                            '•••• •••• •••• $last4',
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 18,
-                                letterSpacing: 3, fontWeight: FontWeight.w600),
-                          ),
+                          Text('•••• •••• •••• $last4',
+                              style: const TextStyle(color: Colors.white,
+                                  fontSize: 18, letterSpacing: 3, fontWeight: FontWeight.w600)),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Name',
-                                      style: TextStyle(color: Colors.white54, fontSize: 10)),
-                                  Text(displayHolder,
-                                      style: const TextStyle(color: Colors.white,
-                                          fontSize: 13, fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  const Text('Expired Date',
-                                      style: TextStyle(color: Colors.white54, fontSize: 10)),
-                                  Text(displayExpiry,
-                                      style: const TextStyle(color: Colors.white,
-                                          fontSize: 13, fontWeight: FontWeight.w600)),
-                                ],
-                              ),
+                              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                const Text('Name', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                                Text(displayHolder,
+                                    style: const TextStyle(color: Colors.white,
+                                        fontSize: 13, fontWeight: FontWeight.w600)),
+                              ]),
+                              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                                const Text('Expired Date',
+                                    style: TextStyle(color: Colors.white54, fontSize: 10)),
+                                Text(displayExpiry,
+                                    style: const TextStyle(color: Colors.white,
+                                        fontSize: 13, fontWeight: FontWeight.w600)),
+                              ]),
                             ],
                           ),
                         ],
@@ -273,104 +304,90 @@ class _EditCardPageState extends State<EditCardPage> {
                     ),
                     const SizedBox(height: 28),
 
-                    // Card number (read-only — show masked)
-                    _buildLabel('Card Number'),
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      decoration: BoxDecoration(
-                        color: context.cardBgColor,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Text(
-                        '•••• •••• •••• $last4',
-                        style: TextStyle(color: context.subtextColor,
-                            fontSize: 15, letterSpacing: 2),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Holder name
-                    _buildLabel('Card Holder Name'),
-                    const SizedBox(height: 8),
-                    _buildField(
+                    // Card Holder Name
+                    _buildUnderlineField(
+                      label: 'Card Holder Name',
                       controller: _holderController,
-                      hint: 'John Doe',
-                      icon: Icons.person_outline,
+                      hint: 'Julietta Moonwalk',
                       onChanged: (_) => setState(() {}),
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z ]')),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
 
-                    // Expiry + CVC
+                    // Card Number (read-only)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Card Number',
+                            style: TextStyle(color: context.textColor,
+                                fontSize: 15, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 8),
+                        Text('•••• •••• •••• $last4',
+                            style: TextStyle(color: context.subtextColor, fontSize: 15, letterSpacing: 2)),
+                        Divider(color: context.isDark ? Colors.white24 : Colors.grey.shade300),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Expiry + CVC side by side
                     Row(
                       children: [
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('Expiry(MM/YY)'),
-                              const SizedBox(height: 8),
-                              _buildField(
-                                controller: _expiryController,
-                                hint: 'MM/YY',
-                                icon: Icons.calendar_today,
-                                keyboardType: TextInputType.number,
-                                maxLength: 5,
-                                onChanged: (_) => setState(() {}),
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  _ExpiryFormatter(),
-                                ],
-                              ),
+                          child: _buildUnderlineField(
+                            label: 'Expiry(MM/YY)',
+                            controller: _expiryController,
+                            hint: '01-23',
+                            keyboardType: TextInputType.number,
+                            maxLength: 5,
+                            onChanged: (_) => setState(() {}),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              _ExpiryFormatter(),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 32),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('CVC'),
-                              const SizedBox(height: 8),
-                              _buildField(
-                                controller: _cvcController,
-                                hint: '•••',
-                                icon: Icons.lock_outline,
-                                keyboardType: TextInputType.number,
-                                maxLength: 3,
-                                obscure: true,
-                                onChanged: (_) {},
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                              ),
+                          child: _buildUnderlineField(
+                            label: 'CVC',
+                            controller: _cvcController,
+                            hint: '•••',
+                            keyboardType: TextInputType.number,
+                            maxLength: 3,
+                            obscure: true,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
                             ],
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 28),
 
-                    // Delete Card link
+                    // Delete Card — plain text like Figma
                     GestureDetector(
                       onTap: _isDeleting ? null : _delete,
                       child: _isDeleting
-                          ? const Center(child: CircularProgressIndicator(color: Colors.redAccent))
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.redAccent))
                           : const Text('Delete Card',
                               style: TextStyle(
                                   color: Colors.redAccent,
                                   fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  decoration: TextDecoration.underline,
-                                  decorationColor: Colors.redAccent)),
+                                  fontWeight: FontWeight.w500)),
                     ),
-                    const SizedBox(height: 32),
+                    Divider(
+                        color: context.isDark ? Colors.white12 : Colors.grey.shade300,
+                        height: 32),
 
-                    // Done button
+                    const SizedBox(height: 16),
+
+                    // Save button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -386,7 +403,7 @@ class _EditCardPageState extends State<EditCardPage> {
                             ? const SizedBox(width: 22, height: 22,
                                 child: CircularProgressIndicator(
                                     strokeWidth: 2.5, color: Colors.black))
-                            : const Text('Done',
+                            : const Text('Save',
                                 style: TextStyle(color: Colors.black,
                                     fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
@@ -396,45 +413,6 @@ class _EditCardPageState extends State<EditCardPage> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLabel(String text) => Text(text,
-      style: TextStyle(color: context.subtextColor,
-          fontSize: 13, fontWeight: FontWeight.w600));
-
-  Widget _buildField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    required Function(String) onChanged,
-    required List<TextInputFormatter> inputFormatters,
-    TextInputType keyboardType = TextInputType.text,
-    int? maxLength,
-    bool obscure = false,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: context.cardBgColor,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        obscureText: obscure,
-        maxLength: maxLength,
-        inputFormatters: inputFormatters,
-        onChanged: onChanged,
-        style: TextStyle(color: context.textColor, fontSize: 15),
-        decoration: InputDecoration(
-          counterText: '',
-          hintText: hint,
-          hintStyle: TextStyle(color: context.subtextColor),
-          prefixIcon: Icon(icon, color: context.subtextColor, size: 20),
-          border: InputBorder.none,
         ),
       ),
     );
