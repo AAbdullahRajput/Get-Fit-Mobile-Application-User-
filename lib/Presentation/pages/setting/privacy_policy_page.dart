@@ -1,8 +1,82 @@
 import 'package:flutter/material.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
-class PrivacyPolicyPage extends StatelessWidget {
+class PrivacyPolicyPage extends StatefulWidget {
   const PrivacyPolicyPage({super.key});
+
+  @override
+  State<PrivacyPolicyPage> createState() => _PrivacyPolicyPageState();
+}
+
+class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
+  bool _isAccepting = false;
+  bool _alreadyAccepted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAccepted();
+  }
+
+  Future<void> _checkAccepted() async {
+    final data = await SupabaseService.getUserProfile();
+    if (mounted) {
+      setState(() => _alreadyAccepted = data?['terms_accepted'] == true);
+    }
+  }
+
+  Future<void> _accept() async {
+    if (_alreadyAccepted) return;
+    setState(() => _isAccepting = true);
+    await SupabaseService.acceptTerms();
+    if (!mounted) return;
+    await _checkAccepted(); // re-read from DB to confirm
+    if (!mounted) return;
+    setState(() => _isAccepting = false);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF4A5240),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Icon(Icons.check_circle_outline, color: themeColor, size: 56),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Terms Accepted!',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'You have successfully accepted our Terms & Privacy Policy.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // close dialog
+              Navigator.pop(context); // go back
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              decoration: BoxDecoration(
+                color: themeColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text('OK', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -10,14 +84,35 @@ class PrivacyPolicyPage extends StatelessWidget {
       backgroundColor: context.bgColor,
       body: Stack(
         children: [
-          // Scrollable content
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 60, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 60, 16, 100),
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Accepted badge
+                    if (_alreadyAccepted)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: themeColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: themeColor, width: 1),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.verified, color: themeColor, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'You have already accepted these terms.',
+                              style: TextStyle(color: context.textColor, fontSize: 14, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     Text(
                       'Terms and Conditions',
                       style: TextStyle(
@@ -67,16 +162,16 @@ We may update this privacy policy from time to time. We will notify you of any c
 
 6. Contact Us
 If you have any questions about this privacy policy, please contact us.''',
-                      style: TextStyle(color: context.textColor, fontSize: 16),
+                      style: TextStyle(color: context.textColor, fontSize: 15, height: 1.6),
                     ),
-                    const SizedBox(height: 100),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
             ),
           ),
 
-          // Back button overlay
+          // Back button
           SafeArea(
             child: Align(
               alignment: Alignment.topLeft,
@@ -89,16 +184,13 @@ If you have any questions about this privacy policy, please contact us.''',
                     padding: const EdgeInsets.all(10),
                     backgroundColor: Colors.black54,
                   ),
-                  child: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.arrow_back, color: Colors.white),
                 ),
               ),
             ),
           ),
 
-          // Accept button fixed at bottom
+          // Bottom button
           Positioned(
             left: 0,
             right: 0,
@@ -116,22 +208,26 @@ If you have any questions about this privacy policy, please contact us.''',
                 ],
               ),
               child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: _alreadyAccepted || _isAccepting ? null : _accept,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: themeColor,
+                  backgroundColor: _alreadyAccepted ? const Color(0xFF3A3A3A) : themeColor,
+                  disabledBackgroundColor: _alreadyAccepted ? const Color(0xFF3A3A3A) : Colors.grey,
                   padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                 ),
-                child: const Text(
-                  'I\'ve Accepted This',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: _isAccepting
+                    ? const SizedBox(
+                        height: 22, width: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black),
+                      )
+                    : Text(
+                        _alreadyAccepted ? 'Already Accepted ✓' : "I've Accepted This",
+                        style: TextStyle(
+                          color: _alreadyAccepted ? Colors.white54 : Colors.black,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ),

@@ -149,7 +149,7 @@ class SupabaseService {
     debugPrint('\x1B[33m[API] GET /rest/v1/users+user_setup | userId: $userId\x1B[0m');
     final profile = await client
         .from('users')
-        .select('username, email, mobile_no, avatar_url')
+        .select('username, email, mobile_no, avatar_url, terms_accepted')
         .eq('id', userId)
         .maybeSingle();
     final setup = await client
@@ -299,5 +299,14 @@ static Future<void> toggleFavorite({
   }
 }
 
-
+static Future<void> acceptTerms() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    await client.from('users').update({'terms_accepted': true}).eq('id', userId);
+    debugPrint('\x1B[32m[API] Terms accepted\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | acceptTerms | $e\x1B[0m');
+  }
+}
 }
