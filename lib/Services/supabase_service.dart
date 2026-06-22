@@ -500,4 +500,20 @@ static Future<void> deleteReview({required String trainerId}) async {
     rethrow;
   }
 }
+
+static Future<List<Map<String, dynamic>>> getTrainerSlots(String trainerId) async {
+  try {
+    final res = await client
+        .from('trainer_slots')
+        .select('slot_time, price')
+        .eq('trainer_id', trainerId)
+        .order('created_at');
+    debugPrint('\x1B[32m[API] 200 OK | getTrainerSlots | ${res.length} slots\x1B[0m');
+    return List<Map<String, dynamic>>.from(res);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTrainerSlots | $e\x1B[0m');
+    return [];
+  }
+}
+
 }

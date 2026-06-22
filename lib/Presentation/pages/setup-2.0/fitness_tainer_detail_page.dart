@@ -599,6 +599,8 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                 trainerId: trainer['id'],
                 trainerName: trainer['name'] ?? '',
                 trainerType: trainer['training_type'] ?? '',
+                sessionPrice: (trainer['session_price'] as num?)?.toDouble() ?? 50.0,
+                trainerRating: (trainer['rating'] as num?)?.toDouble() ?? 0.0,
               ),
             ),
           ),

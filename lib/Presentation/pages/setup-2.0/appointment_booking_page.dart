@@ -6,12 +6,16 @@ class AppointmentBookingPage extends StatefulWidget {
   final String trainerId;
   final String trainerName;
   final String trainerType;
+  final double sessionPrice;
+  final double trainerRating;
 
   const AppointmentBookingPage({
     super.key,
     required this.trainerId,
     required this.trainerName,
     this.trainerType = '',
+    this.sessionPrice = 50.00,
+    this.trainerRating = 0.0,
   });
 
   @override
@@ -22,20 +26,23 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   DateTime _focusedMonth = DateTime.now();
   DateTime? _selectedDate;
   String? _selectedTime;
+  double _selectedPrice = 0.0;
   List<String> _bookedSlots = [];
   bool _loadingSlots = false;
-  bool _isBooking = false;
+  List<Map<String, dynamic>> _trainerSlots = [];
+  bool _loadingTrainerSlots = true;
   final _notesController = TextEditingController();
 
-  // Generate 30-min slots from 9 AM to 6 PM
-  final List<String> _allSlots = List.generate(18, (i) {
-    final totalMinutes = 9 * 60 + i * 30;
-    final h = totalMinutes ~/ 60;
-    final m = totalMinutes % 60;
-    final period = h >= 12 ? 'PM' : 'AM';
-    final displayH = h > 12 ? h - 12 : h == 0 ? 12 : h;
-    return '$displayH:${m.toString().padLeft(2, '0')} $period';
-  });
+  @override
+  void initState() {
+    super.initState();
+    _loadTrainerSlots();
+  }
+
+  Future<void> _loadTrainerSlots() async {
+    final slots = await SupabaseService.getTrainerSlots(widget.trainerId);
+    if (mounted) setState(() { _trainerSlots = slots; _loadingTrainerSlots = false; });
+  }
 
   @override
   void dispose() {
@@ -55,46 +62,6 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
 
   String _dateToStr(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-  Future<void> _book() async {
-    if (_selectedDate == null || _selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Select a date and time slot first.',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
-      return;
-    }
-    setState(() => _isBooking = true);
-    try {
-      await SupabaseService.bookAppointment(
-        trainerId: widget.trainerId,
-        date: _dateToStr(_selectedDate!),
-        time: _selectedTime!,
-        notes: _notesController.text.trim(),
-      );
-      if (!mounted) return;
-      _showSuccessDialog();
-    } catch (e) {
-      if (!mounted) return;
-      final msg = e.toString().contains('unique') || e.toString().contains('duplicate')
-          ? 'This slot was just booked by someone else. Please pick another.'
-          : 'Failed to book. Please try again.';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
-      // Refresh slots in case someone just booked
-      if (_selectedDate != null) _loadSlots(_selectedDate!);
-    } finally {
-      if (mounted) setState(() => _isBooking = false);
-    }
-  }
 
   void _showSuccessDialog() {
     showDialog(
@@ -340,6 +307,8 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                               displayDate: _formatDisplayDate(_selectedDate!),
                               time: _selectedTime!,
                               notes: _notesController.text.trim(),
+                              sessionPrice: _selectedPrice,
+                              trainerRating: widget.trainerRating,
                             ),
                           ),
                         );
@@ -445,62 +414,79 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   }
 
   Widget _buildTimeSlots() {
-    return SizedBox(
-      height: 52,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: _allSlots.length,
-        itemBuilder: (context, index) {
-          final slot = _allSlots[index];
-          final isBooked = _bookedSlots.contains(slot);
-          final isSelected = _selectedTime == slot;
-          return GestureDetector(
-            onTap: isBooked
-                ? () => ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('This slot is already booked.'),
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: Colors.redAccent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    )
-                : () => setState(() => _selectedTime = slot),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.only(right: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? themeColor
-                    : isBooked
-                        ? (context.isDark ? const Color(0xff2a2a2a) : Colors.grey.shade200)
-                        : context.cardBgColor,
-                borderRadius: BorderRadius.circular(25),
-                border: Border.all(
-                  color: isSelected
-                      ? themeColor
-                      : isBooked
-                          ? Colors.transparent
-                          : context.isDark ? Colors.white12 : Colors.grey.shade300,
-                ),
-              ),
-              child: Text(
-                slot,
-                style: TextStyle(
-                  color: isSelected
-                      ? Colors.black
-                      : isBooked
-                          ? context.subtextColor.withOpacity(0.35)
-                          : context.textColor,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  fontSize: 13,
-                  decoration: isBooked ? TextDecoration.lineThrough : null,
-                ),
+    if (_loadingTrainerSlots) {
+      return const Center(child: Padding(
+        padding: EdgeInsets.all(16),
+        child: CircularProgressIndicator(color: themeColor),
+      ));
+    }
+    if (_trainerSlots.isEmpty) {
+      return Text('No slots available.', style: TextStyle(color: context.subtextColor));
+    }
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: _trainerSlots.map((slot) {
+        final time = slot['slot_time'] as String;
+        final price = (slot['price'] as num).toDouble();
+        final isBooked = _bookedSlots.contains(time);
+        final isSelected = _selectedTime == time;
+        return GestureDetector(
+          onTap: isBooked
+              ? () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: const Text('This slot is already booked.'),
+                    backgroundColor: Colors.redAccent,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ))
+              : () => setState(() {
+                    _selectedTime = time;
+                    _selectedPrice = price;
+                  }),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? themeColor
+                  : isBooked
+                      ? (context.isDark ? const Color(0xff2a2a2a) : Colors.grey.shade200)
+                      : context.cardBgColor,
+              borderRadius: BorderRadius.circular(25),
+              border: Border.all(
+                color: isSelected ? themeColor
+                    : isBooked ? Colors.transparent
+                    : context.isDark ? Colors.white12 : Colors.grey.shade300,
               ),
             ),
-          );
-        },
-      ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  time,
+                  style: TextStyle(
+                    color: isSelected ? Colors.black
+                        : isBooked ? context.subtextColor.withOpacity(0.35)
+                        : context.textColor,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 13,
+                    decoration: isBooked ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '\$${price.toStringAsFixed(0)}',
+                  style: TextStyle(
+                    color: isSelected ? Colors.black87 : themeColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
