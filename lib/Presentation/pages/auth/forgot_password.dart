@@ -5,7 +5,8 @@ import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/auth/verification_page.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({super.key});
+  final bool fromSettings;
+  const ForgotPasswordPage({super.key, this.fromSettings = false});
 
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
@@ -138,6 +139,23 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               ],
             ),
           ),
+          // Back button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 8,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: const BoxDecoration(
+                  color: Colors.black45,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+
           Positioned(
             bottom: 0,
             left: 0,
