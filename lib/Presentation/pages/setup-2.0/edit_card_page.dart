@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:payment_card/payment_card.dart';
+import 'package:flutter/services.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
-import 'package:get_fit/Presentation/widgets/reuseable_button.dart';
 
 class EditCardPage extends StatefulWidget {
-  final PaymentCard card;
+  final Map<String, dynamic> card;
 
   const EditCardPage({super.key, required this.card});
 
@@ -13,289 +13,449 @@ class EditCardPage extends StatefulWidget {
 }
 
 class _EditCardPageState extends State<EditCardPage> {
-  bool _isLoading = true;
+  late TextEditingController _holderController;
+  late TextEditingController _expiryController;
+  final _cvcController = TextEditingController();
+  bool _isSaving = false;
+  bool _isDeleting = false;
+  late String _detectedNetwork;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _holderController = TextEditingController(text: widget.card['holder_name'] ?? '');
+    _expiryController = TextEditingController(text: widget.card['expiry'] ?? '');
+    _detectedNetwork = widget.card['card_network'] ?? 'Unknown';
   }
 
-  Future<void> _loadData() async {
-    await Future.delayed(const Duration(seconds: 2));
-    if (mounted) setState(() => _isLoading = false);
+  @override
+  void dispose() {
+    _holderController.dispose();
+    _expiryController.dispose();
+    _cvcController.dispose();
+    super.dispose();
   }
 
-  Future<void> _onRefresh() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
-    if (mounted) setState(() => _isLoading = false);
+  List<Color> _cardGradient(String network) {
+    switch (network) {
+      case 'Visa': return [const Color(0xFF1a6bb5), const Color(0xFF3d8ef0)];
+      case 'Mastercard': return [const Color(0xFF8B0000), const Color(0xFFEB001B)];
+      case 'Amex': return [const Color(0xFF007BC1), const Color(0xFF00BFFF)];
+      case 'Discover': return [const Color(0xFFe65c00), const Color(0xFFf9d423)];
+      default: return [const Color(0xFF1a1a2e), const Color(0xFF16213e)];
+    }
+  }
+
+  Widget _buildNetworkBadge(String network) {
+    switch (network) {
+      case 'Visa':
+        return const Text('VISA',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                fontStyle: FontStyle.italic,
+                letterSpacing: 2));
+      case 'Mastercard':
+        return Row(children: [
+          Container(width: 22, height: 22,
+              decoration: const BoxDecoration(color: Color(0xFFEB001B), shape: BoxShape.circle)),
+          Transform.translate(offset: const Offset(-8, 0),
+            child: Container(width: 22, height: 22,
+                decoration: BoxDecoration(
+                    color: const Color(0xFFF79E1B).withOpacity(0.9),
+                    shape: BoxShape.circle)),
+          ),
+        ]);
+      case 'Amex':
+        return const Text('AMEX',
+            style: TextStyle(color: Colors.white, fontSize: 14,
+                fontWeight: FontWeight.bold, letterSpacing: 2));
+      default:
+        return const Icon(Icons.credit_card, color: Colors.white54, size: 22);
+    }
+  }
+
+  Future<void> _save() async {
+    final holder = _holderController.text.trim();
+    final expiry = _expiryController.text.trim();
+    final cvc = _cvcController.text.trim();
+
+    if (holder.isEmpty || expiry.length < 5 || cvc.length < 3) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Please fill all fields correctly.'),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      await SupabaseService.updateUserCard(
+        cardId: widget.card['id'],
+        holderName: holder,
+        expiry: expiry,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Card updated!'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Failed to update card.'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _delete() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C2C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Card?',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Remove •••• •••• •••• ${widget.card['last4']} from your account?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+    setState(() => _isDeleting = true);
+    try {
+      await SupabaseService.deleteUserCard(widget.card['id']);
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Failed to delete card.'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final gradient = _cardGradient(_detectedNetwork);
+    final displayHolder = _holderController.text.isEmpty
+        ? 'CARD HOLDER' : _holderController.text.toUpperCase();
+    final displayExpiry = _expiryController.text.isEmpty
+        ? 'MM/YY' : _expiryController.text;
+    final last4 = widget.card['last4'] ?? '••••';
+
     return Scaffold(
       backgroundColor: context.bgColor,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: RefreshIndicator(
-              color: context.subtextColor,
-              backgroundColor: context.cardBgColor,
-              displacement: 100,
-              onRefresh: _onRefresh,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 60, 16, 16),
-                child: _isLoading
-                    ? _buildSkeleton(context)
-                    : _buildCardForm(context, isEdit: true),
-              ),
-            ),
-          ),
-
-          // Back button overlay
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(10),
-                    backgroundColor: Colors.black54,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Top bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
+              child: Row(
+                children: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      shape: const CircleBorder(),
+                      padding: const EdgeInsets.all(10),
+                      backgroundColor: Colors.black54,
+                      elevation: 0,
+                    ),
+                    child: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
-                  child: const Icon(Icons.arrow_back, color: Colors.white),
-                ),
+                  const SizedBox(width: 8),
+                  Text('Edit Card',
+                      style: TextStyle(color: themeColor, fontSize: 22, fontWeight: FontWeight.bold)),
+                ],
               ),
             ),
-          ),
 
-          // Delete button overlay
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        backgroundColor: context.cardBgColor,
-                        title: Text('Delete Card?',
-                            style: TextStyle(color: context.textColor)),
-                        content: Text(
-                          'Are you sure you want to delete this card?',
-                          style: TextStyle(color: context.subtextColor),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Section label
+                    Text('Payment Method',
+                        style: TextStyle(color: context.textColor,
+                            fontSize: 17, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 14),
+
+                    // Live card preview
+                    Container(
+                      width: double.infinity,
+                      height: 190,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: gradient,
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        actions: [
-                          TextButton(
-                            child: Text('Cancel',
-                                style:
-                                    TextStyle(color: context.subtextColor)),
-                            onPressed: () => Navigator.pop(context),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Icon(Icons.sim_card, color: Colors.amber, size: 28),
+                              _buildNetworkBadge(_detectedNetwork),
+                            ],
                           ),
-                          TextButton(
-                            child: const Text('Delete',
-                                style: TextStyle(color: Colors.red)),
-                            onPressed: () {
-                              Navigator.pop(context);
-                              Navigator.pop(context);
-                            },
+                          Text(
+                            '•••• •••• •••• $last4',
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 18,
+                                letterSpacing: 3, fontWeight: FontWeight.w600),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Name',
+                                      style: TextStyle(color: Colors.white54, fontSize: 10)),
+                                  Text(displayHolder,
+                                      style: const TextStyle(color: Colors.white,
+                                          fontSize: 13, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  const Text('Expired Date',
+                                      style: TextStyle(color: Colors.white54, fontSize: 10)),
+                                  Text(displayExpiry,
+                                      style: const TextStyle(color: Colors.white,
+                                          fontSize: 13, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(10),
-                    backgroundColor: Colors.red.withOpacity(0.8),
-                  ),
-                  child: const Icon(Icons.delete_outline, color: Colors.white),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // Card number (read-only — show masked)
+                    _buildLabel('Card Number'),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: context.cardBgColor,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        '•••• •••• •••• $last4',
+                        style: TextStyle(color: context.subtextColor,
+                            fontSize: 15, letterSpacing: 2),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Holder name
+                    _buildLabel('Card Holder Name'),
+                    const SizedBox(height: 8),
+                    _buildField(
+                      controller: _holderController,
+                      hint: 'John Doe',
+                      icon: Icons.person_outline,
+                      onChanged: (_) => setState(() {}),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z ]')),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Expiry + CVC
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildLabel('Expiry(MM/YY)'),
+                              const SizedBox(height: 8),
+                              _buildField(
+                                controller: _expiryController,
+                                hint: 'MM/YY',
+                                icon: Icons.calendar_today,
+                                keyboardType: TextInputType.number,
+                                maxLength: 5,
+                                onChanged: (_) => setState(() {}),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  _ExpiryFormatter(),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildLabel('CVC'),
+                              const SizedBox(height: 8),
+                              _buildField(
+                                controller: _cvcController,
+                                hint: '•••',
+                                icon: Icons.lock_outline,
+                                keyboardType: TextInputType.number,
+                                maxLength: 3,
+                                obscure: true,
+                                onChanged: (_) {},
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Delete Card link
+                    GestureDetector(
+                      onTap: _isDeleting ? null : _delete,
+                      child: _isDeleting
+                          ? const Center(child: CircularProgressIndicator(color: Colors.redAccent))
+                          : const Text('Delete Card',
+                              style: TextStyle(
+                                  color: Colors.redAccent,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: Colors.redAccent)),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Done button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _save,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeColor,
+                          disabledBackgroundColor: Colors.grey,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(width: 22, height: 22,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2.5, color: Colors.black))
+                            : const Text('Done',
+                                style: TextStyle(color: Colors.black,
+                                    fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSkeleton(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _shimmer(context, width: 160, height: 22),
-        const SizedBox(height: 16),
-        _shimmer(context, width: double.infinity, height: 200, radius: 16),
-        const SizedBox(height: 24),
-        _shimmer(context, width: double.infinity, height: 56, radius: 12),
-        const SizedBox(height: 16),
-        _shimmer(context, width: double.infinity, height: 56, radius: 12),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-                child: _shimmer(context,
-                    width: double.infinity, height: 56, radius: 12)),
-            const SizedBox(width: 16),
-            Expanded(
-                child: _shimmer(context,
-                    width: double.infinity, height: 56, radius: 12)),
-          ],
-        ),
-        const SizedBox(height: 24),
-        _shimmer(context, width: double.infinity, height: 50, radius: 25),
-      ],
-    );
-  }
+  Widget _buildLabel(String text) => Text(text,
+      style: TextStyle(color: context.subtextColor,
+          fontSize: 13, fontWeight: FontWeight.w600));
 
-  Widget _buildCardForm(BuildContext context, {required bool isEdit}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Payment Method',
-          style: TextStyle(
-            color: context.textColor,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        const PaymentCard(
-          cardIssuerIcon: CardIcon(icon: Icons.credit_card),
-          backgroundColor: Colors.blue,
-          backgroundGradient: LinearGradient(
-            colors: [Colors.purple, Colors.indigo],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          currency: Text('USD'),
-          cardNumber: '•••• •••• •••• ••••',
-          validity: 'MM/YY',
-          holder: 'CARD HOLDER',
-          isStrict: false,
-          cardNetwork: CardNetwork.visa,
-          backgroundImage: null,
-        ),
-        const SizedBox(height: 24),
-        _buildTextField(context, 'Card Holder Name', Icons.person_outline),
-        const SizedBox(height: 16),
-        _buildTextField(context, 'Card Number', Icons.credit_card),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildTextField(context, 'Expiry', Icons.calendar_today),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildTextField(context, 'CVC', Icons.lock_outline),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        if (!isEdit) ...[
-          Row(
-            children: [
-              Checkbox(
-                value: false,
-                onChanged: (value) {},
-                fillColor: MaterialStateProperty.all(themeColor),
-              ),
-              Text('Set as default payment method',
-                  style: TextStyle(color: context.textColor)),
-            ],
-          ),
-          const SizedBox(height: 16),
-        ],
-        ReuseableButton(
-          title: isEdit ? 'Save Changes' : 'Done',
-          onPressed: () => Navigator.pop(context),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTextField(BuildContext context, String label, IconData icon) {
+  Widget _buildField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    required Function(String) onChanged,
+    required List<TextInputFormatter> inputFormatters,
+    TextInputType keyboardType = TextInputType.text,
+    int? maxLength,
+    bool obscure = false,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: context.cardBgColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       child: TextField(
-        style: TextStyle(color: context.textColor),
+        controller: controller,
+        keyboardType: keyboardType,
+        obscureText: obscure,
+        maxLength: maxLength,
+        inputFormatters: inputFormatters,
+        onChanged: onChanged,
+        style: TextStyle(color: context.textColor, fontSize: 15),
         decoration: InputDecoration(
-          icon: Icon(icon, color: context.subtextColor),
-          labelText: label,
-          labelStyle: TextStyle(color: context.subtextColor),
+          counterText: '',
+          hintText: hint,
+          hintStyle: TextStyle(color: context.subtextColor),
+          prefixIcon: Icon(icon, color: context.subtextColor, size: 20),
           border: InputBorder.none,
         ),
       ),
     );
   }
-
-  Widget _shimmer(BuildContext context,
-      {required double width,
-      required double height,
-      double radius = 8}) {
-    return _ShimmerWidget(
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: context.isDark
-              ? const Color(0xff3a3a3a)
-              : Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(radius),
-        ),
-      ),
-    );
-  }
 }
 
-class _ShimmerWidget extends StatefulWidget {
-  final Widget child;
-  const _ShimmerWidget({required this.child});
-
+class _ExpiryFormatter extends TextInputFormatter {
   @override
-  State<_ShimmerWidget> createState() => _ShimmerWidgetState();
-}
-
-class _ShimmerWidgetState extends State<_ShimmerWidget>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _animation,
-      child: widget.child,
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll('/', '');
+    if (digits.length > 4) return oldValue;
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i == 2) buffer.write('/');
+      buffer.write(digits[i]);
+    }
+    final result = buffer.toString();
+    return TextEditingValue(
+      text: result,
+      selection: TextSelection.collapsed(offset: result.length),
     );
   }
 }

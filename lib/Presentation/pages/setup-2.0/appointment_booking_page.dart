@@ -341,6 +341,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                               notes: _notesController.text.trim(),
                               sessionPrice: _selectedPrice,
                               trainerRating: widget.trainerRating,
+                              trainerAvatarUrl: widget.trainerAvatarUrl,
                             ),
                           ),
                         );

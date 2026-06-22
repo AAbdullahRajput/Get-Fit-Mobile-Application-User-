@@ -516,4 +516,53 @@ static Future<List<Map<String, dynamic>>> getTrainerSlots(String trainerId) asyn
   }
 }
 
+static Future<List<Map<String, dynamic>>> getUserCards() async {
+  try {
+    final userId = client.auth.currentUser?.id;
+    if (userId == null) return [];
+    final res = await client
+        .from('user_cards')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at');
+    debugPrint('\x1B[32m[API] 200 OK | getUserCards | ${res.length} cards\x1B[0m');
+    return List<Map<String, dynamic>>.from(res);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getUserCards | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<void> addUserCard({
+  required String holderName,
+  required String last4,
+  required String expiry,
+  required String cardNetwork,
+}) async {
+  final userId = client.auth.currentUser?.id;
+  if (userId == null) throw Exception('Not logged in');
+  await client.from('user_cards').insert({
+    'user_id': userId,
+    'holder_name': holderName,
+    'last4': last4,
+    'expiry': expiry,
+    'card_network': cardNetwork,
+  });
+}
+
+static Future<void> deleteUserCard(String cardId) async {
+  await client.from('user_cards').delete().eq('id', cardId);
+}
+static Future<void> updateUserCard({
+  required String cardId,
+  required String holderName,
+  required String expiry,
+}) async {
+  await client.from('user_cards').update({
+    'holder_name': holderName,
+    'expiry': expiry,
+  }).eq('id', cardId);
+}
+
+
 }

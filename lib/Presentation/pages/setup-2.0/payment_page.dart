@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/setup-2.0/add_card_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Presentation/pages/setup-2.0/edit_card_page.dart';
 
 class AppointmentPaymentPage extends StatefulWidget {
   final String trainerId;
@@ -13,6 +14,7 @@ class AppointmentPaymentPage extends StatefulWidget {
   final String notes;
   final double sessionPrice;
   final double trainerRating;
+  final String trainerAvatarUrl;
 
   const AppointmentPaymentPage({
     super.key,
@@ -25,6 +27,7 @@ class AppointmentPaymentPage extends StatefulWidget {
     required this.notes,
     this.sessionPrice = 50.00,
     this.trainerRating = 0.0,
+    this.trainerAvatarUrl = '',
   });
 
   @override
@@ -34,23 +37,28 @@ class AppointmentPaymentPage extends StatefulWidget {
 class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
   bool _isBooking = false;
   int _selectedCardIndex = 0;
+  List<Map<String, dynamic>> _cards = [];
+  bool _loadingCards = true;
 
-  final List<Map<String, dynamic>> _cards = [
-    {
-      'last4': '5678',
-      'holder': 'J. DOE',
-      'expiry': '06/11',
-      'network': 'VISA',
-      'gradient': [Color(0xFFB8860B), Color(0xFFDAA520)],
-    },
-    {
-      'last4': '9012',
-      'holder': 'J. DOE',
-      'expiry': '08/25',
-      'network': 'CreditCard',
-      'gradient': [Color(0xFF1a1a2e), Color(0xFF16213e)],
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadCards();
+  }
+
+  Future<void> _loadCards() async {
+    final cards = await SupabaseService.getUserCards();
+    if (mounted) setState(() { _cards = cards; _loadingCards = false; });
+  }
+
+  List<Color> _cardGradient(String network) {
+    switch (network) {
+      case 'Visa': return [const Color(0xFFB8860B), const Color(0xFFDAA520)];
+      case 'Mastercard': return [const Color(0xFF8B0000), const Color(0xFFEB001B)];
+      case 'Amex': return [const Color(0xFF007BC1), const Color(0xFF00BFFF)];
+      default: return [const Color(0xFF1a1a2e), const Color(0xFF16213e)];
+    }
+  }
 
   Future<void> _confirmBooking() async {
     setState(() => _isBooking = true);
@@ -169,6 +177,9 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                     const SizedBox(height: 14),
 
                     // Card selector
+                    _loadingCards
+                        ? const Center(child: CircularProgressIndicator(color: themeColor))
+                        :
                     SizedBox(
                       height: 140,
                       child: ListView.builder(
@@ -178,8 +189,9 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                           if (i == 0) {
                             return GestureDetector(
                               onTap: () async {
-                                await Navigator.push(context,
+                                final added = await Navigator.push(context,
                                     MaterialPageRoute(builder: (_) => const AddCardPage()));
+                                if (added == true) _loadCards();
                               },
                               child: Container(
                                 width: 80,
@@ -197,6 +209,13 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                           final isSelected = _selectedCardIndex == i - 1;
                           return GestureDetector(
                             onTap: () => setState(() => _selectedCardIndex = i - 1),
+                            onLongPress: () async {
+                              final edited = await Navigator.push(context,
+                                  MaterialPageRoute(
+                                    builder: (_) => EditCardPage(card: card),
+                                  ));
+                              if (edited == true) _loadCards();
+                            },
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               width: 200,
@@ -204,7 +223,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: (card['gradient'] as List).cast<Color>(),
+                                  colors: _cardGradient(card['card_network'] ?? ''),
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
@@ -223,12 +242,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       const Icon(Icons.sim_card, color: Colors.amber, size: 22),
-                                      Text(card['network'],
-                                          style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 1)),
+                                      _buildNetworkBadge(card['card_network'] ?? ''),
                                     ],
                                   ),
                                   // Card number
@@ -249,7 +263,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                                         children: [
                                           const Text('Name',
                                               style: TextStyle(color: Colors.white54, fontSize: 9)),
-                                          Text(card['holder'],
+                                          Text(card['holder_name'] ?? '',
                                               style: const TextStyle(
                                                   color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
                                         ],
@@ -259,7 +273,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                                         children: [
                                           const Text('Expired Date',
                                               style: TextStyle(color: Colors.white54, fontSize: 9)),
-                                          Text(card['expiry'],
+                                          Text(card['expiry'] ?? '',
                                               style: const TextStyle(
                                                   color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
                                         ],
@@ -286,7 +300,10 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                         CircleAvatar(
                           radius: 26,
                           backgroundColor: themeColor,
-                          child: const Icon(Icons.person, color: Colors.black, size: 28),
+                          backgroundImage: widget.trainerAvatarUrl.isNotEmpty
+                              ? NetworkImage(widget.trainerAvatarUrl) : null,
+                          child: widget.trainerAvatarUrl.isEmpty
+                              ? const Icon(Icons.person, color: Colors.black, size: 28) : null,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -323,19 +340,19 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                     Divider(color: context.isDark ? Colors.white12 : Colors.grey.shade200, height: 24),
 
                     // Date
-                    Text('Date', style: TextStyle(color: context.subtextColor, fontSize: 14)),
-                    const SizedBox(height: 4),
+                    Text('Date', style: TextStyle(color: context.subtextColor, fontSize: 20)),
+                    const SizedBox(height: 8),
                     Text(widget.displayDate,
                         style: TextStyle(
-                            color: context.textColor, fontSize: 16, fontWeight: FontWeight.w600)),
+                            color: context.textColor, fontSize: 20, fontWeight: FontWeight.w600)),
                     Divider(color: context.isDark ? Colors.white12 : Colors.grey.shade200, height: 24),
 
                     // Time
-                    Text('Time', style: TextStyle(color: context.subtextColor, fontSize: 14)),
-                    const SizedBox(height: 4),
+                    Text('Time', style: TextStyle(color: context.subtextColor, fontSize: 20)),
+                    const SizedBox(height: 8),
                     Text(widget.time,
                         style: TextStyle(
-                            color: context.textColor, fontSize: 16, fontWeight: FontWeight.w600)),
+                            color: context.textColor, fontSize: 20, fontWeight: FontWeight.w600)),
                     Divider(color: context.isDark ? Colors.white12 : Colors.grey.shade200, height: 24),
 
                     // Estimated Cost
@@ -380,6 +397,57 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
           ],
         ),
       ),
-    );
+   );
+  }
+
+  Widget _buildNetworkBadge(String network) {
+    switch (network) {
+      case 'Visa':
+        return const Text('VISA',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                fontStyle: FontStyle.italic,
+                letterSpacing: 2));
+      case 'Mastercard':
+        return Row(
+          children: [
+            Container(
+              width: 22, height: 22,
+              decoration: const BoxDecoration(
+                color: Color(0xFFEB001B),
+                shape: BoxShape.circle,
+              ),
+            ),
+            Transform.translate(
+              offset: const Offset(-8, 0),
+              child: Container(
+                width: 22, height: 22,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF79E1B).withOpacity(0.9),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ],
+        );
+      case 'Amex':
+        return const Text('AMEX',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2));
+      case 'Discover':
+        return const Text('DISCOVER',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1));
+      default:
+        return const Icon(Icons.credit_card, color: Colors.white54, size: 22);
+    }
   }
 }
