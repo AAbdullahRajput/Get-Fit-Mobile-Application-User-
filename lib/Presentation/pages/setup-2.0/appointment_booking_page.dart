@@ -159,33 +159,34 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Trainer card — Figma style
-                  Row(
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: context.cardBgColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       CircleAvatar(
-                        radius: 30,
+                        radius: 35,
                         backgroundColor: themeColor,
                         backgroundImage: widget.trainerAvatarUrl.isNotEmpty
                             ? NetworkImage(widget.trainerAvatarUrl) : null,
                         child: widget.trainerAvatarUrl.isEmpty
-                            ? const Icon(Icons.person, color: Colors.black, size: 30) : null,
+                            ? const Icon(Icons.person, color: Colors.black, size: 32) : null,
                       ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(widget.trainerName,
-                                      style: TextStyle(
-                                          color: context.textColor,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold)),
-                                ),
-                                const Icon(Icons.arrow_forward, color: themeColor, size: 18),
-                              ],
-                            ),
+                            Text(widget.trainerName,
+                                style: TextStyle(
+                                    color: context.textColor,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold)),
                             Text(widget.trainerType,
                                 style: TextStyle(color: context.subtextColor, fontSize: 13)),
                             const SizedBox(height: 4),
@@ -215,6 +216,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                         ),
                       ),
                     ],
+                  ),
                   ),
                   const SizedBox(height: 24),
 
