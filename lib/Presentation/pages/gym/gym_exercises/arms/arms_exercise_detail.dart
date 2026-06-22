@@ -100,7 +100,7 @@ class _ArmsExerciseDetailState extends State<ArmsExerciseDetail> {
                           widget.exercise.imageUrl,
                           width: double.infinity,
                           height: 280,
-                          fit: BoxFit.cover,
+                          fit: BoxFit.fill,
                           errorBuilder: (context, error, stack) => Container(
                             color: context.cardBgColor,
                             child: Icon(Icons.fitness_center, color: themeColor, size: 64),

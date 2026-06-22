@@ -334,7 +334,7 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
               Positioned.fill(
                 child: Image.network(
                   exercise.imageUrl,
-                  fit: BoxFit.cover,
+                  fit: BoxFit.fill,
                   cacheWidth: 600,
                   loadingBuilder: (context, child, progress) {
                     if (progress == null) return child;

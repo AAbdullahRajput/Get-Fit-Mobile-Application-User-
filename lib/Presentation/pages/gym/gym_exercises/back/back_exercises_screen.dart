@@ -157,7 +157,7 @@ class _BackExercisesScreenState extends State<BackExercisesScreen> {
                     Positioned.fill(
                       child: Image.network(
                         exercise.imageUrl,
-                        fit: BoxFit.cover,
+                        fit: BoxFit.fill,
                         cacheWidth: 600,
                         errorBuilder: (context, error, stack) => Container(
                           color: context.cardBgColor,

@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class Exercise {
   final String id;
   final String title;
@@ -8,6 +10,9 @@ class Exercise {
   final String reps;
   final String rest;
   final String level;
+  final String duration;
+  final String kcal;
+  final String exerciseCount;
 
   const Exercise({
     required this.id,
@@ -19,6 +24,9 @@ class Exercise {
     required this.reps,
     required this.rest,
     required this.level,
+    this.duration = '30 Minutes',
+    this.kcal = '320 Kcal',
+    this.exerciseCount = '5 Exercises',
   });
 }
 
@@ -33,6 +41,9 @@ final List<Exercise> dummyExercises = [
     reps: '10 reps',
     rest: 'Rest 60s',
     level: 'Intermediate',
+    duration: '45 Minutes',
+    kcal: '380 Kcal',
+    exerciseCount: '4 Exercises',
   ),
   Exercise(
     id: 'squat',
@@ -44,6 +55,9 @@ final List<Exercise> dummyExercises = [
     reps: '12 reps',
     rest: 'Rest 90s',
     level: 'Beginner',
+    duration: '40 Minutes',
+    kcal: '420 Kcal',
+    exerciseCount: '6 Exercises',
   ),
   Exercise(
     id: 'pull_ups',
@@ -55,6 +69,9 @@ final List<Exercise> dummyExercises = [
     reps: '10 reps',
     rest: 'Rest 60s',
     level: 'Advanced',
+    duration: '30 Minutes',
+    kcal: '310 Kcal',
+    exerciseCount: '5 Exercises',
   ),
   Exercise(
     id: 'shoulder_press',
@@ -66,6 +83,9 @@ final List<Exercise> dummyExercises = [
     reps: '10 reps',
     rest: 'Rest 45s',
     level: 'Intermediate',
+    duration: '35 Minutes',
+    kcal: '290 Kcal',
+    exerciseCount: '4 Exercises',
   ),
   Exercise(
     id: 'bicep_curl',
@@ -77,6 +97,9 @@ final List<Exercise> dummyExercises = [
     reps: '10 reps',
     rest: 'Rest 60s',
     level: 'Beginner',
+    duration: '25 Minutes',
+    kcal: '210 Kcal',
+    exerciseCount: '3 Exercises',
   ),
   Exercise(
     id: 'plank',
@@ -88,6 +111,9 @@ final List<Exercise> dummyExercises = [
     reps: '1 rep',
     rest: 'Rest 30s',
     level: 'Beginner',
+    duration: '20 Minutes',
+    kcal: '180 Kcal',
+    exerciseCount: '3 Exercises',
   ),
   Exercise(
     id: 'deadlift',
@@ -99,6 +125,9 @@ final List<Exercise> dummyExercises = [
     reps: '8 reps',
     rest: 'Rest 120s',
     level: 'Advanced',
+    duration: '50 Minutes',
+    kcal: '520 Kcal',
+    exerciseCount: '4 Exercises',
   ),
   Exercise(
     id: 'tricep_dips',
@@ -110,5 +139,8 @@ final List<Exercise> dummyExercises = [
     reps: '15 reps',
     rest: 'Rest 45s',
     level: 'Intermediate',
+    duration: '25 Minutes',
+    kcal: '230 Kcal',
+    exerciseCount: '3 Exercises',
   ),
 ];
