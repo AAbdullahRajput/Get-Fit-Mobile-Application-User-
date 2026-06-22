@@ -553,10 +553,10 @@ class _ReviewsPageState extends State<ReviewsPage> {
                       CircleAvatar(
                         radius: 22,
                         backgroundColor: themeColor,
-                        backgroundImage: (r['avatar_url'] ?? '').toString().isNotEmpty
-                            ? NetworkImage(r['avatar_url']) : null,
-                        child: (r['avatar_url'] ?? '').toString().isEmpty
-                            ? const Icon(Icons.person, color: Colors.black, size: 22) : null,
+                        backgroundImage: ((r['users']?['avatar_url'] ?? r['avatar_url'] ?? '').toString().isNotEmpty)
+    ? NetworkImage(r['users']?['avatar_url'] ?? r['avatar_url']) : null,
+child: ((r['users']?['avatar_url'] ?? r['avatar_url'] ?? '').toString().isEmpty)
+    ? const Icon(Icons.person, color: Colors.black, size: 22) : null,
                       ),
                       const SizedBox(width: 10),
                       Expanded(

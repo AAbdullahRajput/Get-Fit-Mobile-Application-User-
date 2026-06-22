@@ -196,6 +196,13 @@ static Future<void> updateUserProfile({
   try {
     debugPrint('\x1B[33m[API] PATCH /rest/v1/users | userId: $userId\x1B[0m');
     await client.from('users').update(data).eq('id', userId);
+    // Sync avatar_url to existing reviews
+    if (data.containsKey('avatar_url')) {
+      await client
+          .from('trainer_reviews')
+          .update({'avatar_url': data['avatar_url']})
+          .eq('user_id', userId);
+    }
     debugPrint('\x1B[32m[API] 200 OK | Profile updated\x1B[0m');
   } catch (e) {
     debugPrint('\x1B[31m[API] ERROR | updateUserProfile | ${e.toString()}\x1B[0m');
@@ -358,7 +365,7 @@ static Future<List<Map<String, dynamic>>> getTrainerReviews(String trainerId) as
     debugPrint('\x1B[33m[API] GET /rest/v1/trainer_reviews | trainerId: $trainerId\x1B[0m');
     final data = await client
         .from('trainer_reviews')
-        .select()
+        .select('*, users(avatar_url, username)')
         .eq('trainer_id', trainerId)
         .order('created_at', ascending: false);
     debugPrint('\x1B[32m[API] 200 OK | Reviews: ${data.length}\x1B[0m');
