@@ -6,6 +6,8 @@ class AppointmentBookingPage extends StatefulWidget {
   final String trainerId;
   final String trainerName;
   final String trainerType;
+  final String trainerExperience;
+  final String trainerAvatarUrl;
   final double sessionPrice;
   final double trainerRating;
 
@@ -14,6 +16,8 @@ class AppointmentBookingPage extends StatefulWidget {
     required this.trainerId,
     required this.trainerName,
     this.trainerType = '',
+    this.trainerExperience = '',
+    this.trainerAvatarUrl = '',
     this.sessionPrice = 50.00,
     this.trainerRating = 0.0,
   });
@@ -154,8 +158,64 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('with ${widget.trainerName}',
-                      style: TextStyle(color: context.subtextColor, fontSize: 15)),
+                  // Trainer card — Figma style
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 30,
+                        backgroundColor: themeColor,
+                        backgroundImage: widget.trainerAvatarUrl.isNotEmpty
+                            ? NetworkImage(widget.trainerAvatarUrl) : null,
+                        child: widget.trainerAvatarUrl.isEmpty
+                            ? const Icon(Icons.person, color: Colors.black, size: 30) : null,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(widget.trainerName,
+                                      style: TextStyle(
+                                          color: context.textColor,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                                const Icon(Icons.arrow_forward, color: themeColor, size: 18),
+                              ],
+                            ),
+                            Text(widget.trainerType,
+                                style: TextStyle(color: context.subtextColor, fontSize: 13)),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                if (widget.trainerExperience.isNotEmpty)
+                                  Text('${widget.trainerExperience} years experience',
+                                      style: TextStyle(color: themeColor, fontSize: 12)),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: themeColor,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    widget.trainerRating.toStringAsFixed(1),
+                                    style: const TextStyle(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 24),
 
                   // Calendar
@@ -236,49 +296,19 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                     const SizedBox(height: 20),
                   ],
 
-                  // Time slots
-                  if (_selectedDate != null) ...[
-                    Text('Available Slots',
-                        style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 12),
-                    _loadingSlots
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(16),
-                              child: CircularProgressIndicator(color: themeColor),
-                            ))
-                        : _buildTimeSlots(),
-                    const SizedBox(height: 20),
-                  ],
-
-                  // Notes
-                  Text('Notes (optional)',
+                  // Time slots — always shown, Figma style horizontal
+                  Text('Time',
                       style: TextStyle(
                           color: context.textColor,
                           fontSize: 16,
                           fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 10),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: context.cardBgColor,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: TextField(
-                      controller: _notesController,
-                      maxLines: 3,
-                      style: TextStyle(color: context.textColor, fontSize: 14),
-                      decoration: InputDecoration(
-                        hintText: 'Any specific goals, injuries, or requests...',
-                        hintStyle: TextStyle(color: context.subtextColor, fontSize: 14),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.all(14),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 12),
+                  _loadingSlots
+                      ? const Center(child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator(color: themeColor)))
+                      : _buildTimeSlots(),
+                  const SizedBox(height: 20),
 
                   // Confirm button
                   // Next button → Payment
