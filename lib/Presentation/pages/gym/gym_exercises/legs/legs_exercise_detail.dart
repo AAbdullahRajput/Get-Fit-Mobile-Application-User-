@@ -1,11 +1,82 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Domain/models/exercise_model.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
-class LegsExerciseDetail extends StatelessWidget {
+class LegsExerciseDetail extends StatefulWidget {
   final Exercise exercise;
-
   const LegsExerciseDetail({super.key, required this.exercise});
+
+  @override
+  State<LegsExerciseDetail> createState() => _LegsExerciseDetailState();
+}
+
+class _LegsExerciseDetailState extends State<LegsExerciseDetail> {
+  bool _isFavorite = false;
+  bool _isLoading = true;
+  bool _isToggling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFavorite();
+  }
+
+  Future<void> _checkFavorite() async {
+    try {
+      final result = await SupabaseService.isFavorite(widget.exercise.id);
+      if (mounted) setState(() { _isFavorite = result; _isLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_isToggling) return;
+    setState(() => _isToggling = true);
+    try {
+      await SupabaseService.toggleFavorite(
+        exerciseId: widget.exercise.id,
+        title: widget.exercise.title,
+        image: widget.exercise.imageUrl,
+        category: widget.exercise.category,
+        level: widget.exercise.level,
+        sets: widget.exercise.sets,
+        reps: widget.exercise.reps,
+        rest: widget.exercise.rest,
+        description: widget.exercise.description,
+      );
+      final nowFavorite = !_isFavorite;
+      if (mounted) {
+        setState(() => _isFavorite = nowFavorite);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              nowFavorite ? 'Added to Favourites' : 'Removed from Favourites',
+              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: themeColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: const Color(0xFF4A5240),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isToggling = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,13 +97,13 @@ class LegsExerciseDetail extends StatelessWidget {
                     child: Stack(
                       children: [
                         Image.network(
-                          exercise.imageUrl,
+                          widget.exercise.imageUrl,
                           width: double.infinity,
                           height: 280,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stack) => Container(
                             color: context.cardBgColor,
-                            child: Icon(Icons.fitness_center, color: themeColor, size: 64),
+                            child: const Icon(Icons.fitness_center, color: themeColor, size: 64),
                           ),
                         ),
                         Positioned.fill(
@@ -47,9 +118,7 @@ class LegsExerciseDetail extends StatelessWidget {
                           ),
                         ),
                         Positioned(
-                          bottom: 20,
-                          left: 20,
-                          right: 20,
+                          bottom: 20, left: 20, right: 20,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -57,25 +126,19 @@ class LegsExerciseDetail extends StatelessWidget {
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: _levelColor(exercise.level),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(exercise.level, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    decoration: BoxDecoration(color: _levelColor(widget.exercise.level), borderRadius: BorderRadius.circular(8)),
+                                    child: Text(widget.exercise.level, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                                   ),
                                   const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(exercise.category, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                                    child: Text(widget.exercise.category, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 8),
-                              Text(exercise.title, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+                              Text(widget.exercise.title, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -90,17 +153,17 @@ class LegsExerciseDetail extends StatelessWidget {
                       children: [
                         Text('Description', style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
-                        Text(exercise.description, style: TextStyle(color: context.subtextColor, fontSize: 15, height: 1.6)),
+                        Text(widget.exercise.description, style: TextStyle(color: context.subtextColor, fontSize: 15, height: 1.6)),
                         const SizedBox(height: 20),
                         Text('Workout Details', style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            _detailChip(context, 'Sets', exercise.sets),
+                            _detailChip(context, 'Sets', widget.exercise.sets),
                             const SizedBox(width: 12),
-                            _detailChip(context, 'Reps', exercise.reps),
+                            _detailChip(context, 'Reps', widget.exercise.reps),
                             const SizedBox(width: 12),
-                            _detailChip(context, 'Rest', exercise.rest),
+                            _detailChip(context, 'Rest', widget.exercise.rest),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -175,10 +238,16 @@ class LegsExerciseDetail extends StatelessWidget {
                               width: 56,
                               height: 56,
                               decoration: BoxDecoration(color: context.cardBgColor, borderRadius: BorderRadius.circular(12)),
-                              child: IconButton(
-                                icon: Icon(Icons.favorite_border, color: context.textColor, size: 28),
-                                onPressed: () {},
-                              ),
+                              child: _isLoading
+                                  ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: themeColor)))
+                                  : IconButton(
+                                      icon: Icon(
+                                        _isFavorite ? Icons.favorite : Icons.favorite_border,
+                                        color: _isFavorite ? themeColor : context.textColor,
+                                        size: 28,
+                                      ),
+                                      onPressed: _isToggling ? null : _toggleFavorite,
+                                    ),
                             ),
                           ],
                         ),
@@ -245,14 +314,7 @@ class LegsExerciseDetail extends StatelessWidget {
         color: isDark ? themeColor.withOpacity(0.2) : Colors.grey.shade200,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(
-        muscle,
-        style: TextStyle(
-          color: isDark ? themeColor : Colors.black87,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
+      child: Text(muscle, style: TextStyle(color: isDark ? themeColor : Colors.black87, fontSize: 13, fontWeight: FontWeight.w500)),
     );
   }
 
@@ -263,17 +325,12 @@ class LegsExerciseDetail extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 24,
-            height: 24,
+            width: 24, height: 24,
             decoration: const BoxDecoration(color: themeColor, shape: BoxShape.circle),
-            child: Center(
-              child: Text(number, style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold)),
-            ),
+            child: Center(child: Text(number, style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold))),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(instruction, style: TextStyle(color: context.textColor, fontSize: 14)),
-          ),
+          Expanded(child: Text(instruction, style: TextStyle(color: context.textColor, fontSize: 14))),
         ],
       ),
     );
