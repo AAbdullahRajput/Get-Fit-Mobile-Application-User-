@@ -564,5 +564,25 @@ static Future<void> updateUserCard({
   }).eq('id', cardId);
 }
 
+static Future<Map<String, dynamic>?> getNextAppointment() async {
+  try {
+    final userId = client.auth.currentUser?.id;
+    if (userId == null) return null;
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final res = await client
+        .from('trainer_appointments')
+        .select('*, fitness_trainers(name, training_type, image_url)')
+        .eq('user_id', userId)
+        .gte('appointment_date', today)
+        .order('appointment_date')
+        .order('appointment_time')
+        .limit(1)
+        .maybeSingle();
+    return res;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getNextAppointment | $e\x1B[0m');
+    return null;
+  }
+}
 
 }

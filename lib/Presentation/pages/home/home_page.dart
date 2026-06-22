@@ -133,9 +133,9 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: IndexedStack(
-  index: _selectedTab,
-  children: _pages,
-),
+          index: _selectedTab,
+          children: _pages,
+        ),
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -243,419 +243,487 @@ class _OverviewTabState extends State<_OverviewTab> {
         physics: const AlwaysScrollableScrollPhysics(),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Hi, $_username!",
-                        style: TextStyle(
-                            color: isDark ? themeColor : Colors.black,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        "It's time to challenge your limits.",
-                        style: TextStyle(
-                            fontSize: 13,
-                            color: Theme.of(context).textTheme.bodyLarge?.color),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Icon(Icons.search,
-                          color: isDark ? themeColor : Colors.black),
-                      const SizedBox(width: 10),
-                      Icon(Icons.notifications,
-                          color: isDark ? themeColor : Colors.black),
-                      const SizedBox(width: 10),
-                      InkWell(
-                        onTap: () {
-                          Navigator.of(context).push(MaterialPageRoute(
-                            builder: (context) => const SettingHomePage(),
-                          ));
-                        },
-                        child: Icon(Icons.settings,
-                            color: isDark ? themeColor : Colors.black),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              height: 80,
-              decoration: BoxDecoration(
-                color: themeColor,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Image.asset("assets/home/fire.png", width: 50, height: 50),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            "Workout Today",
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            "let's achieve your target today",
-                            style: TextStyle(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Hi, $_username!",
+                          style: TextStyle(
+                              color: isDark ? themeColor : Colors.black,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          "It's time to challenge your limits.",
+                          style: TextStyle(
                               fontSize: 13,
-                              color: Colors.black.withOpacity(0.7),
-                            ),
-                          ),
-                        ],
-                      ),
+                              color: Theme.of(context).textTheme.bodyLarge?.color),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Icon(Icons.search,
+                            color: isDark ? themeColor : Colors.black),
+                        const SizedBox(width: 10),
+                        Icon(Icons.notifications,
+                            color: isDark ? themeColor : Colors.black),
+                        const SizedBox(width: 10),
+                        InkWell(
+                          onTap: () {
+                            Navigator.of(context).push(MaterialPageRoute(
+                              builder: (context) => const SettingHomePage(),
+                            ));
+                          },
+                          child: Icon(Icons.settings,
+                              color: isDark ? themeColor : Colors.black),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                "Activity Summary",
-                style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 30),
-            Row(
-              children: [
-                // Steps card
-                Expanded(
-                  child: Stack(
-                    clipBehavior: Clip.none,
+              const SizedBox(height: 20),
+              Container(
+                height: 80,
+                decoration: BoxDecoration(
+                  color: themeColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: Row(
                     children: [
-                      Container(
-                        height: 160,
-                        padding: const EdgeInsets.fromLTRB(16, 36, 16, 16),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.grey[200]
-                              : const Color(0xFF2C2C2C),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+                      Image.asset("assets/home/fire.png", width: 50, height: 50),
+                      const SizedBox(width: 20),
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const SizedBox(height: 20),
-                            Row(
-                              children: [
-                                SvgPicture.asset(
-                                    "assets/icons/steps_icon.svg",
-                                    width: 16,
-                                    height: 16,
-                                    colorFilter: ColorFilter.mode(
-                                        const Color.fromARGB(255, 0, 0, 0)!, BlendMode.srcIn)),
-                                const SizedBox(width: 6),
-                                Text("Steps",
-                                    style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: const Color.fromARGB(255, 0, 0, 0))),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text("5000",
-                                        style: TextStyle(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark
-                                                ? const Color.fromARGB(255, 210, 231, 16)
-                                                : Colors.black,)),
-                                    Text("/10000",
-                                        style: TextStyle(
-                                            fontSize: 15,
-                                            color: const Color.fromARGB(255, 0, 0, 0))),
-                                  ],
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        SvgPicture.asset(
-                                            "assets/icons/clock_icon.svg",
-                                            width: 12,
-                                            height: 12,
-                                            colorFilter: ColorFilter.mode(
-                                                const Color.fromARGB(255, 0, 0, 0)!,
-                                                BlendMode.srcIn)),
-                                        const SizedBox(width: 4),
-                                        Text("Last",
-                                            style: TextStyle(
-                                                fontSize: 11,
-                                                color: const Color.fromARGB(255, 0, 0, 0))),
-                                      ],
-                                    ),
-                                    Text("7 Days",
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            color: const Color.fromARGB(255, 0, 0, 0))),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      Positioned(
-                        top: -30,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF1E1E1E)
-                                  : Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Container(
-                              width: 60,
-                              height: 60,
-                              decoration: const BoxDecoration(
-                                color: themeColor,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Image.asset(
-                                  "assets/home/container-1-icon.png",
-                                  height: 36,
-                                  width: 36,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // Calories card
-                Expanded(
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        height: 160,
-                        padding: const EdgeInsets.fromLTRB(16, 36, 16, 16),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.grey[200]
-                              : const Color(0xFF2C2C2C),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 20),
-                            Row(
-                              children: [
-                                SvgPicture.asset(
-                                    "assets/icons/calories_icon.svg",
-                                    width: 16,
-                                    height: 16,
-                                    colorFilter: ColorFilter.mode(
-                                        const Color.fromARGB(255, 0, 0, 0)!, BlendMode.srcIn)),
-                                const SizedBox(width: 6),
-                                Text("Calories",
-                                    style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: const Color.fromARGB(255, 0, 0, 0))),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text("1500",
-                                        style: TextStyle(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark
-                                                ? const Color.fromARGB(255, 192, 207, 50)
-                                                : Colors.black)),
-                                    Text("/20000",
-                                        style: TextStyle(
-                                            fontSize: 15,
-                                            color: const Color.fromARGB(255, 0, 0, 0))),
-                                  ],
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        SvgPicture.asset(
-                                            "assets/icons/clock_icon.svg",
-                                            width: 12,
-                                            height: 12,
-                                            colorFilter: ColorFilter.mode(
-                                                const Color.fromARGB(255, 0, 0, 0)!,
-                                                BlendMode.srcIn)),
-                                        const SizedBox(width: 4),
-                                        Text("Last",
-                                            style: TextStyle(
-                                                fontSize: 11,
-                                                color: const Color.fromARGB(255, 0, 0, 0))),
-                                      ],
-                                    ),
-                                    Text("7 Days",
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            color: const Color.fromARGB(255, 0, 0, 0))),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      Positioned(
-                        top: -30,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF1E1E1E)
-                                  : Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Container(
-                              width: 60,
-                              height: 60,
-                              decoration: const BoxDecoration(
-                                color: themeColor,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Image.asset(
-                                  "assets/home/container-2-icon.png",
-                                  height: 36,
-                                  width: 36,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  height: 194,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: themeColor,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Next Upcoming Class",
-                            style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 25,
-                                fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 5),
-                        const Text("Yoga",
-                            style: TextStyle(
+                            const Text(
+                              "Workout Today",
+                              style: TextStyle(
+                                fontSize: 28,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black,
-                                fontSize: 25)),
-                        const Text("Time: 2h:20m",
-                            style:
-                                TextStyle(color: Colors.black, fontSize: 17)),
-                        const Spacer(),
-                        SizedBox(
-                          width: 100,
-                          height: 40,
-                          child: ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
                               ),
                             ),
-                            child: const Text("Join Now",
-                                style: TextStyle(fontSize: 12)),
+                            const SizedBox(height: 2),
+                            Text(
+                              "let's achieve your target today",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.black.withOpacity(0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  "Activity Summary",
+                  style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 30),
+              Row(
+                children: [
+                  // Steps card
+                  Expanded(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          height: 160,
+                          padding: const EdgeInsets.fromLTRB(16, 36, 16, 16),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.grey[200]
+                                : const Color(0xFF2C2C2C),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 20),
+                              Row(
+                                children: [
+                                  SvgPicture.asset(
+                                      "assets/icons/steps_icon.svg",
+                                      width: 16,
+                                      height: 16,
+                                      colorFilter: const ColorFilter.mode(
+                                          Color.fromARGB(255, 0, 0, 0), BlendMode.srcIn)),
+                                  const SizedBox(width: 6),
+                                  const Text("Steps",
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color.fromARGB(255, 0, 0, 0))),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text("5000",
+                                          style: TextStyle(
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark
+                                                  ? const Color.fromARGB(255, 210, 231, 16)
+                                                  : Colors.black)),
+                                      const Text("/10000",
+                                          style: TextStyle(
+                                              fontSize: 15,
+                                              color: Color.fromARGB(255, 0, 0, 0))),
+                                    ],
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          SvgPicture.asset(
+                                              "assets/icons/clock_icon.svg",
+                                              width: 12,
+                                              height: 12,
+                                              colorFilter: const ColorFilter.mode(
+                                                  Color.fromARGB(255, 0, 0, 0),
+                                                  BlendMode.srcIn)),
+                                          const SizedBox(width: 4),
+                                          const Text("Last",
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color.fromARGB(255, 0, 0, 0))),
+                                        ],
+                                      ),
+                                      const Text("7 Days",
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: Color.fromARGB(255, 0, 0, 0))),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Positioned(
+                          top: -30,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF1E1E1E)
+                                    : Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Container(
+                                width: 60,
+                                height: 60,
+                                decoration: const BoxDecoration(
+                                  color: themeColor,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Image.asset(
+                                    "assets/home/container-1-icon.png",
+                                    height: 36,
+                                    width: 36,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(width: 16),
+                  // Calories card
+                  Expanded(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          height: 160,
+                          padding: const EdgeInsets.fromLTRB(16, 36, 16, 16),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.grey[200]
+                                : const Color(0xFF2C2C2C),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 20),
+                              Row(
+                                children: [
+                                  SvgPicture.asset(
+                                      "assets/icons/calories_icon.svg",
+                                      width: 16,
+                                      height: 16,
+                                      colorFilter: const ColorFilter.mode(
+                                          Color.fromARGB(255, 0, 0, 0), BlendMode.srcIn)),
+                                  const SizedBox(width: 6),
+                                  const Text("Calories",
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color.fromARGB(255, 0, 0, 0))),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text("1500",
+                                          style: TextStyle(
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark
+                                                  ? const Color.fromARGB(255, 192, 207, 50)
+                                                  : Colors.black)),
+                                      const Text("/20000",
+                                          style: TextStyle(
+                                              fontSize: 15,
+                                              color: Color.fromARGB(255, 0, 0, 0))),
+                                    ],
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          SvgPicture.asset(
+                                              "assets/icons/clock_icon.svg",
+                                              width: 12,
+                                              height: 12,
+                                              colorFilter: const ColorFilter.mode(
+                                                  Color.fromARGB(255, 0, 0, 0),
+                                                  BlendMode.srcIn)),
+                                          const SizedBox(width: 4),
+                                          const Text("Last",
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color.fromARGB(255, 0, 0, 0))),
+                                        ],
+                                      ),
+                                      const Text("7 Days",
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: Color.fromARGB(255, 0, 0, 0))),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Positioned(
+                          top: -30,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF1E1E1E)
+                                    : Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Container(
+                                width: 60,
+                                height: 60,
+                                decoration: const BoxDecoration(
+                                  color: themeColor,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Image.asset(
+                                    "assets/home/container-2-icon.png",
+                                    height: 36,
+                                    width: 36,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // ── NEXT APPOINTMENT CARD ──
+              GestureDetector(
+                onTap: () => widget.onTabSwitch(1),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: themeColor,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: _loadingAppointment
+                      ? const SizedBox(
+                          height: 60,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                                color: Colors.black, strokeWidth: 2),
+                          ),
+                        )
+                      : _nextAppointment == null
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Next Upcoming Class',
+                                    style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 6),
+                                Text('No upcoming appointments.',
+                                    style: TextStyle(
+                                        color: Colors.black.withOpacity(0.7),
+                                        fontSize: 14)),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Text('Book Now',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            )
+                          : Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 30,
+                                  backgroundColor: Colors.black26,
+                                  backgroundImage: ((_nextAppointment!['fitness_trainers']
+                                                  ?['image_url'] ??
+                                              '')
+                                          .isNotEmpty)
+                                      ? NetworkImage(_nextAppointment!['fitness_trainers']
+                                          ['image_url'])
+                                      : null,
+                                  child: ((_nextAppointment!['fitness_trainers']
+                                                  ?['image_url'] ??
+                                              '')
+                                          .isEmpty)
+                                      ? const Icon(Icons.person,
+                                          color: Colors.white, size: 28)
+                                      : null,
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Next Appointment',
+                                          style: TextStyle(
+                                              color: Colors.black54,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500)),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _nextAppointment!['fitness_trainers']
+                                                ?['name'] ??
+                                            '',
+                                        style: const TextStyle(
+                                            color: Colors.black,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        _nextAppointment!['fitness_trainers']
+                                                ?['training_type'] ??
+                                            '',
+                                        style: TextStyle(
+                                            color: Colors.black.withOpacity(0.7),
+                                            fontSize: 13),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.calendar_today,
+                                              color: Colors.black54, size: 13),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            _nextAppointment!['appointment_date'] ?? '',
+                                            style: const TextStyle(
+                                                color: Colors.black54, fontSize: 12),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          const Icon(Icons.access_time,
+                                              color: Colors.black54, size: 13),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            _nextAppointment!['appointment_time'] ?? '',
+                                            style: const TextStyle(
+                                                color: Colors.black54, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.arrow_forward_ios,
+                                    color: Colors.black45, size: 16),
+                              ],
+                            ),
                 ),
-                Positioned(
-                  top: -23,
-                  left: 0,
-                  right: -75,
-                  child: Image.asset("assets/home/yoga-girl.png",
-                      height: 223, width: 150),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-          ],
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }
@@ -716,79 +784,139 @@ class _FitnessTabContentState extends State<_FitnessTabContent> {
                       itemBuilder: (context, index) {
                         final t = _trainers[index];
                         return Padding(
-                          padding: const EdgeInsets.all(2.0),
-                          child: Card(
-                            color: Theme.of(context).cardColor,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16)),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 10),
-                              leading: CircleAvatar(
-                                backgroundColor: themeColor,
-                                radius: 30,
-                                child: ClipOval(
-                                  child: Image.network(
-                                    t['image_url'] ?? '',
-                                    width: 60, height: 60, fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                        Icons.person,
-                                        color: Colors.black,
-                                        size: 30),
-                                  ),
-                                ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 6),
+                          child: GestureDetector(
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    FitnessTrainerDetailPage(trainer: t),
                               ),
-                              title: Text(t['name'] ?? '',
-                                  style: TextStyle(
-                                      color: Theme.of(context)
-                                          .textTheme
-                                          .bodyLarge
-                                          ?.color,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold)),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                            ),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).cardColor,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              padding: const EdgeInsets.all(14),
+                              child: Row(
                                 children: [
-                                  Text(t['training_type'] ?? '',
-                                      style: TextStyle(
+                                  // Trainer avatar
+                                  CircleAvatar(
+                                    radius: 32,
+                                    backgroundColor: themeColor,
+                                    backgroundImage: (t['image_url'] ?? '').isNotEmpty
+                                        ? NetworkImage(t['image_url'])
+                                        : null,
+                                    child: (t['image_url'] ?? '').isEmpty
+                                        ? const Icon(Icons.person,
+                                            color: Colors.black, size: 30)
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 14),
+                                  // Info
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          t['name'] ?? '',
+                                          style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyLarge
+                                                  ?.color,
+                                              fontSize: 17,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          t['training_type'] ?? '',
+                                          style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.color,
+                                              fontSize: 13),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          '${t['experience']} experience',
+                                          style: TextStyle(
+                                              color: themeColor,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.people_outline,
+                                                size: 13,
+                                                color: Colors.grey),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '${t['active_clients'] ?? 0} clients',
+                                              style: const TextStyle(
+                                                  color: Colors.grey,
+                                                  fontSize: 12),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            const Icon(Icons.check_circle_outline,
+                                                size: 13,
+                                                color: Colors.grey),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '${t['training_completed'] ?? 0} sessions',
+                                              style: const TextStyle(
+                                                  color: Colors.grey,
+                                                  fontSize: 12),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Rating badge + arrow
+                                  Column(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: themeColor,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.star,
+                                                size: 12,
+                                                color: Colors.black),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              t['rating'].toString(),
+                                              style: const TextStyle(
+                                                  color: Colors.black,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Icon(Icons.arrow_forward_ios,
+                                          size: 14,
                                           color: Theme.of(context)
                                               .textTheme
-                                              .bodySmall
-                                              ?.color,
-                                          fontSize: 14)),
-                                  Text('${t['experience']} experience',
-                                      style: TextStyle(
-                                          color: themeColor, fontSize: 13)),
-                                ],
-                              ),
-                              trailing: Column(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceAround,
-                                children: [
-                                  Icon(Icons.arrow_forward,
-                                      color: Theme.of(context)
-                                          .textTheme
-                                          .bodyLarge
-                                          ?.color),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: themeColor,
-                                      borderRadius: BorderRadius.circular(5),
-                                    ),
-                                    child: Text(t['rating'].toString(),
-                                        style: const TextStyle(
-                                            color: Colors.black,
-                                            fontWeight: FontWeight.bold)),
+                                              .bodyLarge
+                                              ?.color),
+                                    ],
                                   ),
                                 ],
-                              ),
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      FitnessTrainerDetailPage(trainer: t),
-                                ),
                               ),
                             ),
                           ),
