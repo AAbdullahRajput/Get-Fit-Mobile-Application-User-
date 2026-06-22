@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/setting/setting_home_page.dart';
 import 'package:get_fit/Presentation/pages/yoga/yoga_tab_content.dart';
 import 'package:get_fit/Utils/constants.dart';
-import 'package:get_fit/Domain/models/fitness_trainer_model.dart';
 import 'package:get_fit/Presentation/pages/setup-2.0/fitness_tainer_detail_page.dart';
 import 'package:get_fit/Presentation/pages/runner/runner_page.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_page.dart';
@@ -48,114 +47,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   }
 
   Widget _buildFitnessTab() {
-    return Builder(
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Text(
-                  'Fitness Trainers',
-                  style: TextStyle(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white
-                        : Colors.black,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: contents.length,
-                  itemBuilder: (context, index) {
-                    final trainer = contents[index];
-                    return Padding(
-                      padding: const EdgeInsets.all(2.0),
-                      child: Card(
-                        color: Theme.of(context).cardColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 10),
-                          leading: CircleAvatar(
-                            backgroundColor: themeColor,
-                            radius: 30,
-                            backgroundImage: NetworkImage(trainer.image),
-                          ),
-                          title: Text(
-                            trainer.name,
-                            style: TextStyle(
-                                color: Theme.of(context).textTheme.bodyLarge?.color,
-                                fontSize: 18),
-                          ),
-                          subtitle: Column(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                trainer.trainingType,
-                                style: TextStyle(
-                                    color: Theme.of(context).textTheme.bodySmall?.color,
-                                    fontSize: 14),
-                              ),
-                              Text(
-                                '${trainer.experience} years experience',
-                                style: TextStyle(
-                                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                                    fontSize: 14),
-                              ),
-                            ],
-                          ),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              Icon(Icons.arrow_forward,
-                                  color: Theme.of(context).textTheme.bodyLarge?.color),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 4, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: themeColor,
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                                child: Text(trainer.rating,
-                                    style: const TextStyle(color: Colors.black)),
-                              ),
-                            ],
-                          ),
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => FitnessTrainerDetailPage(
-                                  bgImg: trainer.bg_img,
-                                  trainerName: trainer.name,
-                                  trainerExp: trainer.experience,
-                                  trainerType: trainer.trainingType,
-                                  trainerClients: trainer.active_clients,
-                                  trainingCompleted: trainer.training_completed,
-                                  trainerRating: trainer.rating,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    return _FitnessTabContent();
   }
-
 
   Widget _buildSkeleton(BuildContext context) {
     return SingleChildScrollView(
@@ -749,6 +642,209 @@ class _OverviewTabState extends State<_OverviewTab> {
         ),
       ),
     ),
+    );
+  }
+}
+
+
+class _FitnessTabContent extends StatefulWidget {
+  @override
+  State<_FitnessTabContent> createState() => _FitnessTabContentState();
+}
+
+class _FitnessTabContentState extends State<_FitnessTabContent> {
+  List<Map<String, dynamic>> _trainers = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _isLoading = true);
+    final data = await SupabaseService.getTrainers();
+    if (mounted) setState(() { _trainers = data; _isLoading = false; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.all(10.0),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Fitness Trainers',
+                style: TextStyle(
+                  color: isDark ? themeColor : Colors.black,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: _isLoading
+                ? _buildSkeleton(context, isDark)
+                : RefreshIndicator(
+                    color: themeColor,
+                    backgroundColor: Theme.of(context).cardColor,
+                    onRefresh: _load,
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: _trainers.length,
+                      itemBuilder: (context, index) {
+                        final t = _trainers[index];
+                        return Padding(
+                          padding: const EdgeInsets.all(2.0),
+                          child: Card(
+                            color: Theme.of(context).cardColor,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
+                              leading: CircleAvatar(
+                                backgroundColor: themeColor,
+                                radius: 30,
+                                child: ClipOval(
+                                  child: Image.network(
+                                    t['image_url'] ?? '',
+                                    width: 60, height: 60, fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.person,
+                                        color: Colors.black,
+                                        size: 30),
+                                  ),
+                                ),
+                              ),
+                              title: Text(t['name'] ?? '',
+                                  style: TextStyle(
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodyLarge
+                                          ?.color,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold)),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(t['training_type'] ?? '',
+                                      style: TextStyle(
+                                          color: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.color,
+                                          fontSize: 14)),
+                                  Text('${t['experience']} experience',
+                                      style: TextStyle(
+                                          color: themeColor, fontSize: 13)),
+                                ],
+                              ),
+                              trailing: Column(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: [
+                                  Icon(Icons.arrow_forward,
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodyLarge
+                                          ?.color),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: themeColor,
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    child: Text(t['rating'].toString(),
+                                        style: const TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      FitnessTrainerDetailPage(trainer: t),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkeleton(BuildContext context, bool isDark) {
+    return ListView.builder(
+      itemCount: 6,
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.all(4.0),
+        child: _ShimmerWidget(
+          child: Container(
+            height: 90,
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xff3a3a3a)
+                  : Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 16),
+                Container(
+                  width: 56, height: 56,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xff4a4a4a)
+                        : Colors.grey.shade400,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 130, height: 14,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xff4a4a4a)
+                            : Colors.grey.shade400,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 90, height: 10,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xff4a4a4a)
+                            : Colors.grey.shade400,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

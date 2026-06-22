@@ -309,4 +309,195 @@ static Future<void> acceptTerms() async {
     debugPrint('\x1B[31m[API] ERROR | acceptTerms | $e\x1B[0m');
   }
 }
+
+static Future<void> deleteAccountNoPassword() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    debugPrint('\x1B[33m[API] DELETE account (no password) | userId: $userId\x1B[0m');
+
+    // Delete avatar from storage
+    try {
+      await client.storage.from('avatars').remove(['$userId/avatar.jpg']);
+      debugPrint('\x1B[32m[API] Avatar deleted\x1B[0m');
+    } catch (_) {
+      debugPrint('\x1B[33m[API] No avatar found\x1B[0m');
+    }
+
+    // Call secure DB function
+    await client.rpc('delete_user_account');
+
+    // Sign out locally
+    await client.auth.signOut();
+    debugPrint('\x1B[32m[API] Account deleted\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | deleteAccountNoPassword | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+// TRAINERS
+
+static Future<List<Map<String, dynamic>>> getTrainers() async {
+  try {
+    debugPrint('\x1B[33m[API] GET /rest/v1/fitness_trainers\x1B[0m');
+    final data = await client
+        .from('fitness_trainers')
+        .select()
+        .order('created_at', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | Trainers: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTrainers | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getTrainerReviews(String trainerId) async {
+  try {
+    debugPrint('\x1B[33m[API] GET /rest/v1/trainer_reviews | trainerId: $trainerId\x1B[0m');
+    final data = await client
+        .from('trainer_reviews')
+        .select()
+        .eq('trainer_id', trainerId)
+        .order('created_at', ascending: false);
+    debugPrint('\x1B[32m[API] 200 OK | Reviews: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTrainerReviews | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<Map<String, dynamic>?> getMyReview(String trainerId) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return null;
+    final data = await client
+        .from('trainer_reviews')
+        .select()
+        .eq('trainer_id', trainerId)
+        .eq('user_id', userId)
+        .maybeSingle();
+    return data;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getMyReview | $e\x1B[0m');
+    return null;
+  }
+}
+
+static Future<void> submitReview({
+  required String trainerId,
+  required double rating,
+  required String reviewText,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    final profile = await getUserProfile();
+    debugPrint('\x1B[33m[API] POST /rest/v1/trainer_reviews\x1B[0m');
+    await client.from('trainer_reviews').upsert({
+      'trainer_id': trainerId,
+      'user_id': userId,
+      'username': profile?['username'] ?? 'User',
+      'avatar_url': profile?['avatar_url'] ?? '',
+      'rating': rating,
+      'review_text': reviewText,
+    }, onConflict: 'trainer_id,user_id');
+    // Update trainer average rating
+    final reviews = await getTrainerReviews(trainerId);
+    if (reviews.isNotEmpty) {
+      final avg = reviews.map((r) => (r['rating'] as num).toDouble()).reduce((a, b) => a + b) / reviews.length;
+      await client.from('fitness_trainers').update({'rating': double.parse(avg.toStringAsFixed(1))}).eq('id', trainerId);
+    }
+    debugPrint('\x1B[32m[API] 200 OK | Review submitted\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | submitReview | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+static Future<void> bookAppointment({
+  required String trainerId,
+  required String date,
+  required String time,
+  String notes = '',
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    debugPrint('\x1B[33m[API] POST /rest/v1/trainer_appointments\x1B[0m');
+    await client.from('trainer_appointments').insert({
+      'trainer_id': trainerId,
+      'user_id': userId,
+      'appointment_date': date,
+      'appointment_time': time,
+      'notes': notes,
+      'status': 'pending',
+    });
+    debugPrint('\x1B[32m[API] 200 OK | Appointment booked\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | bookAppointment | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getMyAppointments() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+    debugPrint('\x1B[33m[API] GET /rest/v1/trainer_appointments\x1B[0m');
+    final data = await client
+        .from('trainer_appointments')
+        .select('*, fitness_trainers(name, image_url, training_type)')
+        .eq('user_id', userId)
+        .order('appointment_date', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | Appointments: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getMyAppointments | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<List<String>> getBookedSlots({
+  required String trainerId,
+  required String date,
+}) async {
+  try {
+    final data = await client.rpc('get_booked_slots', params: {
+      'p_trainer_id': trainerId,
+      'p_date': date,
+    });
+    return List<String>.from(data.map((r) => r['appointment_time']));
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getBookedSlots | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<void> deleteReview({required String trainerId}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    debugPrint('\x1B[33m[API] DELETE /rest/v1/trainer_reviews | trainerId: $trainerId\x1B[0m');
+    await client
+        .from('trainer_reviews')
+        .delete()
+        .eq('trainer_id', trainerId)
+        .eq('user_id', userId);
+    // Recalculate avg
+    final reviews = await getTrainerReviews(trainerId);
+    if (reviews.isEmpty) {
+      await client.from('fitness_trainers').update({'rating': 0.0}).eq('id', trainerId);
+    } else {
+      final avg = reviews.map((r) => (r['rating'] as num).toDouble()).reduce((a, b) => a + b) / reviews.length;
+      await client.from('fitness_trainers').update({'rating': double.parse(avg.toStringAsFixed(1))}).eq('id', trainerId);
+    }
+    debugPrint('\x1B[32m[API] 200 OK | Review deleted\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | deleteReview | $e\x1B[0m');
+    rethrow;
+  }
+}
 }

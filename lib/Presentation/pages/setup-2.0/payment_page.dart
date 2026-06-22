@@ -1,12 +1,107 @@
 import 'package:flutter/material.dart';
-import 'package:get_fit/Presentation/pages/setup-2.0/add_card_page.dart';
-import 'package:get_fit/Presentation/pages/setup-2.0/edit_card_page.dart';
-import 'package:get_fit/Presentation/widgets/reuseable_button.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
-import 'package:payment_card/payment_card.dart';
 
-class PaymentPage extends StatelessWidget {
-  const PaymentPage({super.key});
+class AppointmentPaymentPage extends StatefulWidget {
+  final String trainerId;
+  final String trainerName;
+  final String trainerType;
+  final String date;
+  final String displayDate;
+  final String time;
+  final String notes;
+
+  const AppointmentPaymentPage({
+    super.key,
+    required this.trainerId,
+    required this.trainerName,
+    required this.trainerType,
+    required this.date,
+    required this.displayDate,
+    required this.time,
+    required this.notes,
+  });
+
+  @override
+  State<AppointmentPaymentPage> createState() => _AppointmentPaymentPageState();
+}
+
+class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
+  bool _isBooking = false;
+
+  Future<void> _confirmBooking() async {
+    setState(() => _isBooking = true);
+    try {
+      await SupabaseService.bookAppointment(
+        trainerId: widget.trainerId,
+        date: widget.date,
+        time: widget.time,
+        notes: widget.notes,
+      );
+      if (!mounted) return;
+      _showSuccessDialog();
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().contains('unique') || e.toString().contains('duplicate')
+          ? 'This slot was just booked by someone else. Please go back and pick another.'
+          : 'Failed to book. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    } finally {
+      if (mounted) setState(() => _isBooking = false);
+    }
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C2C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Column(children: [
+          Icon(Icons.check_circle_outline, color: themeColor, size: 56),
+          SizedBox(height: 8),
+          Text('Appointment Booked!',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(widget.trainerName,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: themeColor, fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text('${widget.displayDate}  •  ${widget.time}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 14)),
+          const SizedBox(height: 12),
+          const Text('Pending confirmation from the trainer.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white38, fontSize: 12)),
+        ]),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // dialog
+              Navigator.pop(context); // payment
+              Navigator.pop(context); // booking
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              decoration: BoxDecoration(color: themeColor, borderRadius: BorderRadius.circular(12)),
+              child: const Text('Done',
+                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,122 +110,140 @@ class PaymentPage extends StatelessWidget {
       body: Stack(
         children: [
           SafeArea(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 56),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'Payment Method',
-                    style: TextStyle(
-                      color: context.textColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 70, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Payment',
+                      style: TextStyle(color: themeColor, fontSize: 22, fontWeight: FontWeight.bold)),
+                  Text('Confirm your appointment',
+                      style: TextStyle(color: context.subtextColor, fontSize: 15)),
+                  const SizedBox(height: 24),
+
+                  // Trainer card
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: context.cardBgColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: themeColor,
+                          child: const Icon(Icons.person, color: Colors.black, size: 28),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(widget.trainerName,
+                                  style: TextStyle(color: context.textColor, fontSize: 17, fontWeight: FontWeight.bold)),
+                              Text(widget.trainerType,
+                                  style: TextStyle(color: context.subtextColor, fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.arrow_forward_ios, color: context.subtextColor, size: 14),
+                      ],
                     ),
                   ),
-                ),
-                SizedBox(
-                  height: 220,
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      buildAddPaymentCard(context),
-                      const SizedBox(width: 16),
-                      buildPaymentCardExample2(context),
-                      const SizedBox(width: 16),
-                      buildPaymentCardExample1(),
-                      const SizedBox(width: 16),
-                      buildPaymentCardExample3(),
-                    ],
+                  const SizedBox(height: 16),
+
+                  // Order details
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: context.cardBgColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Order Details',
+                            style: TextStyle(color: context.textColor, fontSize: 16, fontWeight: FontWeight.bold)),
+                        Divider(color: context.isDark ? Colors.white12 : Colors.grey.shade200, height: 20),
+                        _detailRow(context, 'Date', widget.displayDate),
+                        const SizedBox(height: 10),
+                        _detailRow(context, 'Time', widget.time),
+                        if (widget.notes.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          _detailRow(context, 'Notes', widget.notes),
+                        ],
+                        Divider(color: context.isDark ? Colors.white12 : Colors.grey.shade200, height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Estimated Cost', style: TextStyle(color: context.subtextColor, fontSize: 14)),
+                            Text('\$50.00',
+                                style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Order Details',
-                        style: TextStyle(
-                          color: context.textColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                  const SizedBox(height: 20),
+
+                  // Payment method (static for now)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: context.cardBgColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: themeColor.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.credit_card, color: themeColor, size: 24),
                         ),
-                      ),
-                      Divider(
-                          color: context.isDark
-                              ? Colors.grey
-                              : Colors.grey.shade300,
-                          thickness: 1),
-                      ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: themeColor,
-                          child: const Icon(Icons.person, color: Colors.black),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Payment Method', style: TextStyle(color: context.textColor, fontWeight: FontWeight.w600, fontSize: 14)),
+                              Text('•••• •••• •••• 4242', style: TextStyle(color: context.subtextColor, fontSize: 13)),
+                            ],
+                          ),
                         ),
-                        title: Text(
-                          "Trainer Name",
-                          style: TextStyle(color: context.textColor),
-                        ),
-                        subtitle: Text(
-                          "High intensity training",
-                          style: TextStyle(color: context.subtextColor),
-                        ),
-                      ),
-                      Divider(
-                          color: context.isDark
-                              ? Colors.grey
-                              : Colors.grey.shade300,
-                          thickness: 1),
-                      Text("Date",
-                          style: TextStyle(color: context.textColor)),
-                      const SizedBox(height: 8),
-                      Text("Time",
-                          style: TextStyle(color: context.textColor)),
-                      Divider(
-                          color: context.isDark
-                              ? Colors.grey
-                              : Colors.grey.shade300,
-                          thickness: 1),
-                      ListTile(
-                        title: Text(
-                          "Estimated Cost",
-                          style: TextStyle(color: context.subtextColor),
-                        ),
-                        trailing: Text(
-                          "\$50.00",
-                          style: TextStyle(
-                              color: context.textColor, fontSize: 18),
-                        ),
-                      ),
-                      Divider(
-                          color: context.isDark
-                              ? Colors.grey
-                              : Colors.grey.shade300,
-                          thickness: 1),
-                    ],
+                        Text('Change', style: TextStyle(color: themeColor, fontSize: 13, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: ReuseableButton(
-                    title: "Confirm",
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Payment Confirmed')),
-                      );
-                    },
+                  const SizedBox(height: 36),
+
+                  // Confirm button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isBooking ? null : _confirmBooking,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeColor,
+                        disabledBackgroundColor: Colors.grey,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      ),
+                      child: _isBooking
+                          ? const SizedBox(width: 22, height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
+                          : const Text('Confirm & Book',
+                              style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
-          // Back button overlay
+          // Back button
           SafeArea(
             child: Align(
               alignment: Alignment.topLeft,
@@ -143,10 +256,7 @@ class PaymentPage extends StatelessWidget {
                     padding: const EdgeInsets.all(10),
                     backgroundColor: Colors.black54,
                   ),
-                  child: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.arrow_back, color: Colors.white),
                 ),
               ),
             ),
@@ -156,102 +266,19 @@ class PaymentPage extends StatelessWidget {
     );
   }
 
-  Widget buildAddPaymentCard(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const AddCardPage()));
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xffD9D9D9),
-          borderRadius: BorderRadius.circular(10),
+  Widget _detailRow(BuildContext context, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 60,
+          child: Text(label, style: TextStyle(color: context.subtextColor, fontSize: 13)),
         ),
-        width: 70,
-        child: const Icon(Icons.add, color: Colors.black),
-      ),
-    );
-  }
-
-  Widget buildPaymentCardExample1() {
-    return const PaymentCard(
-      cardIssuerIcon: CardIcon(icon: Icons.credit_card),
-      backgroundColor: Colors.blue,
-      backgroundGradient: LinearGradient(
-        colors: [Colors.purple, Colors.indigo],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      currency: Text('EUR'),
-      cardNumber: '1234567890123456',
-      validity: '10/24',
-      holder: 'Jane Doe',
-      isStrict: false,
-      cardNetwork: CardNetwork.visa,
-      cardTypeTextStyle:
-          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      cardNumberStyles: CardNumberStyles.darkStyle4,
-      backgroundImage: null,
-    );
-  }
-
-  Widget buildPaymentCardExample2(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (context) => EditCardPage(
-            card: PaymentCard(
-              cardIssuerIcon: const CardIcon(icon: Icons.credit_card),
-              currency: const Text('GBP'),
-              cardNumber: '1234567890123456',
-              isStrict: false,
-              validity: '08/23',
-              holder: 'John Smith',
-              cardNetwork: CardNetwork.mastercard,
-              cardTypeTextStyle: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white),
-              cardNumberStyles: CardNumberStyles.lightStyle2,
-              backgroundImage: null,
-              backgroundColor: Colors.grey,
-            ),
-          ),
-        ));
-      },
-      child: const PaymentCard(
-        cardIssuerIcon: CardIcon(icon: Icons.credit_card),
-        currency: Text('GBP'),
-        cardNumber: '1234567890123456',
-        isStrict: false,
-        validity: '08/23',
-        holder: 'John Smith',
-        cardNetwork: CardNetwork.mastercard,
-        cardTypeTextStyle: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white),
-        cardNumberStyles: CardNumberStyles.lightStyle2,
-        backgroundImage: null,
-        backgroundColor: Colors.grey,
-      ),
-    );
-  }
-
-  Widget buildPaymentCardExample3() {
-    return const PaymentCard(
-      cardIssuerIcon: CardIcon(icon: Icons.credit_card),
-      backgroundColor: Colors.green,
-      backgroundImage: null,
-      currency: Text('USD'),
-      cardNumber: '1234567890123456',
-      validity: '06/22',
-      holder: 'Alice Johnson',
-      isStrict: false,
-      cardNetwork: CardNetwork.americanExpress,
-      cardTypeTextStyle:
-          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      cardNumberStyles: CardNumberStyles.lightStyle3,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(value, style: TextStyle(color: context.textColor, fontSize: 13, fontWeight: FontWeight.w600)),
+        ),
+      ],
     );
   }
 }
