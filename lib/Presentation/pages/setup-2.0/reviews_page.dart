@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Presentation/pages/setup-2.0/write_review_page.dart';
 
 class ReviewsPage extends StatefulWidget {
   final String trainerId;
@@ -119,13 +120,34 @@ class _ReviewsPageState extends State<ReviewsPage> {
               const Text('Rating', style: TextStyle(color: Colors.white60, fontSize: 13)),
               const SizedBox(height: 8),
               Row(
-                children: List.generate(5, (i) => GestureDetector(
-                  onTap: () => setSheet(() => rating = i + 1.0),
-                  child: Icon(
-                    i < rating ? Icons.star : Icons.star_border,
-                    color: themeColor, size: 36,
-                  ),
+                children: List.generate(5, (i) => Icon(
+                  i < rating ? (rating - i >= 1 ? Icons.star : Icons.star_half) : Icons.star_border,
+                  color: themeColor, size: 32,
                 )),
+              ),
+              const SizedBox(height: 4),
+              SliderTheme(
+                data: SliderTheme.of(ctx).copyWith(
+                  activeTrackColor: themeColor,
+                  inactiveTrackColor: Colors.white12,
+                  thumbColor: themeColor,
+                  overlayColor: themeColor.withOpacity(0.2),
+                  trackHeight: 4,
+                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                ),
+                child: Slider(
+                  value: rating,
+                  min: 1.0,
+                  max: 5.0,
+                  divisions: 8, // 1.0, 1.5, 2.0 ... 5.0
+                  onChanged: (val) => setSheet(() => rating = val),
+                ),
+              ),
+              Center(
+                child: Text(
+                  rating.toStringAsFixed(1),
+                  style: const TextStyle(color: themeColor, fontSize: 22, fontWeight: FontWeight.bold),
+                ),
               ),
               const SizedBox(height: 20),
               const Text('Your Review', style: TextStyle(color: Colors.white60, fontSize: 13)),
@@ -244,21 +266,39 @@ class _ReviewsPageState extends State<ReviewsPage> {
           SafeArea(
             child: Column(
               children: [
-                const SizedBox(height: 56),
-
+                // Top bar with back + title
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    widget.trainerName,
-                    style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold),
+                  padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
+                  child: Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          shape: const CircleBorder(),
+                          padding: const EdgeInsets.all(10),
+                          backgroundColor: Colors.black54,
+                          elevation: 0,
+                        ),
+                        child: const Icon(Icons.arrow_back, color: Colors.white),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Reviews',
+                        style: TextStyle(
+                          color: themeColor,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Text(
-                    'Reviews',
-                    style: TextStyle(color: themeColor, fontSize: 22, fontWeight: FontWeight.bold),
+                    widget.trainerName,
+                    style: TextStyle(color: context.textColor, fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
 
@@ -391,7 +431,22 @@ class _ReviewsPageState extends State<ReviewsPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                   child: ElevatedButton(
-                    onPressed: () => _showWriteReviewSheet(existing: _myReview),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => WriteReviewPage(
+                            trainerId: widget.trainerId,
+                            trainerName: widget.trainerName,
+                            existing: _myReview,
+                            onSubmitted: () {
+                              widget.onReviewChanged?.call();
+                              _loadReviews();
+                            },
+                          ),
+                        ),
+                      );
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: themeColor,
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -405,25 +460,6 @@ class _ReviewsPageState extends State<ReviewsPage> {
                   ),
                 ),
               ],
-            ),
-          ),
-
-          // Back button
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(10),
-                    backgroundColor: Colors.black54,
-                  ),
-                  child: const Icon(Icons.arrow_back, color: Colors.white),
-                ),
-              ),
             ),
           ),
         ],
@@ -449,7 +485,58 @@ class _ReviewsPageState extends State<ReviewsPage> {
         final isMe = r['user_id'] == SupabaseService.currentUser?.id;
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          child: Card(
+          child: GestureDetector(
+            onLongPress: isMe ? () {
+              showModalBottomSheet(
+                context: context,
+                backgroundColor: const Color(0xFF2C2C2C),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                builder: (_) => SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 8),
+                      Container(width: 40, height: 4,
+                        decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+                      const SizedBox(height: 16),
+                      ListTile(
+                        leading: const Icon(Icons.edit, color: themeColor),
+                        title: const Text('Edit Review', style: TextStyle(color: Colors.white)),
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => WriteReviewPage(
+                                trainerId: widget.trainerId,
+                                trainerName: widget.trainerName,
+                                existing: r,
+                                onSubmitted: () {
+                                  widget.onReviewChanged?.call();
+                                  _loadReviews();
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                        title: const Text('Delete Review', style: TextStyle(color: Colors.redAccent)),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _confirmDelete();
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              );
+            } : null,
+            child: Card(
             color: context.cardBgColor,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -515,22 +602,6 @@ class _ReviewsPageState extends State<ReviewsPage> {
                         children: [
                           Text(_formatDate(r['created_at']),
                               style: TextStyle(color: context.subtextColor, fontSize: 11)),
-                          if (isMe) ...[
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                GestureDetector(
-                                  onTap: () => _showWriteReviewSheet(existing: r),
-                                  child: Icon(Icons.edit, color: themeColor, size: 16),
-                                ),
-                                const SizedBox(width: 8),
-                                GestureDetector(
-                                  onTap: _confirmDelete,
-                                  child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 16),
-                                ),
-                              ],
-                            ),
-                          ],
                         ],
                       ),
                     ],
@@ -551,6 +622,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
                 ],
               ),
             ),
+          ),
           ),
         );
       },

@@ -355,6 +355,85 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Name + phone
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    trainer['name'] ?? '',
+                    style: const TextStyle(
+                        color: themeColor,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    trainer['training_type'] ?? '',
+                    style: TextStyle(color: context.subtextColor, fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+            if (trainer['phone_number'] != null &&
+                trainer['phone_number'].toString().isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      backgroundColor: const Color(0xFF2C2C2C),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      title: const Icon(Icons.phone, color: themeColor, size: 40),
+                      content: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Text(trainer['name'] ?? '',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 13)),
+                        const SizedBox(height: 8),
+                        Text(trainer['phone_number'],
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.5)),
+                      ]),
+                      actionsAlignment: MainAxisAlignment.center,
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 10),
+                            decoration: BoxDecoration(
+                                color: themeColor,
+                                borderRadius: BorderRadius.circular(10)),
+                            child: const Text('OK',
+                                style: TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                child: CircleAvatar(
+                  radius: 22,
+                  backgroundColor: themeColor,
+                  child: const Icon(Icons.phone, color: Colors.black, size: 20),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
         // Bio
         if ((trainer['bio'] ?? '').toString().isNotEmpty)
           Padding(
@@ -384,10 +463,12 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
         const SizedBox(height: 16),
 
         // Reviews header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // Reviews header — Figma style
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Reviews',
@@ -396,66 +477,101 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                       fontSize: 20,
                       fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: themeColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    trainer['rating'].toString(),
-                    style: const TextStyle(
-                        color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
+                Row(
+                  children: [
+                    // Correct avg rating from reviews
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: themeColor,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        _reviews.isEmpty
+                            ? trainer['rating'].toString()
+                            : (_reviews
+                                    .map((r) => (r['rating'] as num).toDouble())
+                                    .reduce((a, b) => a + b) /
+                                _reviews.length)
+                                .toStringAsFixed(1),
+                        style: const TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
+            const SizedBox(height: 10),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Overlapping avatars
                 if (_reviews.isNotEmpty)
-                  TextButton(
-                    onPressed: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ReviewsPage(
-                            trainerId: trainer['id'],
-                            trainerName: trainer['name'] ?? '',
-                            rating: trainer['rating'].toString(),
-                            onReviewChanged: _loadData,
+                  SizedBox(
+                    height: 36,
+                    width: (_reviews.take(4).length * 24.0) + 12,
+                    child: Stack(
+                      children: _reviews.take(4).toList().asMap().entries.map((entry) {
+                        final i = entry.key;
+                        final r = entry.value;
+                        return Positioned(
+                          left: i * 22.0,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: context.bgColor, width: 2),
+                            ),
+                            child: CircleAvatar(
+                              radius: 16,
+                              backgroundColor: themeColor,
+                              backgroundImage: (r['avatar_url'] ?? '').toString().isNotEmpty
+                                  ? NetworkImage(r['avatar_url'])
+                                  : null,
+                              child: (r['avatar_url'] ?? '').toString().isEmpty
+                                  ? const Icon(Icons.person, color: Colors.black, size: 14)
+                                  : null,
+                            ),
                           ),
-                        ),
-                      );
-                      _loadData();
-                    },
-                    child: Text('See all (${_reviews.length})',
-                        style: TextStyle(color: context.subtextColor, fontSize: 12)),
-                  ),
-                GestureDetector(
-                  onTap: () async {
-                    _showWriteReviewSheet();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: themeColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      _myReview != null ? 'Edit Review' : '+ Review',
-                      style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12),
+                        );
+                      }).toList(),
                     ),
                   ),
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ReviewsPage(
+                              trainerId: trainer['id'],
+                              trainerName: trainer['name'] ?? '',
+                              rating: trainer['rating'].toString(),
+                              onReviewChanged: _loadData,
+                            ),
+                          ),
+                        );
+                        _loadData();
+                      },
+                      child: Text(
+                        'Read all Reviews',
+                        style: TextStyle(
+                            color: context.subtextColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
                 ),
               ],
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
 
         // Review previews
         if (_reviews.isEmpty)
@@ -508,7 +624,23 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
 
   Widget _buildReviewCard(BuildContext context, Map<String, dynamic> r) {
     final isMyReview = r['user_id'] == SupabaseService.currentUser?.id;
-    return Container(
+    final trainer = widget.trainer;
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ReviewsPage(
+              trainerId: trainer['id'],
+              trainerName: trainer['name'] ?? '',
+              rating: trainer['rating'].toString(),
+              onReviewChanged: _loadData,
+            ),
+          ),
+        );
+        _loadData();
+      },
+      child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -590,6 +722,7 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
           ),
         ],
       ),
+      )
     );
   }
 
