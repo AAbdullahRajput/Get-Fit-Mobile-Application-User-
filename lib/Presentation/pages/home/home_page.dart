@@ -22,7 +22,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
 
   final List<Map<String, dynamic>> _tabs = const [
     {'label': 'Overview', 'icon': Icons.grid_view_rounded},
-    {'label': 'Fitness', 'icon': Icons.fitness_center_outlined},
+    {'label': 'Trainers', 'icon': Icons.fitness_center_outlined},
     {'label': 'Yoga', 'icon': Icons.self_improvement_outlined},
     {'label': 'Gym', 'icon': Icons.sports_gymnastics_outlined},
     {'label': 'Running', 'icon': Icons.directions_run_outlined},
@@ -32,7 +32,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   bool get wantKeepAlive => true;
 
   late final List<Widget> _pages = [
-    const _OverviewTab(),
+    _OverviewTab(onTabSwitch: (i) => setState(() => _selectedTab = i)),
     _buildFitnessTab(),
     const YogaTabContent(),
     const GymPage(),
@@ -188,7 +188,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
 }
 
 class _OverviewTab extends StatefulWidget {
-  const _OverviewTab();
+  final Function(int) onTabSwitch;
+  const _OverviewTab({required this.onTabSwitch});
 
   @override
   State<_OverviewTab> createState() => _OverviewTabState();
@@ -196,11 +197,23 @@ class _OverviewTab extends StatefulWidget {
 
 class _OverviewTabState extends State<_OverviewTab> {
   String _username = '';
+  Map<String, dynamic>? _nextAppointment;
+  bool _loadingAppointment = true;
 
   @override
   void initState() {
     super.initState();
     _fetchUsername();
+    _fetchNextAppointment();
+  }
+
+  Future<void> _fetchNextAppointment() async {
+    try {
+      final res = await SupabaseService.getNextAppointment();
+      if (mounted) setState(() { _nextAppointment = res; _loadingAppointment = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loadingAppointment = false);
+    }
   }
 
   Future<void> _fetchUsername() async {
@@ -214,6 +227,7 @@ class _OverviewTabState extends State<_OverviewTab> {
 
   Future<void> _onRefresh() async {
     await _fetchUsername();
+    await _fetchNextAppointment();
   }
 
   @override
