@@ -156,16 +156,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  Future<void> _onRefresh() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (mounted) setState(() => _isLoading = false);
-  }
-
-  Widget _getTabContent(BuildContext context) {
-    if (_isLoading) return _buildSkeleton(context);
-    return _pages[_selectedTab];
-  }
 
   Widget _buildSkeleton(BuildContext context) {
     return SingleChildScrollView(
@@ -249,13 +239,10 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: RefreshIndicator(
-          color: themeColor,
-          backgroundColor: Theme.of(context).cardColor,
-          displacement: 100,
-          onRefresh: _onRefresh,
-          child: _getTabContent(context),
-        ),
+        child: IndexedStack(
+  index: _selectedTab,
+  children: _pages,
+),
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -332,13 +319,23 @@ class _OverviewTabState extends State<_OverviewTab> {
     }
   }
 
+  Future<void> _onRefresh() async {
+    await _fetchUsername();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+    return RefreshIndicator(
+      color: themeColor,
+      backgroundColor: Theme.of(context).cardColor,
+      displacement: 100,
+      onRefresh: _onRefresh,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -751,6 +748,7 @@ class _OverviewTabState extends State<_OverviewTab> {
           ],
         ),
       ),
+    ),
     );
   }
 }

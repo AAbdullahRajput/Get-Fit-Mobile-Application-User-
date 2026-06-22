@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -107,6 +108,11 @@ await SupabaseService.saveUserSetup(
         _avatarUrl = newAvatarUrl;
         _isSaving = false;
       });
+
+      if (newAvatarUrl != null) {
+  imageCache.clear();
+  imageCache.clearLiveImages();
+}
 
       _showSuccessDialog();
     } catch (e) {
@@ -273,8 +279,13 @@ await SupabaseService.saveUserSetup(
                                       border: Border.all(
                                           color: Colors.white, width: 2),
                                     ),
-                                    child: const Icon(Icons.edit,
-                                        color: Colors.black, size: 18),
+                                    child: SvgPicture.asset(
+                                      'assets/icons/pencil_icon.svg',
+                                      width: 18,
+                                      height: 18,
+                                      colorFilter: const ColorFilter.mode(
+                                          Colors.black, BlendMode.srcIn),
+                                    ),
                                   ),
                                 ),
                               ),

@@ -102,10 +102,15 @@ void initState() {
                 child: Column(
                   children: [
                     CircleAvatar(
-                      radius: 65,
-                      backgroundColor: context.bgColor,
-                      child: Icon(Icons.person, size: 100, color: context.textColor),
-                    ),
+  radius: 65,
+  backgroundColor: context.bgColor,
+  backgroundImage: _profileData?['avatar_url'] != null
+      ? NetworkImage(_profileData!['avatar_url'])
+      : null,
+  child: _profileData?['avatar_url'] == null
+      ? Icon(Icons.person, size: 100, color: context.textColor)
+      : null,
+),
                     const SizedBox(height: 20),
                     Text(
                       _profileData?['username'] ?? 'Loading...',

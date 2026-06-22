@@ -1,4 +1,5 @@
 class Exercise {
+  final String id;
   final String title;
   final String category;
   final String description;
@@ -9,6 +10,7 @@ class Exercise {
   final String level;
 
   const Exercise({
+    required this.id,
     required this.title,
     required this.category,
     required this.description,
@@ -22,6 +24,7 @@ class Exercise {
 
 final List<Exercise> dummyExercises = [
   Exercise(
+    id: 'bench_press',
     title: 'Bench Press',
     category: 'Chest',
     description: 'Classic chest builder targeting pecs, shoulders and triceps.',
@@ -32,6 +35,7 @@ final List<Exercise> dummyExercises = [
     level: 'Intermediate',
   ),
   Exercise(
+    id: 'squat',
     title: 'Squat',
     category: 'Legs',
     description: 'King of lower-body movements — quads, glutes, core.',
@@ -42,6 +46,7 @@ final List<Exercise> dummyExercises = [
     level: 'Beginner',
   ),
   Exercise(
+    id: 'pull_ups',
     title: 'Pull Ups',
     category: 'Back',
     description: 'Best compound movement for a wide, strong back.',
@@ -52,6 +57,7 @@ final List<Exercise> dummyExercises = [
     level: 'Advanced',
   ),
   Exercise(
+    id: 'shoulder_press',
     title: 'Shoulder Press',
     category: 'Shoulders',
     description: 'Press overhead to build full shoulder caps.',
@@ -62,6 +68,7 @@ final List<Exercise> dummyExercises = [
     level: 'Intermediate',
   ),
   Exercise(
+    id: 'bicep_curl',
     title: 'Bicep Curl',
     category: 'Arms',
     description: 'Great exercise for building strength and arm size.',
@@ -72,6 +79,7 @@ final List<Exercise> dummyExercises = [
     level: 'Beginner',
   ),
   Exercise(
+    id: 'plank',
     title: 'Plank',
     category: 'Core',
     description: 'Isometric core hold — builds anti-rotation stability.',
@@ -82,6 +90,7 @@ final List<Exercise> dummyExercises = [
     level: 'Beginner',
   ),
   Exercise(
+    id: 'deadlift',
     title: 'Deadlift',
     category: 'Back',
     description: 'Full body powerhouse — builds total posterior chain strength.',
@@ -92,6 +101,7 @@ final List<Exercise> dummyExercises = [
     level: 'Advanced',
   ),
   Exercise(
+    id: 'tricep_dips',
     title: 'Tricep Dips',
     category: 'Arms',
     description: 'Bodyweight move that torches the triceps effectively.',

@@ -179,8 +179,10 @@ static Future<String?> uploadAvatar(String userId, List<int> fileBytes, String f
       fileOptions: const FileOptions(upsert: true),
     );
     final url = client.storage.from('avatars').getPublicUrl(path);
-    debugPrint('\x1B[32m[API] 200 OK | Avatar uploaded: $url\x1B[0m');
-    return url;
+    // Add cache buster so Flutter reloads the image
+    final cacheBustedUrl = '$url?t=${DateTime.now().millisecondsSinceEpoch}';
+    debugPrint('\x1B[32m[API] 200 OK | Avatar uploaded: $cacheBustedUrl\x1B[0m');
+    return cacheBustedUrl;
   } catch (e) {
     debugPrint('\x1B[31m[API] ERROR | uploadAvatar | ${e.toString()}\x1B[0m');
     return null;
@@ -197,6 +199,102 @@ static Future<void> updateUserProfile({
     debugPrint('\x1B[32m[API] 200 OK | Profile updated\x1B[0m');
   } catch (e) {
     debugPrint('\x1B[31m[API] ERROR | updateUserProfile | ${e.toString()}\x1B[0m');
+    rethrow;
+  }
+}
+
+
+// FAVORITES
+
+static Future<List<Map<String, dynamic>>> getFavorites() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+    debugPrint('\x1B[33m[API] GET /rest/v1/favorites | userId: $userId\x1B[0m');
+    final data = await client
+        .from('favorites')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+    debugPrint('\x1B[32m[API] 200 OK | Favorites: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getFavorites | ${e.toString()}\x1B[0m');
+    return [];
+  }
+}
+
+static Future<bool> isFavorite(String exerciseId) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return false;
+    debugPrint('\x1B[33m[FAV] isFavorite check: $exerciseId\x1B[0m');
+    final data = await client
+        .from('favorites')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('exercise_id', exerciseId)
+        .maybeSingle();
+    debugPrint('\x1B[33m[FAV] isFavorite result: $data\x1B[0m');
+    return data != null;
+  } catch (e, stack) {
+    debugPrint('\x1B[31m[FAV] isFavorite ERROR: $e\x1B[0m');
+    debugPrint('\x1B[31m[FAV] stack: $stack\x1B[0m');
+    return false;
+  }
+}
+
+static Future<void> toggleFavorite({
+  required String exerciseId,
+  required String title,
+  required String image,
+  required String category,
+  required String level,
+  required String sets,
+  required String reps,
+  required String rest,
+  required String description,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    debugPrint('\x1B[33m[FAV] toggleFavorite called: $exerciseId\x1B[0m');
+    
+    final existing = await client
+        .from('favorites')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('exercise_id', exerciseId)
+        .maybeSingle();
+    
+    debugPrint('\x1B[33m[FAV] existing: $existing\x1B[0m');
+    
+    if (existing != null) {
+      await client
+          .from('favorites')
+          .delete()
+          .eq('user_id', userId)
+          .eq('exercise_id', exerciseId);
+      debugPrint('\x1B[32m[FAV] Removed favorite: $exerciseId\x1B[0m');
+    } else {
+      debugPrint('\x1B[33m[FAV] inserting: id=$exerciseId title=$title\x1B[0m');
+      await client.from('favorites').insert(<String, dynamic>{
+        'user_id': userId,
+        'exercise_id': exerciseId,
+        'exercise_title': title,
+        'exercise_image': image,
+        'exercise_category': category,
+        'exercise_level': level,
+        'exercise_sets': sets,
+        'exercise_reps': reps,
+        'exercise_rest': rest,
+        'exercise_description': description,
+      });
+      debugPrint('\x1B[32m[FAV] Added favorite: $exerciseId\x1B[0m');
+    }
+  } catch (e, stack) {
+    debugPrint('\x1B[31m[FAV] toggleFavorite ERROR: $e\x1B[0m');
+    debugPrint('\x1B[31m[FAV] stack: $stack\x1B[0m');
     rethrow;
   }
 }
