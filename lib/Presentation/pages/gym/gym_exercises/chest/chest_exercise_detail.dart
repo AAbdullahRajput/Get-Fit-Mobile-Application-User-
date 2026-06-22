@@ -1,14 +1,82 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Domain/models/exercise_model.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
-class ChestExerciseDetail extends StatelessWidget {
+class ChestExerciseDetail extends StatefulWidget {
   final Exercise exercise;
+  const ChestExerciseDetail({super.key, required this.exercise});
 
-  const ChestExerciseDetail({
-    super.key,
-    required this.exercise,
-  });
+  @override
+  State<ChestExerciseDetail> createState() => _ChestExerciseDetailState();
+}
+
+class _ChestExerciseDetailState extends State<ChestExerciseDetail> {
+  bool _isFavorite = false;
+  bool _isLoading = true;
+  bool _isToggling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFavorite();
+  }
+
+  Future<void> _checkFavorite() async {
+    try {
+      final result = await SupabaseService.isFavorite(widget.exercise.id);
+      if (mounted) setState(() { _isFavorite = result; _isLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_isToggling) return;
+    setState(() => _isToggling = true);
+    try {
+      await SupabaseService.toggleFavorite(
+        exerciseId: widget.exercise.id,
+        title: widget.exercise.title,
+        image: widget.exercise.imageUrl,
+        category: widget.exercise.category,
+        level: widget.exercise.level,
+        sets: widget.exercise.sets,
+        reps: widget.exercise.reps,
+        rest: widget.exercise.rest,
+        description: widget.exercise.description,
+      );
+      final nowFavorite = !_isFavorite;
+      if (mounted) {
+        setState(() => _isFavorite = nowFavorite);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              nowFavorite ? 'Added to Favourites' : 'Removed from Favourites',
+              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: themeColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: const Color(0xFF4A5240),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isToggling = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,110 +90,55 @@ class ChestExerciseDetail extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Hero Image
                   Container(
                     height: 280,
                     width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: context.cardBgColor,
-                    ),
+                    decoration: BoxDecoration(color: context.cardBgColor),
                     child: Stack(
                       children: [
                         Image.network(
-                          exercise.imageUrl,
+                          widget.exercise.imageUrl,
                           width: double.infinity,
                           height: 280,
                           fit: BoxFit.cover,
-                          loadingBuilder: (context, child, progress) {
-                            if (progress == null) return child;
-                            return Center(
-                              child: CircularProgressIndicator(
-                                color: themeColor,
-                              ),
-                            );
-                          },
                           errorBuilder: (context, error, stack) => Container(
                             color: context.cardBgColor,
-                            child: const Icon(
-                              Icons.fitness_center,
-                              color: themeColor,
-                              size: 64,
-                            ),
+                            child: const Icon(Icons.fitness_center, color: themeColor, size: 64),
                           ),
                         ),
-                        // Gradient Overlay
                         Positioned.fill(
                           child: DecoratedBox(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withOpacity(0.7),
-                                ],
+                                colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
                               ),
                             ),
                           ),
                         ),
-                        // Title Overlay
                         Positioned(
-                          bottom: 20,
-                          left: 20,
-                          right: 20,
+                          bottom: 20, left: 20, right: 20,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _levelColor(exercise.level),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      exercise.level,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    decoration: BoxDecoration(color: _levelColor(widget.exercise.level), borderRadius: BorderRadius.circular(8)),
+                                    child: Text(widget.exercise.level, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                                   ),
                                   const SizedBox(width: 8),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      exercise.category,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                                    child: Text(widget.exercise.category, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 8),
-                              Text(
-                                exercise.title,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              Text(widget.exercise.title, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -133,63 +146,28 @@ class ChestExerciseDetail extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // Content
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Description
-                        Text(
-                          'Description',
-                          style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text('Description', style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
-                        Text(
-                          exercise.description,
-                          style: TextStyle(
-                            color: context.subtextColor,
-                            fontSize: 15,
-                            height: 1.6,
-                          ),
-                        ),
+                        Text(widget.exercise.description, style: TextStyle(color: context.subtextColor, fontSize: 15, height: 1.6)),
                         const SizedBox(height: 20),
-
-                        // Sets, Reps, Rest
-                        Text(
-                          'Workout Details',
-                          style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text('Workout Details', style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            _detailChip(context, 'Sets', exercise.sets),
+                            _detailChip(context, 'Sets', widget.exercise.sets),
                             const SizedBox(width: 12),
-                            _detailChip(context, 'Reps', exercise.reps),
+                            _detailChip(context, 'Reps', widget.exercise.reps),
                             const SizedBox(width: 12),
-                            _detailChip(context, 'Rest', exercise.rest),
+                            _detailChip(context, 'Rest', widget.exercise.rest),
                           ],
                         ),
                         const SizedBox(height: 20),
-
-                        // Target Muscles
-                        Text(
-                          'Target Muscles',
-                          style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text('Target Muscles', style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
                         Wrap(
                           spacing: 8,
@@ -201,146 +179,75 @@ class ChestExerciseDetail extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 20),
-
-                        // Equipment
-                        Text(
-                          'Equipment Needed',
-                          style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text('Equipment Needed', style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: context.cardBgColor,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Barbell, Bench',
-                            style: TextStyle(
-                              color: context.textColor,
-                              fontSize: 14,
-                            ),
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(color: context.cardBgColor, borderRadius: BorderRadius.circular(12)),
+                          child: Text('Barbell, Bench', style: TextStyle(color: context.textColor, fontSize: 14)),
                         ),
                         const SizedBox(height: 20),
-
-                        // Video Tutorial
-                        Text(
-                          'Video Tutorial',
-                          style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text('Video Tutorial', style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
                         Container(
                           height: 200,
                           width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: context.cardBgColor,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          decoration: BoxDecoration(color: context.cardBgColor, borderRadius: BorderRadius.circular(12)),
                           child: Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.play_circle_filled,
-                                  size: 64,
-                                  color: themeColor,
-                                ),
+                                Icon(Icons.play_circle_filled, size: 64, color: themeColor),
                                 const SizedBox(height: 8),
-                                Text(
-                                  'Tap to play video',
-                                  style: TextStyle(
-                                    color: context.subtextColor,
-                                    fontSize: 14,
-                                  ),
-                                ),
+                                Text('Tap to play video', style: TextStyle(color: context.subtextColor, fontSize: 14)),
                               ],
                             ),
                           ),
                         ),
                         const SizedBox(height: 20),
-
-                        // Instructions
-                        Text(
-                          'Step by Step Instructions',
-                          style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text('Step by Step Instructions', style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: context.cardBgColor,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          decoration: BoxDecoration(color: context.cardBgColor, borderRadius: BorderRadius.circular(12)),
                           child: Column(
                             children: [
-                            _instructionItem(context, '1', 'Lie on the bench with your eyes under the bar'),
-                            _instructionItem(context, '2', 'Grip the bar slightly wider than shoulder-width'),
-                            _instructionItem(context, '3', 'Lower the bar to your chest'),
-                            _instructionItem(context, '4', 'Press the bar back up to the starting position'),
-                          ],
+                              _instructionItem(context, '1', 'Lie on the bench with your eyes under the bar'),
+                              _instructionItem(context, '2', 'Grip the bar slightly wider than shoulder-width'),
+                              _instructionItem(context, '3', 'Lower the bar to your chest'),
+                              _instructionItem(context, '4', 'Press the bar back up to the starting position'),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 20),
-
-                        // Buttons
                         Row(
                           children: [
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: () {
-                                  // Start workout
-                                },
+                                onPressed: () {},
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: themeColor,
                                   padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
-                                child: const Text(
-                                  'Start Workout',
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                child: const Text('Start Workout', style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold)),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Container(
                               width: 56,
                               height: 56,
-                              decoration: BoxDecoration(
-                                color: context.cardBgColor,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: IconButton(
-                                icon: Icon(
-                                  Icons.favorite_border,
-                                  color: context.textColor,
-                                  size: 28,
-                                ),
-                                onPressed: () {
-                                  // Save to favorites
-                                },
-                              ),
+                              decoration: BoxDecoration(color: context.cardBgColor, borderRadius: BorderRadius.circular(12)),
+                              child: _isLoading
+                                  ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: themeColor)))
+                                  : IconButton(
+                                      icon: Icon(
+                                        _isFavorite ? Icons.favorite : Icons.favorite_border,
+                                        color: _isFavorite ? themeColor : context.textColor,
+                                        size: 28,
+                                      ),
+                                      onPressed: _isToggling ? null : _toggleFavorite,
+                                    ),
                             ),
                           ],
                         ),
@@ -352,8 +259,6 @@ class ChestExerciseDetail extends StatelessWidget {
               ),
             ),
           ),
-
-          // Back Button
           SafeArea(
             child: Align(
               alignment: Alignment.topLeft,
@@ -366,10 +271,7 @@ class ChestExerciseDetail extends StatelessWidget {
                     padding: const EdgeInsets.all(10),
                     backgroundColor: Colors.black54,
                   ),
-                  child: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.arrow_back, color: Colors.white),
                 ),
               ),
             ),
@@ -381,14 +283,10 @@ class ChestExerciseDetail extends StatelessWidget {
 
   Color _levelColor(String level) {
     switch (level) {
-      case 'Beginner':
-        return Colors.green;
-      case 'Intermediate':
-        return Colors.orange;
-      case 'Advanced':
-        return Colors.red;
-      default:
-        return Colors.grey;
+      case 'Beginner': return Colors.green;
+      case 'Intermediate': return Colors.orange;
+      case 'Advanced': return Colors.red;
+      default: return Colors.grey;
     }
   }
 
@@ -396,28 +294,12 @@ class ChestExerciseDetail extends StatelessWidget {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: context.cardBgColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
+        decoration: BoxDecoration(color: context.cardBgColor, borderRadius: BorderRadius.circular(12)),
         child: Column(
           children: [
-            Text(
-              value,
-              style: TextStyle(
-                color: context.textColor,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            Text(value, style: TextStyle(color: context.textColor, fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: context.subtextColor,
-                fontSize: 12,
-              ),
-            ),
+            Text(label, style: TextStyle(color: context.subtextColor, fontSize: 12)),
           ],
         ),
       ),
@@ -425,58 +307,32 @@ class ChestExerciseDetail extends StatelessWidget {
   }
 
   Widget _muscleChip(BuildContext context, String muscle) {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: BoxDecoration(
-      color: isDark ? themeColor.withOpacity(0.2) : Colors.grey.shade200,
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Text(
-      muscle,
-      style: TextStyle(
-        color: isDark ? themeColor : Colors.black87,
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? themeColor.withOpacity(0.2) : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(20),
       ),
-    ),
-  );
-}
+      child: Text(muscle, style: TextStyle(color: isDark ? themeColor : Colors.black87, fontSize: 13, fontWeight: FontWeight.w500)),
+    );
+  }
 
   Widget _instructionItem(BuildContext context, String number, String instruction) {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: const BoxDecoration(color: themeColor, shape: BoxShape.circle),
-          child: Center(
-            child: Text(
-              number,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24, height: 24,
+            decoration: const BoxDecoration(color: themeColor, shape: BoxShape.circle),
+            child: Center(child: Text(number, style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold))),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            instruction,
-            style: TextStyle(
-              color: isDark ? Colors.white : Colors.black87,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
+          const SizedBox(width: 12),
+          Expanded(child: Text(instruction, style: TextStyle(color: context.textColor, fontSize: 14))),
+        ],
+      ),
+    );
+  }
 }

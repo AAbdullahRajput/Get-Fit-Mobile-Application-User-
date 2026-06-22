@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Presentation/pages/setting/profile_page.dart';
+import 'package:get_fit/Presentation/pages/setting/notifications_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class FavoritesPage extends StatefulWidget {
@@ -15,11 +17,20 @@ class _FavoritesPageState extends State<FavoritesPage> {
   List<Map<String, dynamic>> _favorites = [];
   int _selectedFilter = 0;
   final List<String> _filters = ['All', 'Video', 'Article'];
+  bool _isSearching = false;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadFavorites();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFavorites() async {
@@ -51,6 +62,22 @@ class _FavoritesPageState extends State<FavoritesPage> {
     } catch (e) {
       debugPrint('[FAV] remove error: $e');
     }
+  }
+
+  List<Map<String, dynamic>> get _filtered {
+    var list = _favorites;
+    if (_selectedFilter == 1) {
+      list = list.where((e) => (e['exercise_category'] ?? '').toString().toLowerCase().contains('video')).toList();
+    } else if (_selectedFilter == 2) {
+      list = list.where((e) => (e['exercise_category'] ?? '').toString().toLowerCase().contains('article')).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      list = list.where((e) =>
+        (e['exercise_title'] ?? '').toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+        (e['exercise_category'] ?? '').toString().toLowerCase().contains(_searchQuery.toLowerCase())
+      ).toList();
+    }
+    return list;
   }
 
   @override
@@ -87,66 +114,108 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     ),
                   ),
                   const Spacer(),
-                  Icon(Icons.search, color: themeColor, size: 26),
+                  GestureDetector(
+                    onTap: () => setState(() => _isSearching = !_isSearching),
+                    child: Icon(Icons.search, color: themeColor, size: 26),
+                  ),
                   const SizedBox(width: 16),
-                  Icon(Icons.notifications_outlined, color: themeColor, size: 26),
+                  GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsPage())),
+                    child: Icon(Icons.notifications, color: themeColor, size: 26),
+                  ),
                   const SizedBox(width: 16),
-                  Icon(Icons.person_outline, color: themeColor, size: 26),
+                  GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage())),
+                    child: Icon(Icons.person, color: themeColor, size: 26),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
 
             // Filter row
+            // Filter row
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  Text('Sort By',
-                      style: TextStyle(
-                          color: themeColor,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 36,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _filters.length,
-                        itemBuilder: (context, index) {
-                          final selected = _selectedFilter == index;
-                          return GestureDetector(
-                            onTap: () => setState(() => _selectedFilter = index),
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 20),
-                              decoration: BoxDecoration(
-                                color: selected ? themeColor : Colors.transparent,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: selected ? themeColor : (isDark ? Colors.white54 : Colors.grey.shade400),
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  _filters[index],
-                                  style: TextStyle(
-                                    color: selected ? Colors.black : context.textColor,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                  Text(
+                    'Sort By',
+                    style: TextStyle(
+                      color: themeColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  ...List.generate(_filters.length, (index) {
+                    final selected = _selectedFilter == index;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedFilter = index),
+                        child: Container(
+                          margin: EdgeInsets.only(
+                            left: index == 0 ? 0 : 6,
+                          ),
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: selected ? themeColor : Colors.transparent,
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: selected
+                                  ? themeColor
+                                  : (isDark ? Colors.white38 : Colors.grey.shade400),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _filters[index],
+                              style: TextStyle(
+                                color: selected ? Colors.black : context.textColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            // Search bar
+            if (_isSearching)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  style: TextStyle(color: context.textColor),
+                  decoration: InputDecoration(
+                    hintText: 'Search exercises...',
+                    hintStyle: TextStyle(color: context.subtextColor),
+                    prefixIcon: Icon(Icons.search, color: themeColor),
+                    suffixIcon: GestureDetector(
+                      onTap: () {
+                        _searchController.clear();
+                        setState(() { _searchQuery = ''; _isSearching = false; });
+                      },
+                      child: Icon(Icons.close, color: context.subtextColor),
+                    ),
+                    filled: true,
+                    fillColor: context.cardBgColor,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: (val) => setState(() => _searchQuery = val),
+                ),
+              ),
+
             const SizedBox(height: 16),
 
             // List
@@ -162,9 +231,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
                           child: ListView.builder(
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: _favorites.length,
-                            itemBuilder: (context, index) =>
-                                _buildCard(context, _favorites[index]),
+                            itemCount: _filtered.length,
+                          itemBuilder: (context, index) =>
+                              _buildCard(context, _filtered[index]),
                           ),
                         ),
             ),
@@ -180,7 +249,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     margin: const EdgeInsets.only(bottom: 16),
     height: 130,
     decoration: BoxDecoration(
-      color: isDark ? const Color(0xff2C2C2C) : Colors.white,
+      color: isDark ? Colors.white : const Color(0xff1E1E1E),
       borderRadius: BorderRadius.circular(20),
       boxShadow: [
         BoxShadow(
@@ -204,7 +273,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 Text(
                   item['exercise_title'] ?? '',
                   style: TextStyle(
-                    color: isDark ? Colors.white : Colors.black,
+                    color: isDark ? Colors.black : Colors.white,
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
                   ),
@@ -218,15 +287,15 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     const SizedBox(width: 4),
                    Text(item['exercise_duration'] ?? '30 Minutes',
                         style: TextStyle(
-                            color: isDark ? Colors.white70 : Colors.black54,
-                            fontSize: 12)),
+                            color: isDark ? Colors.black54 : Colors.white70,
+                            fontSize: 16)),
                     const SizedBox(width: 12),
                     Icon(Icons.local_fire_department, color: themeColor, size: 13),
                     const SizedBox(width: 4),
                     Text(item['exercise_kcal'] ?? '320 Kcal',
                         style: TextStyle(
-                            color: isDark ? Colors.white70 : Colors.black54,
-                            fontSize: 12)),
+                            color: isDark ? Colors.black54 : Colors.white70,
+                            fontSize: 16)),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -241,8 +310,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     const SizedBox(width: 4),
                     Text(item['exercise_count'] ?? '5 Exercises',
                         style: TextStyle(
-                            color: isDark ? Colors.white70 : Colors.black54,
-                            fontSize: 12)),
+                            color: isDark ? Colors.black54 : Colors.white70,
+                            fontSize: 16)),
                   ],
                 ),
               ],
@@ -269,7 +338,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 errorBuilder: (context, error, stack) => Container(
                   width: 130,
                   height: 130,
-                  color: isDark ? const Color(0xff3a3a3a) : Colors.grey.shade200,
+                  color: isDark ? Colors.grey.shade200 : const Color(0xff3a3a3a),
                   child: Icon(Icons.fitness_center, color: themeColor, size: 36),
                 ),
                 loadingBuilder: (context, child, progress) {
@@ -277,7 +346,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   return Container(
                     width: 130,
                     height: 130,
-                    color: isDark ? const Color(0xff3a3a3a) : Colors.grey.shade200,
+                    color: isDark ? Colors.grey.shade200 : const Color(0xff3a3a3a),
                     child: const Center(
                         child: CircularProgressIndicator(
                             color: themeColor, strokeWidth: 2)),
