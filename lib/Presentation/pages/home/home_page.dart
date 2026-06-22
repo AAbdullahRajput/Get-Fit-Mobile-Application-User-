@@ -577,16 +577,16 @@ class _OverviewTabState extends State<_OverviewTab> {
                       ),
                       // Trainer icon on the right
                       Positioned(
-    top: -43, right: 15, left: 0,
-    child: Align(
-      alignment: Alignment.centerRight,
-      child: Image.asset(
-        "assets/home/trainer-man.png",
-        height: 223,
-        width: 150,
+      top: -43, right: 15, left: 0,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Image.asset(
+          "assets/home/trainer-man.png",
+          height: 223,
+          width: 150,
+        ),
       ),
     ),
-  ),
                     ],
                   ),
                 ),
