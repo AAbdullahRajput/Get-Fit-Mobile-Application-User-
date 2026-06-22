@@ -157,16 +157,36 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.bgColor,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 70, 20, 24),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Top bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
+              child: Row(
+                children: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      shape: const CircleBorder(),
+                      padding: const EdgeInsets.all(10),
+                      backgroundColor: Colors.black54,
+                      elevation: 0,
+                    ),
+                    child: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Appointment',
+                      style: TextStyle(color: themeColor, fontSize: 22, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Book Appointment',
-                      style: TextStyle(color: themeColor, fontSize: 22, fontWeight: FontWeight.bold)),
                   Text('with ${widget.trainerName}',
                       style: TextStyle(color: context.subtextColor, fontSize: 15)),
                   const SizedBox(height: 24),
@@ -337,27 +357,9 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
               ),
             ),
           ),
-
-          // Back button
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(10),
-                    backgroundColor: Colors.black54,
-                  ),
-                  child: const Icon(Icons.arrow_back, color: Colors.white),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
+      )
     );
   }
 
