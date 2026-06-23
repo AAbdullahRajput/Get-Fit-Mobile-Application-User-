@@ -135,7 +135,7 @@ class _YogaScheduleCardState extends State<YogaScheduleCard> {
                 children: [
                   Image.network(
                     yoga['image_url'] ?? '',
-                    height: 110,
+                    height: 140,
                     width: double.infinity,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
@@ -216,7 +216,7 @@ class _YogaScheduleCardState extends State<YogaScheduleCard> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(10),
+  padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -229,23 +229,6 @@ class _YogaScheduleCardState extends State<YogaScheduleCard> {
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.access_time,
-                          size: 10, color: context.subtextColor),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          yoga['class_time'] ?? '',
-                          style: TextStyle(
-                              color: context.subtextColor, fontSize: 10),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
                   ),
                   const SizedBox(height: 4),
                   Row(

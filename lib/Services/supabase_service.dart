@@ -855,4 +855,20 @@ static Future<List<Map<String, dynamic>>> getYogaClassSteps(String classId) asyn
   }
 }
 
+static Future<List<Map<String, dynamic>>> searchYogaClasses(String query) async {
+  try {
+    final data = await client
+        .from('yoga_classes')
+        .select()
+        .ilike('title', '%$query%')
+        .eq('is_active', true)
+        .order('created_at', ascending: true);
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | searchYogaClasses | $e\x1B[0m');
+    return [];
+  }
+}
+
+
 }

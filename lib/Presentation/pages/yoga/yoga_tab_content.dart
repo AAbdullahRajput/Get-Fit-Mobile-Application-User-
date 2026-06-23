@@ -7,6 +7,7 @@ import 'package:get_fit/Presentation/pages/yoga/widgets/yoga_instructor_card.dar
 import 'package:get_fit/Presentation/pages/yoga/yoga_instructor_detail_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Presentation/pages/setting/setting_home_page.dart';
 
 class YogaTabContent extends StatefulWidget {
   const YogaTabContent({super.key});
@@ -95,40 +96,41 @@ class _YogaTabContentState extends State<YogaTabContent> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'Yoga',
-          style: TextStyle(
-            color: isDark ? themeColor : Colors.black,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final iconColor = isDark ? themeColor : Colors.black;
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(
+        'Yoga',
+        style: TextStyle(
+          color: isDark ? themeColor : Colors.black,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      Row(
+        children: [
+          IconButton(
+            onPressed: () => _openSearch(context),
+            icon: Icon(Icons.search, color: iconColor, size: 28),
           ),
-        ),
-        Row(
-          children: [
-            IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.search, color: textColor, size: 28),
+          IconButton(
+            onPressed: () {},
+            icon: Icon(Icons.notifications, color: iconColor, size: 28),
+          ),
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingHomePage()),
             ),
-            IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.notifications_outlined,
-                  color: textColor, size: 28),
-            ),
-            IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.settings_outlined,
-                  color: textColor, size: 28),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+            icon: Icon(Icons.settings, color: iconColor, size: 28),
+          ),
+        ],
+      ),
+    ],
+  );
+}
 
   Widget _buildTimeSlotTabs(BuildContext context) {
     return Container(

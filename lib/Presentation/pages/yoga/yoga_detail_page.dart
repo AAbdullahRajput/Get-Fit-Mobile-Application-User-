@@ -67,6 +67,34 @@ class _YogaDetailPageState extends State<YogaDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Hero
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(10),
+                        backgroundColor: Colors.black54,
+                        elevation: 0,
+                      ),
+                      child: const Icon(Icons.arrow_back, color: Colors.white),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Yoga Classes',
+                      style: TextStyle(
+                        color: themeColor,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             Stack(
               children: [
                 SizedBox(
@@ -98,39 +126,20 @@ class _YogaDetailPageState extends State<YogaDetailPage> {
                     ),
                   ),
                 ),
-                SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        backgroundColor: Colors.black54,
-                        elevation: 0,
-                      ),
-                      child: const Icon(Icons.arrow_back,
-                          color: Colors.white),
-                    ),
-                  ),
-                ),
                 Positioned(
                   top: 16,
                   right: 16,
-                  child: SafeArea(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: themeColor,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text('FREE',
-                          style: TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12)),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: themeColor,
+                      borderRadius: BorderRadius.circular(20),
                     ),
+                    child: const Text('FREE',
+                        style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12)),
                   ),
                 ),
               ],
