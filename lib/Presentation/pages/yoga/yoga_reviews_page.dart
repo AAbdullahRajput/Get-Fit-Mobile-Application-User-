@@ -87,6 +87,46 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
     return sum / _allReviews.length;
   }
 
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_outline, color: Colors.black, size: 20),
+            const SizedBox(width: 10),
+            Text(message,
+                style: const TextStyle(
+                    color: Colors.black, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        backgroundColor: themeColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Text(message,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   void _confirmDelete() {
     showDialog(
       context: context,
@@ -110,19 +150,10 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                 await SupabaseService.deleteYogaReview(
                     instructorId: widget.instructorId);
                 widget.onReviewChanged?.call();
-                _loadReviews();
+                await _loadReviews();
+                if (mounted) _showSuccess('Review deleted successfully');
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Failed to delete review'),
-                      backgroundColor: Colors.redAccent,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  );
-                }
+                if (mounted) _showError('Failed to delete review');
               }
             },
             child: const Text('Delete',
@@ -141,7 +172,6 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top bar
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
               child: Row(
@@ -157,27 +187,22 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                     child: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Reviews',
-                    style: TextStyle(
-                      color: themeColor,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text('Reviews',
+                      style: TextStyle(
+                          color: themeColor,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
 
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                widget.instructorName,
-                style: TextStyle(
-                    color: context.textColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600),
-              ),
+              child: Text(widget.instructorName,
+                  style: TextStyle(
+                      color: context.textColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600)),
             ),
 
             // Filter tabs
@@ -211,15 +236,13 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                             borderRadius: BorderRadius.circular(30),
                           ),
                           child: Center(
-                            child: Text(
-                              _categories[index],
-                              style: TextStyle(
-                                color: _selectedIndex == index
-                                    ? Colors.black
-                                    : context.textColor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            child: Text(_categories[index],
+                                style: TextStyle(
+                                  color: _selectedIndex == index
+                                      ? Colors.black
+                                      : context.textColor,
+                                  fontWeight: FontWeight.bold,
+                                )),
                           ),
                         ),
                       ),
@@ -314,7 +337,6 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
             ),
             const SizedBox(height: 16),
 
-            // List
             Expanded(
               child: RefreshIndicator(
                 color: context.subtextColor,
@@ -332,7 +354,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: ElevatedButton(
                 onPressed: () async {
-                  await Navigator.push(
+                  final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => YogaWriteReviewPage(
@@ -341,12 +363,16 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                         existing: _myReview,
                         onSubmitted: () {
                           widget.onReviewChanged?.call();
-                          _loadReviews();
                         },
                       ),
                     ),
                   );
-                  _loadReviews();
+                  await _loadReviews();
+                  if (mounted && result == true) {
+                    _showSuccess(_myReview != null
+                        ? 'Review updated successfully'
+                        : 'Review submitted successfully');
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: themeColor,
@@ -424,9 +450,9 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                                   const Icon(Icons.edit, color: themeColor),
                               title: const Text('Edit Review',
                                   style: TextStyle(color: Colors.white)),
-                              onTap: () {
+                              onTap: () async {
                                 Navigator.pop(context);
-                                Navigator.push(
+                                final result = await Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => YogaWriteReviewPage(
@@ -435,11 +461,14 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                                       existing: r,
                                       onSubmitted: () {
                                         widget.onReviewChanged?.call();
-                                        _loadReviews();
                                       },
                                     ),
                                   ),
-                                ).then((_) => _loadReviews());
+                                );
+                                await _loadReviews();
+                                if (mounted && result == true) {
+                                  _showSuccess('Review updated successfully');
+                                }
                               },
                             ),
                             ListTile(
@@ -542,8 +571,9 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                                 children: List.generate(
                                   5,
                                   (i) => Icon(
-                                    i < double.parse(r['rating'].toString())
-                                            .round()
+                                    i 
+                                            double.parse(r['rating'].toString())
+                                                .round()
                                         ? Icons.star
                                         : Icons.star_border,
                                     color: themeColor,
@@ -554,10 +584,24 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                             ],
                           ),
                         ),
-                        Text(
-                          _formatDate(r['created_at']),
-                          style: TextStyle(
-                              color: context.subtextColor, fontSize: 11),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              _formatDate(r['created_at']),
+                              style: TextStyle(
+                                  color: context.subtextColor, fontSize: 11),
+                            ),
+                            if (r['updated_at'] != null &&
+                                r['updated_at'] != r['created_at'])
+                              Text(
+                                'edited ${_formatDate(r['updated_at'])}',
+                                style: TextStyle(
+                                    color: context.subtextColor.withOpacity(0.5),
+                                    fontSize: 10,
+                                    fontStyle: FontStyle.italic),
+                              ),
+                          ],
                         ),
                       ],
                     ),
@@ -569,18 +613,6 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                           fontSize: 13,
                           height: 1.4),
                     ),
-                    if (r['updated_at'] != null &&
-                        r['updated_at'] != r['created_at'])
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          'Edited ${_formatDate(r['updated_at'])}',
-                          style: TextStyle(
-                              color: context.subtextColor.withOpacity(0.5),
-                              fontSize: 10,
-                              fontStyle: FontStyle.italic),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -596,6 +628,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
     try {
       final dt = DateTime.parse(iso).toLocal();
       final diff = DateTime.now().difference(dt);
+      if (diff.inSeconds < 60) return 'just now';
       if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
       if (diff.inHours < 24) return '${diff.inHours}h ago';
       if (diff.inDays == 1) return '1d ago';

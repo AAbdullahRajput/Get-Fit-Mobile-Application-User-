@@ -386,7 +386,7 @@ static Future<List<Map<String, dynamic>>> getTrainerReviews(String trainerId) as
     debugPrint('\x1B[33m[API] GET /rest/v1/trainer_reviews | trainerId: $trainerId\x1B[0m');
     final data = await client
         .from('trainer_reviews')
-        .select('*, users(avatar_url, username)')
+        .select()
         .eq('trainer_id', trainerId)
         .order('created_at', ascending: false);
     debugPrint('\x1B[32m[API] 200 OK | Reviews: ${data.length}\x1B[0m');
