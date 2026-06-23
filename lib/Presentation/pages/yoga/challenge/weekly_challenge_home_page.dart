@@ -16,13 +16,8 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
   Map<String, dynamic>? _challenge;
   Map<String, dynamic>? _todayDay;
   List<Map<String, dynamic>> _rounds = [];
-
-  // roundId -> list of exercises
   Map<String, List<Map<String, dynamic>>> _exercisesByRound = {};
-
-  // completed exercise IDs for today
   Set<String> _completedIds = {};
-
   int _todayCalories = 0;
 
   @override
@@ -145,39 +140,47 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
 
   Widget _buildBanner() {
     return Container(
-      height: 180,
+      height: 460,
       width: double.infinity,
       decoration: BoxDecoration(
         image: DecorationImage(
           image: const AssetImage('assets/challenge/bg.jpg'),
           fit: BoxFit.cover,
           colorFilter: ColorFilter.mode(
-            Colors.black.withOpacity(0.4),
+            Colors.black.withOpacity(0.45),
             BlendMode.darken,
           ),
         ),
       ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.emoji_events, color: themeColor, size: 44),
-            const SizedBox(height: 8),
-            Text(
-              _challenge?['title'] ?? '7 Day Challenge',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.emoji_events_rounded, color: themeColor, size: 42),
+              const SizedBox(height: 8),
+              Text(
+                _challenge?['title'] ?? '7 Day Challenge',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.3,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _challenge?['description'] ?? '',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ],
+              const SizedBox(height: 5),
+              Text(
+                _challenge?['description'] ?? '',
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -189,18 +192,25 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             decoration: BoxDecoration(
               color: themeColor,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(
-              'TODAY · ${_dayLabel()}',
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.calendar_today_rounded, size: 12, color: Colors.black),
+                const SizedBox(width: 5),
+                Text(
+                  'TODAY · ${_dayLabel()}',
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 12),
@@ -237,11 +247,11 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: Row(
         children: [
-          _buildStatChip(Icons.local_fire_department, '$_todayCalories kcal', Colors.orange),
+          _buildStatChip(Icons.local_fire_department_rounded, '$_todayCalories kcal', Colors.orange),
           const SizedBox(width: 10),
-          _buildStatChip(Icons.check_circle_outline, '$completed/$total done', themeColor),
+          _buildStatChip(Icons.access_time_rounded, '$completed/$total done', themeColor),
           const SizedBox(width: 10),
-          _buildStatChip(Icons.fitness_center, '${_rounds.length} rounds', Colors.blue),
+          _buildStatChip(Icons.directions_run_rounded, '${_rounds.length} rounds', Colors.blue),
         ],
       ),
     );
@@ -259,7 +269,14 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
         children: [
           Icon(icon, color: color, size: 14),
           const SizedBox(width: 5),
-          Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -268,6 +285,7 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
   Widget _buildRoundSection(Map<String, dynamic> round) {
     final exercises = _exercisesByRound[round['id']] ?? [];
     final doneInRound = exercises.where((e) => _completedIds.contains(e['id'])).length;
+    final allDone = doneInRound == exercises.length && exercises.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -281,29 +299,57 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      round['title'] ?? '',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: themeColor,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        if (allDone)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 6),
+                            child: Icon(Icons.check_circle_rounded, color: themeColor, size: 18),
+                          ),
+                        Expanded(
+                          child: Text(
+                            round['title'] ?? '',
+                            style: TextStyle(
+                              fontSize: 17,
+                              color: allDone ? themeColor : context.textColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     if ((round['description'] ?? '').isNotEmpty)
-                      Text(
-                        round['description'],
-                        style: TextStyle(color: context.subtextColor, fontSize: 12),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          round['description'],
+                          style: TextStyle(color: context.subtextColor, fontSize: 12),
+                        ),
                       ),
                   ],
                 ),
               ),
-              Text(
-                '$doneInRound/${exercises.length}',
-                style: TextStyle(color: context.subtextColor, fontSize: 13),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: allDone
+                      ? themeColor.withOpacity(0.15)
+                      : context.cardBgColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$doneInRound/${exercises.length}',
+                  style: TextStyle(
+                    color: allDone ? themeColor : context.subtextColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           ...exercises.map((exercise) => _buildExerciseTile(exercise, round)),
         ],
       ),
@@ -316,7 +362,9 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
     final duration = exercise['duration_seconds'] as int? ?? 0;
     final mins = duration ~/ 60;
     final secs = duration % 60;
-    final timeStr = mins > 0 ? '${mins}m ${secs}s' : '${secs}s';
+    final timeStr = mins > 0
+        ? (secs > 0 ? '${mins}m ${secs}s' : '${mins}m')
+        : '${secs}s';
 
     return GestureDetector(
       onTap: () async {
@@ -331,38 +379,54 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
             ),
           ),
         );
-        // Refresh after returning to pick up any newly completed exercise
         _load();
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
           color: isDone
-              ? themeColor.withOpacity(0.08)
+              ? themeColor.withOpacity(0.07)
               : context.cardBgColor,
           borderRadius: BorderRadius.circular(16),
           border: isDone
-              ? Border.all(color: themeColor.withOpacity(0.3))
-              : null,
+              ? Border.all(color: themeColor.withOpacity(0.25), width: 1)
+              : Border.all(color: Colors.transparent),
         ),
         child: Row(
           children: [
             // Thumbnail
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                exercise['image_url'] ?? '',
-                width: 54,
-                height: 54,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 54,
-                  height: 54,
-                  color: context.isDark ? Colors.grey[800] : Colors.grey[200],
-                  child: Icon(Icons.fitness_center, color: context.subtextColor),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(
+                    exercise['image_url'] ?? '',
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: context.isDark ? Colors.grey[800] : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.fitness_center_rounded, color: context.subtextColor, size: 24),
+                    ),
+                  ),
                 ),
-              ),
+                if (isDone)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.35),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.check_rounded, color: themeColor, size: 26),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(width: 12),
             // Info
@@ -373,32 +437,37 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
                   Text(
                     exercise['title'] ?? '',
                     style: TextStyle(
-                      color: context.textColor,
+                      color: isDone ? context.subtextColor : context.textColor,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                       decoration: isDone ? TextDecoration.lineThrough : null,
+                      decorationColor: context.subtextColor,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 5),
                   Row(
                     children: [
                       Icon(Icons.timer_outlined, size: 12, color: context.subtextColor),
                       const SizedBox(width: 3),
-                      Text(timeStr, style: TextStyle(color: context.subtextColor, fontSize: 12)),
+                      Text(timeStr, style: TextStyle(color: context.subtextColor, fontSize: 11)),
                       const SizedBox(width: 10),
-                      Icon(Icons.local_fire_department, size: 12, color: Colors.orange),
+                      Icon(Icons.local_fire_department_rounded, size: 12, color: Colors.orange),
                       const SizedBox(width: 3),
-                      Text('$calories kcal', style: TextStyle(color: context.subtextColor, fontSize: 12)),
+                      Text('$calories kcal', style: TextStyle(color: context.subtextColor, fontSize: 11)),
                       const SizedBox(width: 10),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: themeColor.withOpacity(0.15),
+                          color: themeColor.withOpacity(0.13),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           exercise['level'] ?? '',
-                          style: TextStyle(color: themeColor, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: themeColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
@@ -413,10 +482,15 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
                 ],
               ),
             ),
-            // Done indicator or play icon
+            const SizedBox(width: 8),
+            // Action icon
             isDone
-                ? const Icon(Icons.check_circle, color: themeColor, size: 28)
-                : const Icon(Icons.play_circle_fill, color: themeColor, size: 28),
+                ? const Icon(Icons.check_circle_rounded, color: themeColor, size: 28)
+                : Icon(
+                    Icons.play_circle_filled_rounded,
+                    color: themeColor,
+                    size: 32,
+                  ),
           ],
         ),
       ),
@@ -428,10 +502,17 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
       padding: const EdgeInsets.all(32),
       child: Column(
         children: [
-          const Icon(Icons.self_improvement, color: themeColor, size: 64),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: themeColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.self_improvement_rounded, color: themeColor, size: 56),
+          ),
           const SizedBox(height: 16),
           Text(
-            'Rest Day 🌿',
+            'Rest Day',
             style: TextStyle(
               color: context.textColor,
               fontSize: 22,
@@ -440,9 +521,10 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
           ),
           const SizedBox(height: 8),
           Text(
-            _todayDay?['theme_description'] ?? 'Take it easy today. Recovery is where muscles grow.',
+            _todayDay?['theme_description'] ??
+                'Take it easy today. Recovery is where muscles grow.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: context.subtextColor, fontSize: 14),
+            style: TextStyle(color: context.subtextColor, fontSize: 14, height: 1.5),
           ),
         ],
       ),
@@ -456,7 +538,7 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.fitness_center, color: context.subtextColor, size: 64),
+            Icon(Icons.fitness_center_rounded, color: context.subtextColor, size: 64),
             const SizedBox(height: 16),
             Text(
               'No active challenge found',
@@ -471,9 +553,15 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
   Widget _buildNoDay() {
     return Padding(
       padding: const EdgeInsets.all(32),
-      child: Text(
-        'No exercises scheduled for today.',
-        style: TextStyle(color: context.subtextColor, fontSize: 14),
+      child: Column(
+        children: [
+          Icon(Icons.event_busy_rounded, color: context.subtextColor, size: 48),
+          const SizedBox(height: 12),
+          Text(
+            'No exercises scheduled for today.',
+            style: TextStyle(color: context.subtextColor, fontSize: 14),
+          ),
+        ],
       ),
     );
   }
