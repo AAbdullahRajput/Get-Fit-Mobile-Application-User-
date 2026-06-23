@@ -822,4 +822,21 @@ static Future<List<Map<String, dynamic>>> getMyYogaBookingsForInstructor(
   }
 }
 
+static Future<List<Map<String, dynamic>>> getYogaClasses(String timeSlot) async {
+  try {
+    debugPrint('\x1B[36m[API] GET /rest/v1/yoga_classes | timeSlot: $timeSlot\x1B[0m');
+    final data = await client
+        .from('yoga_classes')
+        .select()
+        .eq('time_slot', timeSlot)
+        .eq('is_active', true)
+        .order('created_at', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | YogaClasses: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getYogaClasses | $e\x1B[0m');
+    return [];
+  }
+}
+
 }
