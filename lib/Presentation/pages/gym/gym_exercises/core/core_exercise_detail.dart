@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:get_fit/Domain/models/exercise_model.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
 class CoreExerciseDetail extends StatefulWidget {
-  final Exercise exercise;
+  final Map<String, dynamic> exercise;
   const CoreExerciseDetail({super.key, required this.exercise});
 
   @override
@@ -24,7 +23,7 @@ class _CoreExerciseDetailState extends State<CoreExerciseDetail> {
 
   Future<void> _checkFavorite() async {
     try {
-      final result = await SupabaseService.isFavorite(widget.exercise.id);
+      final result = await SupabaseService.isFavorite(widget.exercise['id']);
       if (mounted) setState(() { _isFavorite = result; _isLoading = false; });
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
@@ -36,15 +35,15 @@ class _CoreExerciseDetailState extends State<CoreExerciseDetail> {
     setState(() => _isToggling = true);
     try {
       await SupabaseService.toggleFavorite(
-        exerciseId: widget.exercise.id,
-        title: widget.exercise.title,
-        image: widget.exercise.imageUrl,
-        category: widget.exercise.category,
-        level: widget.exercise.level,
-        sets: widget.exercise.sets,
-        reps: widget.exercise.reps,
-        rest: widget.exercise.rest,
-        description: widget.exercise.description,
+        exerciseId: widget.exercise['id'],
+        title: widget.exercise['title'],
+        image: widget.exercise['image_url'],
+        category: widget.exercise['category'],
+        level: widget.exercise['level'],
+        sets: widget.exercise['sets'],
+        reps: widget.exercise['reps'],
+        rest: widget.exercise['rest'],
+        description: widget.exercise['description'],
       );
       final nowFavorite = !_isFavorite;
       if (mounted) {
@@ -80,8 +79,6 @@ class _CoreExerciseDetailState extends State<CoreExerciseDetail> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       backgroundColor: context.bgColor,
       body: Stack(
@@ -99,7 +96,7 @@ class _CoreExerciseDetailState extends State<CoreExerciseDetail> {
                     child: Stack(
                       children: [
                         Image.network(
-                          widget.exercise.imageUrl,
+                          widget.exercise['image_url'] ?? '',
                           width: double.infinity,
                           height: 280,
                           fit: BoxFit.cover,
@@ -128,19 +125,19 @@ class _CoreExerciseDetailState extends State<CoreExerciseDetail> {
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(color: _levelColor(widget.exercise.level), borderRadius: BorderRadius.circular(8)),
-                                    child: Text(widget.exercise.level, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    decoration: BoxDecoration(color: _levelColor(widget.exercise['level'] ?? ''), borderRadius: BorderRadius.circular(8)),
+                                    child: Text(widget.exercise['level'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                                   ),
                                   const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                     decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                                    child: Text(widget.exercise.category, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    child: Text(widget.exercise['category'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 8),
-                              Text(widget.exercise.title, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+                              Text(widget.exercise['title'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -155,17 +152,17 @@ class _CoreExerciseDetailState extends State<CoreExerciseDetail> {
                       children: [
                         Text('Description', style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
-                        Text(widget.exercise.description, style: TextStyle(color: context.subtextColor, fontSize: 15, height: 1.6)),
+                        Text(widget.exercise['description'] ?? '', style: TextStyle(color: context.subtextColor, fontSize: 15, height: 1.6)),
                         const SizedBox(height: 20),
                         Text('Workout Details', style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            _detailChip(context, 'Sets', widget.exercise.sets),
+                            _detailChip(context, 'Sets', widget.exercise['sets'] ?? ''),
                             const SizedBox(width: 12),
-                            _detailChip(context, 'Reps', widget.exercise.reps),
+                            _detailChip(context, 'Reps', widget.exercise['reps'] ?? ''),
                             const SizedBox(width: 12),
-                            _detailChip(context, 'Rest', widget.exercise.rest),
+                            _detailChip(context, 'Rest', widget.exercise['rest'] ?? ''),
                           ],
                         ),
                         const SizedBox(height: 20),

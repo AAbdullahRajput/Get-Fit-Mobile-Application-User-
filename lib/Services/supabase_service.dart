@@ -343,15 +343,36 @@ static Future<void> deleteAccountNoPassword() async {
   }
 }
 
+// GYM EXERCISES
+
+static Future<List<Map<String, dynamic>>> getGymExercises({String? category, int page = 0, int pageSize = 7}) async {
+  try {
+    debugPrint('\x1B[33m[API] GET /rest/v1/gym_exercises | category: $category | page: $page\x1B[0m');
+    var query = client.from('gym_exercises').select();
+    if (category != null && category != 'All') {
+      query = query.eq('category', category);
+    }
+    final data = await query
+        .order('created_at', ascending: true)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+    debugPrint('\x1B[32m[API] 200 OK | Exercises: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getGymExercises | $e\x1B[0m');
+    return [];
+  }
+}
+
 // TRAINERS
 
-static Future<List<Map<String, dynamic>>> getTrainers() async {
+static Future<List<Map<String, dynamic>>> getTrainers({int page = 0, int pageSize = 9}) async {
   try {
-    debugPrint('\x1B[33m[API] GET /rest/v1/fitness_trainers\x1B[0m');
+    debugPrint('\x1B[33m[API] GET /rest/v1/fitness_trainers | page: $page\x1B[0m');
     final data = await client
         .from('fitness_trainers')
         .select()
-        .order('created_at', ascending: true);
+        .order('rating', ascending: false)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
     debugPrint('\x1B[32m[API] 200 OK | Trainers: ${data.length}\x1B[0m');
     return List<Map<String, dynamic>>.from(data);
   } catch (e) {

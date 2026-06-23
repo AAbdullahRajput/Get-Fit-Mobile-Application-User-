@@ -437,7 +437,7 @@ class _OverviewTabState extends State<_OverviewTab> {
                                           style: TextStyle(
                                               fontSize: 22,
                                               fontWeight: FontWeight.bold,
-                                              color: isDark ? const Color.fromARGB(255, 192, 207, 50) : Colors.black)),
+                                              color: isDark ? const Color.fromARGB(255, 210, 231, 16) : Colors.black)),
                                       const Text("/20000",
                                           style: TextStyle(fontSize: 15, color: Color.fromARGB(255, 0, 0, 0))),
                                     ],
@@ -489,7 +489,9 @@ class _OverviewTabState extends State<_OverviewTab> {
 
               // ── YOGA CLASS CARD ──
               const SizedBox(height: 30),
-              Stack(
+              GestureDetector(
+                onTap: () => widget.onTabSwitch(2),
+                child: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   Container(
@@ -530,6 +532,7 @@ class _OverviewTabState extends State<_OverviewTab> {
                     child: Image.asset("assets/home/yoga-girl.png", height: 223, width: 150),
                   ),
                 ],
+                ),
               ),
 
               // ── FITNESS TRAINER CARD ──
@@ -577,13 +580,13 @@ class _OverviewTabState extends State<_OverviewTab> {
                       ),
                       // Trainer icon on the right
                       Positioned(
-                      top: -43, right: 15, left: 0,
+                      top: -48, right: -15, left: 0,
                       child: Align(
                         alignment: Alignment.centerRight,
                         child: Image.asset(
                           "assets/home/trainer-man.png",
-                          height: 223,
-                          width: 150,
+                          height: 240,
+                          width: 250,
                         ),
                       ),
                     ),
@@ -592,14 +595,64 @@ class _OverviewTabState extends State<_OverviewTab> {
                 ),
               ),
 
-              // ── UPCOMING TRAINER APPOINTMENTS ──
+              // ── UPCOMING CLASSES & APPOINTMENTS ──
               const SizedBox(height: 20),
-              Text("Upcoming Appointments",
+              Text("Upcoming Classes & Appointments",
                   style: TextStyle(
                       color: Theme.of(context).textTheme.bodyLarge?.color,
                       fontSize: 18,
                       fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
+
+              // ── YOGA CLASSES ──
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.self_improvement_outlined, color: themeColor, size: 16),
+                  const SizedBox(width: 6),
+                  Text("Yoga Classes",
+                      style: TextStyle(
+                          color: themeColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => widget.onTabSwitch(2),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.self_improvement_outlined, color: themeColor, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text("No upcoming yoga classes. Join one!",
+                            style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 13)),
+                      ),
+                      Icon(Icons.arrow_forward_ios, color: themeColor, size: 14),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── TRAINER APPOINTMENTS ──
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.directions_run, color: themeColor, size: 16),
+                  const SizedBox(width: 6),
+                  Text("Trainer Appointments",
+                      style: TextStyle(
+                          color: themeColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 8),
               _loadingAppointments
                   ? const Center(child: Padding(
                       padding: EdgeInsets.all(20),
@@ -615,7 +668,7 @@ class _OverviewTabState extends State<_OverviewTab> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.calendar_today_outlined, color: themeColor, size: 20),
+                                Icon(Icons.directions_run, color: themeColor, size: 20),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text("No upcoming appointments. Book a trainer!",
@@ -719,6 +772,7 @@ class _OverviewTabState extends State<_OverviewTab> {
   }
 }
 
+
 // ─────────────────────────────────────────────
 // FITNESS TAB CONTENT
 // ─────────────────────────────────────────────
@@ -730,6 +784,10 @@ class _FitnessTabContent extends StatefulWidget {
 class _FitnessTabContentState extends State<_FitnessTabContent> {
   List<Map<String, dynamic>> _trainers = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 0;
+  static const int _pageSize = 9;
 
   @override
   void initState() {
@@ -738,9 +796,26 @@ class _FitnessTabContentState extends State<_FitnessTabContent> {
   }
 
   Future<void> _load() async {
-    setState(() => _isLoading = true);
-    final data = await SupabaseService.getTrainers();
-    if (mounted) setState(() { _trainers = data; _isLoading = false; });
+    setState(() { _isLoading = true; _page = 0; _hasMore = true; _trainers = []; });
+    final data = await SupabaseService.getTrainers(page: 0, pageSize: _pageSize);
+    if (mounted) setState(() {
+      _trainers = data;
+      _isLoading = false;
+      _hasMore = data.length == _pageSize;
+      _page = 1;
+    });
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+    final data = await SupabaseService.getTrainers(page: _page, pageSize: _pageSize);
+    if (mounted) setState(() {
+      _trainers.addAll(data);
+      _isLoadingMore = false;
+      _hasMore = data.length == _pageSize;
+      _page++;
+    });
   }
 
   @override
@@ -766,12 +841,50 @@ class _FitnessTabContentState extends State<_FitnessTabContent> {
                     backgroundColor: Theme.of(context).cardColor,
                     onRefresh: _load,
                     child: ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: _trainers.length,
-                      itemBuilder: (context, index) {
-                        final t = _trainers[index];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: _trainers.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == _trainers.length) {
+                            if (_isLoadingMore) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 20),
+                                child: Center(child: SizedBox(
+                                  width: 28, height: 28,
+                                  child: CircularProgressIndicator(color: themeColor, strokeWidth: 2.5),
+                                )),
+                              );
+                            }
+                            if (!_hasMore) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                child: Center(child: Text('All trainers loaded',
+                                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13))),
+                              );
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
+                              child: OutlinedButton(
+                                onPressed: _loadMore,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: themeColor,
+                                  side: BorderSide(color: themeColor),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.expand_more, size: 18),
+                                    SizedBox(width: 6),
+                                    Text('Show More', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+                          final t = _trainers[index];
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                           child: GestureDetector(
                             onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute(builder: (_) => FitnessTrainerDetailPage(trainer: t))),
@@ -851,9 +964,9 @@ class _FitnessTabContentState extends State<_FitnessTabContent> {
                           ),
                         );
                       },
-                    ),
+                 ),
                   ),
-          ),
+                  ),
         ],
       ),
     );

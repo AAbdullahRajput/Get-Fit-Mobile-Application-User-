@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:get_fit/Domain/models/exercise_model.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/arms/arms_exercise_detail.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
 class ArmsExercisesScreen extends StatefulWidget {
@@ -11,12 +11,14 @@ class ArmsExercisesScreen extends StatefulWidget {
 }
 
 class _ArmsExercisesScreenState extends State<ArmsExercisesScreen> {
-  static bool _hasLoaded = false;
-  bool _isLoading = false;
+ bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 0;
+  static const int _pageSize = 7;
+  List<Map<String, dynamic>> _exercises = [];
 
-  List<Exercise> get armsExercises {
-    return dummyExercises.where((e) => e.category == 'Arms').toList();
-  }
+  bool get _hasLess => _exercises.length > _pageSize;
 
   Color _levelColor(String level) {
     switch (level) {
@@ -27,38 +29,37 @@ class _ArmsExercisesScreenState extends State<ArmsExercisesScreen> {
     }
   }
 
-  @override
+ @override
   void initState() {
     super.initState();
-    _hasLoaded = true;
-    _isLoading = false;
+    _loadExercises();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _precacheImages();
+  Future<void> _loadExercises() async {
+    setState(() { _isLoading = true; _page = 0; _hasMore = true; _exercises = []; });
+    final data = await SupabaseService.getGymExercises(category: 'Arms', page: 0, pageSize: _pageSize);
+    if (mounted) setState(() {
+      _exercises = data;
+      _isLoading = false;
+      _hasMore = data.length == _pageSize;
+      _page = 1;
+    });
   }
 
-  Future<void> _precacheImages() async {
-    try {
-      await Future.wait(
-        armsExercises.map(
-          (e) => precacheImage(NetworkImage(e.imageUrl), context),
-        ),
-      );
-    } catch (e) {}
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+    final data = await SupabaseService.getGymExercises(category: 'Arms', page: _page, pageSize: _pageSize);
+    if (mounted) setState(() {
+      _exercises.addAll(data);
+      _isLoadingMore = false;
+      _hasMore = data.length == _pageSize;
+      _page++;
+    });
   }
 
   Future<void> _onRefresh() async {
-    setState(() => _isLoading = true);
-    await Future.wait([
-      Future.delayed(const Duration(milliseconds: 500)),
-      ...armsExercises.map(
-        (e) => precacheImage(NetworkImage(e.imageUrl), context),
-      ),
-    ]);
-    if (mounted) setState(() => _isLoading = false);
+    _loadExercises();
   }
 
   @override
@@ -89,7 +90,7 @@ class _ArmsExercisesScreenState extends State<ArmsExercisesScreen> {
   }
 
   Widget _buildList(BuildContext context) {
-    if (armsExercises.isEmpty) {
+    if (_exercises.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -105,9 +106,57 @@ class _ArmsExercisesScreenState extends State<ArmsExercisesScreen> {
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: armsExercises.length,
+      itemCount: _exercises.length + 1,
       itemBuilder: (context, index) {
-        final exercise = armsExercises[index];
+        if (index == _exercises.length) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Column(
+              children: [
+                if (!_isLoadingMore && _hasMore)
+                  OutlinedButton(
+                    onPressed: _loadMore,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: themeColor,
+                      side: const BorderSide(color: themeColor),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      minimumSize: const Size(double.infinity, 0),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.expand_more, size: 18),
+                        SizedBox(width: 6),
+                        Text('Show More', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                if (_hasMore && _hasLess) const SizedBox(height: 8),
+                if (!_isLoadingMore && _hasLess)
+                  OutlinedButton(
+                    onPressed: _loadExercises,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey,
+                      side: const BorderSide(color: Colors.grey),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      minimumSize: const Size(double.infinity, 0),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.expand_less, size: 18),
+                        SizedBox(width: 6),
+                        Text('Show Less', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }
+        final exercise = _exercises[index];
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: GestureDetector(
@@ -131,7 +180,7 @@ class _ArmsExercisesScreenState extends State<ArmsExercisesScreen> {
                   children: [
                     Positioned.fill(
                       child: Image.network(
-                        exercise.imageUrl,
+                        exercise['image_url'] ?? '',
                         fit: BoxFit.cover,
                         cacheWidth: 600,
                         errorBuilder: (context, error, stack) => Container(
@@ -166,10 +215,10 @@ class _ArmsExercisesScreenState extends State<ArmsExercisesScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: _levelColor(exercise.level).withOpacity(0.85),
+                                    color: _levelColor(exercise['level'] ?? '').withOpacity(0.85),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: Text(exercise.level, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  child: Text(exercise['level'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                                 ),
                                 const SizedBox(width: 8),
                                 Container(
@@ -178,22 +227,22 @@ class _ArmsExercisesScreenState extends State<ArmsExercisesScreen> {
                                     color: Colors.white.withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: Text(exercise.category, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  child: Text(exercise['category'] ?? '',style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 6),
-                            Text(exercise.title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                            Text(exercise['title'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
-                            Text(exercise.description, style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            Text(exercise['description'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                _chip(exercise.sets),
+                                _chip(exercise['sets'] ?? ''),
                                 const SizedBox(width: 8),
-                                _chip(exercise.reps),
+                                _chip(exercise['reps'] ?? ''),
                                 const SizedBox(width: 8),
-                                _chip(exercise.rest),
+                                _chip(exercise['rest'] ?? ''),
                                 const Spacer(),
                                 Container(
                                   width: 32,

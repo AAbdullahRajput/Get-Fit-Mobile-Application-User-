@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:get_fit/Domain/models/exercise_model.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/legs/legs_exercises_screen.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/shoulders/shoulders_exercises_screen.dart';
 import 'package:get_fit/Utils/constants.dart';
@@ -17,23 +17,25 @@ class GymPage extends StatefulWidget {
 }
 
 class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
-  static bool _hasLoaded = false;
-  bool _isLoading = false;
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 0;
+  static const int _pageSize = 7;
   int selectedCategory = 0;
+  List<Map<String, dynamic>> _exercises = [];
 
   final List<String> categories = const [
-    'All', 'Chest', 'Back', 'Shoulders', 'Legs', 'Arm', 'Core'
+    'All', 'Chest', 'Back', 'Shoulders', 'Legs', 'Arms', 'Core'
   ];
 
   @override
-  bool get wantKeepAlive => true; // Keep page alive when switching tabs
+  bool get wantKeepAlive => true;
 
-  List<Exercise> get filteredExercises {
-    if (selectedCategory == 0) return dummyExercises;
-    return dummyExercises
-        .where((e) => e.category == categories[selectedCategory])
-        .toList();
-  }
+  String? get _selectedCategory =>
+      selectedCategory == 0 ? null : categories[selectedCategory];
+
+  bool get _hasLess => _exercises.length > _pageSize;
 
   Color _levelColor(String level) {
     switch (level) {
@@ -48,42 +50,45 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  @override
+ @override
   void initState() {
     super.initState();
-    _hasLoaded = true;
-    _isLoading = false;
+    _loadExercises();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _precacheImages();
+  Future<void> _loadExercises() async {
+    setState(() { _isLoading = true; _page = 0; _hasMore = true; _exercises = []; });
+    final data = await SupabaseService.getGymExercises(
+      category: _selectedCategory,
+      page: 0,
+      pageSize: _pageSize,
+    );
+    if (mounted) setState(() {
+      _exercises = data;
+      _isLoading = false;
+      _hasMore = data.length == _pageSize;
+      _page = 1;
+    });
   }
 
-  Future<void> _precacheImages() async {
-    try {
-      await Future.wait(
-        dummyExercises.map(
-          (e) => precacheImage(NetworkImage(e.imageUrl), context),
-        ),
-      );
-    } catch (e) {
-      // Silently handle errors
-    }
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+    final data = await SupabaseService.getGymExercises(
+      category: _selectedCategory,
+      page: _page,
+      pageSize: _pageSize,
+    );
+    if (mounted) setState(() {
+      _exercises.addAll(data);
+      _isLoadingMore = false;
+      _hasMore = data.length == _pageSize;
+      _page++;
+    });
   }
 
   Future<void> _onRefresh() async {
-    setState(() => _isLoading = true);
-    await Future.wait([
-      Future.delayed(const Duration(milliseconds: 500)),
-      ...dummyExercises.map(
-        (e) => precacheImage(NetworkImage(e.imageUrl), context),
-      ),
-    ]);
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+    _loadExercises();
   }
 
   void _navigateToCategoryScreen(String category) {
@@ -227,7 +232,10 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
                 itemBuilder: (context, index) {
                   final selected = selectedCategory == index;
                   return GestureDetector(
-                    onTap: () => setState(() => selectedCategory = index),
+                    onTap: () {
+                      setState(() { selectedCategory = index; });
+                      _loadExercises();
+                    },
                     child: Container(
                       margin: const EdgeInsets.only(right: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
@@ -257,7 +265,7 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
             Padding(
               padding: const EdgeInsets.only(left: 20),
               child: Text(
-                '${filteredExercises.length} exercises',
+                '${_exercises.length} exercises',
                 style: TextStyle(color: context.subtextColor, fontSize: 13),
               ),
             ),
@@ -271,14 +279,81 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
                 onRefresh: _onRefresh,
                 child: _isLoading
                     ? _buildSkeleton(context)
-                    : ListView.builder(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: filteredExercises.length,
-                        itemBuilder: (context, index) {
-                          final exercise = filteredExercises[index];
-                          return _exerciseCard(context, exercise);
-                        },
+                    : RefreshIndicator(
+                        color: themeColor,
+                        backgroundColor: context.cardBgColor,
+                        onRefresh: _onRefresh,
+                        child: ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          itemCount: _exercises.length + 1,
+                          itemBuilder: (context, index) {
+                            if (index == _exercises.length) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 20),
+                                child: Column(
+                                  children: [
+                                    if (_isLoadingMore)
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 16),
+                                        child: Center(child: SizedBox(
+                                          width: 28, height: 28,
+                                          child: CircularProgressIndicator(color: themeColor, strokeWidth: 2.5),
+                                        )),
+                                      ),
+                                    if (!_isLoadingMore && _hasMore)
+                                      OutlinedButton(
+                                        onPressed: _loadMore,
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: themeColor,
+                                          side: const BorderSide(color: themeColor),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          padding: const EdgeInsets.symmetric(vertical: 14),
+                                          minimumSize: const Size(double.infinity, 0),
+                                        ),
+                                        child: const Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.expand_more, size: 18),
+                                            SizedBox(width: 6),
+                                            Text('Show More', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                          ],
+                                        ),
+                                      ),
+                                    if (!_isLoadingMore && _hasMore && _hasLess) const SizedBox(height: 8),
+                                    if (!_isLoadingMore && _hasLess)
+                                      OutlinedButton(
+                                        onPressed: _loadExercises,
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.grey,
+                                          side: const BorderSide(color: Colors.grey),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          padding: const EdgeInsets.symmetric(vertical: 14),
+                                          minimumSize: const Size(double.infinity, 0),
+                                        ),
+                                        child: const Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.expand_less, size: 18),
+                                            SizedBox(width: 6),
+                                            Text('Show Less', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                          ],
+                                        ),
+                                      ),
+                                    if (!_isLoadingMore && !_hasMore && !_hasLess)
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 8),
+                                        child: Text('All exercises loaded',
+                                            style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            }
+                            final e = _exercises[index];
+                            return _exerciseCard(context, e);
+                          },
+                        ),
                       ),
               ),
             ),
@@ -308,11 +383,16 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
     );
   }
 
-  Widget _exerciseCard(BuildContext context, Exercise exercise) {
+  Widget _exerciseCard(BuildContext context, Map<String, dynamic> exercise) {
     final isDark = context.isDark;
-    
+    final category = exercise['category'] ?? '';
+    final level = exercise['level'] ?? '';
+    final title = exercise['title'] ?? '';
+    final description = exercise['description'] ?? '';
+    final imageUrl = exercise['image_url'] ?? '';
+
     return GestureDetector(
-      onTap: () => _navigateToCategoryScreen(exercise.category),
+      onTap: () => _navigateToCategoryScreen(category),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         height: 180,
@@ -330,51 +410,37 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
           borderRadius: BorderRadius.circular(20),
           child: Stack(
             children: [
-              // Background Image
               Positioned.fill(
                 child: Image.network(
-                  exercise.imageUrl,
+                  imageUrl,
                   fit: BoxFit.fill,
                   cacheWidth: 600,
                   loadingBuilder: (context, child, progress) {
                     if (progress == null) return child;
                     return Container(
                       color: context.cardBgColor,
-                      child: const Center(
-                        child: CircularProgressIndicator(color: Colors.black),
-                      ),
+                      child: const Center(child: CircularProgressIndicator(color: Colors.black)),
                     );
                   },
                   errorBuilder: (context, error, stack) => Container(
                     color: context.cardBgColor,
-                    child: Icon(
-                      Icons.fitness_center,
-                      color: isDark ? themeColor : Colors.black,
-                      size: 48,
-                    ),
+                    child: Icon(Icons.fitness_center, color: isDark ? themeColor : Colors.black, size: 48),
                   ),
                 ),
               ),
-              // Dark Gradient Overlay
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.85),
-                      ],
+                      colors: [Colors.transparent, Colors.black.withOpacity(0.85)],
                     ),
                   ),
                 ),
               ),
-              // Content
               Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
+                bottom: 0, left: 0, right: 0,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -385,13 +451,10 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: _levelColor(exercise.level).withOpacity(0.85),
+                              color: _levelColor(level).withOpacity(0.85),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Text(
-                              exercise.level,
-                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                            ),
+                            child: Text(level, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                           ),
                           const SizedBox(width: 8),
                           Container(
@@ -400,33 +463,19 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
                               color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Text(
-                              exercise.category,
-                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                            ),
+                            child: Text(category, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        exercise.title,
-                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
+                      Text(title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text(
-                        exercise.description,
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      Text(description, style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Text(
-                            'View ${exercise.category} Exercises →',
-                            style: const TextStyle(color: themeColor, fontSize: 12, fontWeight: FontWeight.w500),
-                          ),
+                          Text('View $category Exercises →', style: const TextStyle(color: themeColor, fontSize: 12, fontWeight: FontWeight.w500)),
                         ],
                       ),
                     ],

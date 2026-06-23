@@ -13,17 +13,45 @@ class FitnessTrainers extends StatefulWidget {
 class _FitnessTrainersState extends State<FitnessTrainers> {
   List<Map<String, dynamic>> _trainers = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 0;
+  static const int _pageSize = 9;
+  final ScrollController _scrollController = ScrollController();
 
-  @override
+ @override
   void initState() {
     super.initState();
     _loadData();
+    // scroll handled by NotificationListener
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    final data = await SupabaseService.getTrainers();
-    if (mounted) setState(() { _trainers = data; _isLoading = false; });
+    setState(() { _isLoading = true; _page = 0; _hasMore = true; _trainers = []; });
+    final data = await SupabaseService.getTrainers(page: 0, pageSize: _pageSize);
+    if (mounted) setState(() {
+      _trainers = data;
+      _isLoading = false;
+      _hasMore = data.length == _pageSize;
+      _page = 1;
+    });
+  }
+
+  Future<void> _loadMore() async {
+    setState(() => _isLoadingMore = true);
+    final data = await SupabaseService.getTrainers(page: _page, pageSize: _pageSize);
+    if (mounted) setState(() {
+      _trainers.addAll(data);
+      _isLoadingMore = false;
+      _hasMore = data.length == _pageSize;
+      _page++;
+    });
   }
 
   Future<void> _onRefresh() async => _loadData();
@@ -57,7 +85,17 @@ class _FitnessTrainersState extends State<FitnessTrainers> {
                       onRefresh: _onRefresh,
                       child: _isLoading
                           ? _buildSkeleton(context)
-                          : _buildList(context),
+                          : NotificationListener<ScrollNotification>(
+                              onNotification: (ScrollNotification scrollInfo) {
+                                if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 300
+                                    && !_isLoadingMore
+                                    && _hasMore) {
+                                  _loadMore();
+                                }
+                                return false;
+                              },
+                              child: _buildList(context),
+                            ),
                     ),
                   ),
                 ],
@@ -89,8 +127,39 @@ class _FitnessTrainersState extends State<FitnessTrainers> {
   Widget _buildList(BuildContext context) {
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: _trainers.length,
-      itemBuilder: (context, index) => _buildCard(context, _trainers[index]),
+      itemCount: _trainers.length + 1,
+      itemBuilder: (context, index) {
+        if (index == _trainers.length) {
+          if (_isLoadingMore) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    color: themeColor,
+                    strokeWidth: 2.5,
+                  ),
+                ),
+              ),
+            );
+          }
+          if (!_hasMore) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Text(
+                  'No more trainers',
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                ),
+              ),
+            );
+          }
+          return const SizedBox(height: 20);
+        }
+        return _buildCard(context, _trainers[index]);
+      },
     );
   }
 

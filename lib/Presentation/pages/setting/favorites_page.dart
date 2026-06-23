@@ -4,7 +4,6 @@ import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/setting/profile_page.dart';
 import 'package:get_fit/Presentation/pages/setting/notifications_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:get_fit/Domain/models/exercise_model.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/arms/arms_exercise_detail.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/back/back_exercise_detail.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/chest/chest_exercise_detail.dart';
@@ -250,8 +249,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
     );
   }
 
-  void _navigateToDetail(BuildContext context, Exercise exercise) {
-    switch (exercise.category) {
+ void _navigateToDetail(BuildContext context, Map<String, dynamic> exercise) {
+    switch (exercise['category']) {
       case 'Arms':
         Navigator.push(context, MaterialPageRoute(
           builder: (_) => ArmsExerciseDetail(exercise: exercise)));
@@ -283,17 +282,17 @@ class _FavoritesPageState extends State<FavoritesPage> {
   final isDark = context.isDark;
   return GestureDetector(
     onTap: () {
-      final exercise = Exercise(
-        id: item['exercise_id'] ?? '',
-        title: item['exercise_title'] ?? '',
-        category: item['exercise_category'] ?? '',
-        description: item['exercise_description'] ?? '',
-        imageUrl: item['exercise_image'] ?? '',
-        sets: item['exercise_sets'] ?? '',
-        reps: item['exercise_reps'] ?? '',
-        rest: item['exercise_rest'] ?? '',
-        level: item['exercise_level'] ?? '',
-      );
+      final exercise = {
+        'id': item['exercise_id'] ?? '',
+        'title': item['exercise_title'] ?? '',
+        'category': item['exercise_category'] ?? '',
+        'description': item['exercise_description'] ?? '',
+        'image_url': item['exercise_image'] ?? '',
+        'sets': item['exercise_sets'] ?? '',
+        'reps': item['exercise_reps'] ?? '',
+        'rest': item['exercise_rest'] ?? '',
+        'level': item['exercise_level'] ?? '',
+      };
       _navigateToDetail(context, exercise);
     },
     child: Container(
