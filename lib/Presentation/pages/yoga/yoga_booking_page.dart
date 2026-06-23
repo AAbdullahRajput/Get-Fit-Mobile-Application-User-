@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/yoga/yoga_payment_page.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
 class YogaBookingPage extends StatefulWidget {
@@ -15,9 +16,18 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
   DateTime? _selectedStartDate;
   int _numSessions = 4;
   final TextEditingController _notesController = TextEditingController();
+  bool _isChecking = false;
+  List<Map<String, dynamic>> _existingBookings = [];
+  bool _loadingBookings = true;
 
   static const int _minSessions = 1;
   static const int _maxSessions = 20;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingBookings();
+  }
 
   @override
   void dispose() {
@@ -25,12 +35,28 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
     super.dispose();
   }
 
+  Future<void> _loadExistingBookings() async {
+    setState(() => _loadingBookings = true);
+    final bookings = await SupabaseService.getMyYogaBookingsForInstructor(
+        widget.instructor['id']);
+    if (mounted) {
+      setState(() {
+        _existingBookings = bookings;
+        _loadingBookings = false;
+      });
+    }
+  }
+
+  bool _isDateAlreadyBooked(DateTime date) {
+    final dateStr = date.toIso8601String().substring(0, 10);
+    return _existingBookings.any((b) => b['start_date'] == dateStr);
+  }
+
   double get _sessionPrice =>
       (widget.instructor['session_price'] as num?)?.toDouble() ?? 30.0;
 
   double get _totalPrice => _sessionPrice * _numSessions;
 
-  // Calculate estimated end date based on sessions_per_week
   DateTime? get _estimatedEndDate {
     if (_selectedStartDate == null) return null;
     final sessionsPerWeek =
@@ -45,6 +71,58 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  void _showInfoDialog({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String message,
+    String buttonText = 'OK',
+    Color buttonColor = themeColor,
+  }) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C2C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Column(
+          children: [
+            Icon(icon, color: iconColor, size: 48),
+            const SizedBox(height: 12),
+            Text(title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: buttonColor,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(buttonText,
+                style: TextStyle(
+                    color: buttonColor == themeColor
+                        ? Colors.black
+                        : Colors.white,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _pickStartDate() async {
@@ -70,7 +148,88 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
       },
     );
     if (picked != null) {
+      if (_isDateAlreadyBooked(picked)) {
+        _showInfoDialog(
+          icon: Icons.event_busy,
+          iconColor: Colors.orangeAccent,
+          title: 'Already Booked',
+          message:
+              'You already have a session booked starting on ${_formatDate(picked)} with this instructor. Please choose a different date.',
+          buttonText: 'Choose Another',
+          buttonColor: Colors.orangeAccent,
+        );
+        return;
+      }
       setState(() => _selectedStartDate = picked);
+    }
+  }
+
+  Future<void> _proceedToPayment() async {
+    if (_selectedStartDate == null) return;
+    setState(() => _isChecking = true);
+
+    try {
+      final dateStr = _selectedStartDate!.toIso8601String().substring(0, 10);
+      final alreadyBooked = await SupabaseService.hasExistingYogaBooking(
+        instructorId: widget.instructor['id'],
+        startDate: dateStr,
+      );
+
+      if (!mounted) return;
+
+      if (alreadyBooked) {
+        setState(() => _isChecking = false);
+        _showInfoDialog(
+          icon: Icons.event_busy,
+          iconColor: Colors.orangeAccent,
+          title: 'Already Booked',
+          message:
+              'You already have a booking with this instructor on ${_formatDate(_selectedStartDate!)}. Please select a different start date.',
+          buttonText: 'OK',
+          buttonColor: Colors.orangeAccent,
+        );
+        return;
+      }
+
+      final isActive = widget.instructor['is_active'] == true;
+      if (!isActive) {
+        setState(() => _isChecking = false);
+        _showInfoDialog(
+          icon: Icons.person_off_outlined,
+          iconColor: Colors.redAccent,
+          title: 'Instructor Unavailable',
+          message:
+              'This instructor is currently not accepting new bookings. Please try another instructor.',
+          buttonText: 'Go Back',
+          buttonColor: Colors.redAccent,
+        );
+        return;
+      }
+
+      setState(() => _isChecking = false);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => YogaPaymentPage(
+            instructor: widget.instructor,
+            startDate: dateStr,
+            displayDate: _formatDate(_selectedStartDate!),
+            numSessions: _numSessions,
+            totalPrice: _totalPrice,
+            notes: _notesController.text.trim(),
+          ),
+        ),
+      );
+    } catch (e) {
+      setState(() => _isChecking = false);
+      _showInfoDialog(
+        icon: Icons.wifi_off_outlined,
+        iconColor: Colors.redAccent,
+        title: 'Connection Error',
+        message: 'Failed to verify booking availability. Please check your connection and try again.',
+        buttonText: 'OK',
+        buttonColor: Colors.redAccent,
+      );
     }
   }
 
@@ -79,13 +238,13 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
     final instructor = widget.instructor;
     final sessionsPerWeek =
         (instructor['sessions_per_week'] as num?)?.toInt() ?? 3;
+    final isActive = instructor['is_active'] == true;
 
     return Scaffold(
       backgroundColor: context.bgColor,
       body: SafeArea(
         child: Column(
           children: [
-            // Top bar
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
               child: Row(
@@ -98,17 +257,15 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                       backgroundColor: Colors.black54,
                       elevation: 0,
                     ),
-                    child:
-                        const Icon(Icons.arrow_back, color: Colors.white),
+                    child: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Book a Session',
                     style: TextStyle(
-                      color: themeColor,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        color: themeColor,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -120,7 +277,7 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Instructor summary card
+                    // Instructor summary
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -146,19 +303,15 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  instructor['name'] ?? '',
-                                  style: TextStyle(
-                                      color: context.textColor,
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  instructor['specialty'] ?? '',
-                                  style: TextStyle(
-                                      color: context.subtextColor,
-                                      fontSize: 13),
-                                ),
+                                Text(instructor['name'] ?? '',
+                                    style: TextStyle(
+                                        color: context.textColor,
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.bold)),
+                                Text(instructor['specialty'] ?? '',
+                                    style: TextStyle(
+                                        color: context.subtextColor,
+                                        fontSize: 13)),
                                 const SizedBox(height: 4),
                                 Text(
                                   '$sessionsPerWeek sessions/week  •  ${instructor['level'] ?? ''}',
@@ -170,36 +323,119 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                               ],
                             ),
                           ),
+                          // Active status indicator
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: themeColor,
+                              color: isActive
+                                  ? Colors.green.withOpacity(0.15)
+                                  : Colors.red.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                  color: isActive
+                                      ? Colors.green.withOpacity(0.4)
+                                      : Colors.red.withOpacity(0.4)),
                             ),
                             child: Text(
-                              (instructor['rating'] as num?)
-                                      ?.toStringAsFixed(1) ??
-                                  '0.0',
-                              style: const TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13),
+                              isActive ? 'Available' : 'Unavailable',
+                              style: TextStyle(
+                                  color:
+                                      isActive ? Colors.green : Colors.red,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
-                    // Start date picker
-                    Text(
-                      'Start Date',
-                      style: TextStyle(
-                          color: context.textColor,
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold),
-                    ),
+                    // Unavailable warning banner
+                    if (!isActive)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border:
+                              Border.all(color: Colors.red.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.warning_amber_rounded,
+                                color: Colors.redAccent, size: 20),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'This instructor is currently not accepting bookings.',
+                                style: TextStyle(
+                                    color: Colors.redAccent, fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Existing bookings info
+                    if (!_loadingBookings && _existingBookings.isNotEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: themeColor.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: themeColor.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.info_outline,
+                                    color: themeColor, size: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Your existing bookings (${_existingBookings.length})',
+                                  style: const TextStyle(
+                                      color: themeColor,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            ..._existingBookings.map((b) => Padding(
+                                  padding:
+                                      const EdgeInsets.only(bottom: 4),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.circle,
+                                          color: themeColor, size: 6),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '${b['start_date']}  •  ${b['num_sessions']} sessions  •  ${b['status']}',
+                                        style: TextStyle(
+                                            color: context.subtextColor,
+                                            fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                )),
+                          ],
+                        ),
+                      ),
+
+                    // Start date
+                    Text('Start Date',
+                        style: TextStyle(
+                            color: context.textColor,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
                     GestureDetector(
                       onTap: _pickStartDate,
@@ -219,13 +455,11 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                         ),
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.calendar_today_outlined,
-                              color: _selectedStartDate != null
-                                  ? themeColor
-                                  : context.subtextColor,
-                              size: 20,
-                            ),
+                            Icon(Icons.calendar_today_outlined,
+                                color: _selectedStartDate != null
+                                    ? themeColor
+                                    : context.subtextColor,
+                                size: 20),
                             const SizedBox(width: 12),
                             Text(
                               _selectedStartDate != null
@@ -254,25 +488,20 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Number of Sessions',
-                          style: TextStyle(
-                              color: context.textColor,
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          '$_numSessions sessions',
-                          style: const TextStyle(
-                              color: themeColor,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold),
-                        ),
+                        Text('Number of Sessions',
+                            style: TextStyle(
+                                color: context.textColor,
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold)),
+                        Text('$_numSessions sessions',
+                            style: const TextStyle(
+                                color: themeColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 12),
 
-                    // Sessions stepper
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
@@ -282,11 +511,9 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                       ),
                       child: Row(
                         children: [
-                          // Minus
                           GestureDetector(
                             onTap: _numSessions > _minSessions
-                                ? () =>
-                                    setState(() => _numSessions--)
+                                ? () => setState(() => _numSessions--)
                                 : null,
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 150),
@@ -298,18 +525,14 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                                     : Colors.grey.withOpacity(0.3),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: Icon(
-                                Icons.remove,
-                                color: _numSessions > _minSessions
-                                    ? Colors.black
-                                    : Colors.grey,
-                                size: 20,
-                              ),
+                              child: Icon(Icons.remove,
+                                  color: _numSessions > _minSessions
+                                      ? Colors.black
+                                      : Colors.grey,
+                                  size: 20),
                             ),
                           ),
                           const SizedBox(width: 12),
-
-                          // Slider
                           Expanded(
                             child: SliderTheme(
                               data: SliderTheme.of(context).copyWith(
@@ -326,20 +549,16 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                                 value: _numSessions.toDouble(),
                                 min: _minSessions.toDouble(),
                                 max: _maxSessions.toDouble(),
-                                divisions:
-                                    _maxSessions - _minSessions,
-                                onChanged: (val) => setState(
-                                    () => _numSessions = val.toInt()),
+                                divisions: _maxSessions - _minSessions,
+                                onChanged: (val) =>
+                                    setState(() => _numSessions = val.toInt()),
                               ),
                             ),
                           ),
                           const SizedBox(width: 12),
-
-                          // Plus
                           GestureDetector(
                             onTap: _numSessions < _maxSessions
-                                ? () =>
-                                    setState(() => _numSessions++)
+                                ? () => setState(() => _numSessions++)
                                 : null,
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 150),
@@ -351,21 +570,17 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                                     : Colors.grey.withOpacity(0.3),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: Icon(
-                                Icons.add,
-                                color: _numSessions < _maxSessions
-                                    ? Colors.black
-                                    : Colors.grey,
-                                size: 20,
-                              ),
+                              child: Icon(Icons.add,
+                                  color: _numSessions < _maxSessions
+                                      ? Colors.black
+                                      : Colors.grey,
+                                  size: 20),
                             ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 8),
-
-                    // Min/max hint
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -379,70 +594,52 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Estimated duration info card
+                    // Session summary
                     if (_selectedStartDate != null)
-                      AnimatedOpacity(
-                        opacity: 1.0,
-                        duration: const Duration(milliseconds: 300),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: themeColor.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                                color: themeColor.withOpacity(0.25)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Session Summary',
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: themeColor.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: themeColor.withOpacity(0.25)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Session Summary',
                                 style: TextStyle(
                                     color: themeColor,
                                     fontSize: 13,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 8),
-                              _summaryRow(
-                                Icons.play_circle_outline,
-                                'Starts',
-                                _formatDate(_selectedStartDate!),
-                              ),
-                              const SizedBox(height: 6),
-                              _summaryRow(
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            _summaryRow(Icons.play_circle_outline, 'Starts',
+                                _formatDate(_selectedStartDate!)),
+                            const SizedBox(height: 6),
+                            _summaryRow(
                                 Icons.flag_outlined,
                                 'Est. completion',
                                 _estimatedEndDate != null
                                     ? _formatDate(_estimatedEndDate!)
-                                    : '-',
-                              ),
-                              const SizedBox(height: 6),
-                              _summaryRow(
-                                Icons.repeat,
-                                'Frequency',
-                                '$sessionsPerWeek sessions/week',
-                              ),
-                              const SizedBox(height: 6),
-                              _summaryRow(
-                                Icons.self_improvement,
-                                'Total sessions',
-                                '$_numSessions sessions',
-                              ),
-                            ],
-                          ),
+                                    : '-'),
+                            const SizedBox(height: 6),
+                            _summaryRow(Icons.repeat, 'Frequency',
+                                '$sessionsPerWeek sessions/week'),
+                            const SizedBox(height: 6),
+                            _summaryRow(Icons.self_improvement,
+                                'Total sessions', '$_numSessions sessions'),
+                          ],
                         ),
                       ),
                     const SizedBox(height: 20),
 
-                    // Notes field
-                    Text(
-                      'Notes (Optional)',
-                      style: TextStyle(
-                          color: context.textColor,
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold),
-                    ),
+                    // Notes
+                    Text('Notes (Optional)',
+                        style: TextStyle(
+                            color: context.textColor,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
                     Container(
                       decoration: BoxDecoration(
@@ -452,8 +649,8 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                       child: TextField(
                         controller: _notesController,
                         maxLines: 3,
-                        style: TextStyle(
-                            color: context.textColor, fontSize: 14),
+                        style:
+                            TextStyle(color: context.textColor, fontSize: 14),
                         decoration: InputDecoration(
                           hintText:
                               'Any goals, health concerns, or preferences...',
@@ -476,12 +673,11 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                       ),
                       child: Column(
                         children: [
-                          _priceRow(
-                              context,
-                              'Price per session',
+                          _priceRow(context, 'Price per session',
                               '\$${_sessionPrice.toStringAsFixed(2)}'),
                           const SizedBox(height: 8),
-                          _priceRow(context, 'Sessions', '$_numSessions'),
+                          _priceRow(
+                              context, 'Sessions', '$_numSessions'),
                           Divider(
                               color: context.isDark
                                   ? Colors.white12
@@ -514,26 +710,11 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _selectedStartDate == null
+                        onPressed: (_selectedStartDate == null ||
+                                _isChecking ||
+                                !isActive)
                             ? null
-                            : () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => YogaPaymentPage(
-                                      instructor: widget.instructor,
-                                      startDate: _selectedStartDate!
-                                          .toIso8601String()
-                                          .substring(0, 10),
-                                      displayDate: _formatDate(
-                                          _selectedStartDate!),
-                                      numSessions: _numSessions,
-                                      totalPrice: _totalPrice,
-                                      notes: _notesController.text.trim(),
-                                    ),
-                                  ),
-                                );
-                              },
+                            : _proceedToPayment,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: themeColor,
                           disabledBackgroundColor: Colors.grey.shade700,
@@ -542,17 +723,27 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30)),
                         ),
-                        child: Text(
-                          _selectedStartDate == null
-                              ? 'Select a Start Date First'
-                              : 'Proceed to Payment',
-                          style: TextStyle(
-                              color: _selectedStartDate == null
-                                  ? Colors.grey.shade400
-                                  : Colors.black,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold),
-                        ),
+                        child: _isChecking
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.black))
+                            : Text(
+                                !isActive
+                                    ? 'Instructor Unavailable'
+                                    : _selectedStartDate == null
+                                        ? 'Select a Start Date First'
+                                        : 'Proceed to Payment',
+                                style: TextStyle(
+                                    color: (_selectedStartDate == null ||
+                                            !isActive)
+                                        ? Colors.grey.shade400
+                                        : Colors.black,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold),
+                              ),
                       ),
                     ),
                   ],
@@ -571,8 +762,7 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
         Icon(icon, color: themeColor, size: 15),
         const SizedBox(width: 8),
         Text(label,
-            style:
-                TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+            style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
         const Spacer(),
         Text(value,
             style: const TextStyle(
@@ -583,14 +773,13 @@ class _YogaBookingPageState extends State<YogaBookingPage> {
     );
   }
 
-  Widget _priceRow(
-      BuildContext context, String label, String value) {
+  Widget _priceRow(BuildContext context, String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: TextStyle(
-                color: context.subtextColor, fontSize: 14)),
+            style:
+                TextStyle(color: context.subtextColor, fontSize: 14)),
         Text(value,
             style: TextStyle(
                 color: context.textColor,

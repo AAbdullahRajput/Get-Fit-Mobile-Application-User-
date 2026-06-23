@@ -571,9 +571,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                                 children: List.generate(
                                   5,
                                   (i) => Icon(
-                                    i 
-                                            double.parse(r['rating'].toString())
-                                                .round()
+                                    i < double.parse(r['rating'].toString()).round()
                                         ? Icons.star
                                         : Icons.star_border,
                                     color: themeColor,

@@ -783,4 +783,43 @@ static Future<List<Map<String, dynamic>>> getMyYogaBookings() async {
   }
 }
 
+static Future<bool> hasExistingYogaBooking({
+  required String instructorId,
+  required String startDate,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return false;
+    final data = await client
+        .from('yoga_session_bookings')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('instructor_id', instructorId)
+        .eq('start_date', startDate)
+        .maybeSingle();
+    return data != null;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | hasExistingYogaBooking | $e\x1B[0m');
+    return false;
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getMyYogaBookingsForInstructor(
+    String instructorId) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+    final data = await client
+        .from('yoga_session_bookings')
+        .select()
+        .eq('user_id', userId)
+        .eq('instructor_id', instructorId)
+        .order('start_date', ascending: true);
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getMyYogaBookingsForInstructor | $e\x1B[0m');
+    return [];
+  }
+}
+
 }
