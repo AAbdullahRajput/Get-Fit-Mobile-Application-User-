@@ -839,4 +839,20 @@ static Future<List<Map<String, dynamic>>> getYogaClasses(String timeSlot) async 
   }
 }
 
+static Future<List<Map<String, dynamic>>> getYogaClassSteps(String classId) async {
+  try {
+    debugPrint('\x1B[36m[API] GET /rest/v1/yoga_class_steps | classId: $classId\x1B[0m');
+    final data = await client
+        .from('yoga_class_steps')
+        .select()
+        .eq('class_id', classId)
+        .order('step_number', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | YogaClassSteps: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getYogaClassSteps | $e\x1B[0m');
+    return [];
+  }
+}
+
 }

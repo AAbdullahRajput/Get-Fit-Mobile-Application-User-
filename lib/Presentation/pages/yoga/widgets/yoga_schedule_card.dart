@@ -15,8 +15,8 @@ class YogaScheduleCard extends StatefulWidget {
 class _YogaScheduleCardState extends State<YogaScheduleCard> {
   List<Map<String, dynamic>> _allClasses = [];
   bool _isLoading = true;
-  int _visibleCount = 3;
-  static const int _pageSize = 3;
+  int _visibleCount = 5;
+  static const int _pageSize = 5;
 
   @override
   void initState() {
