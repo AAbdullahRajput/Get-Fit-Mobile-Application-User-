@@ -869,6 +869,194 @@ static Future<List<Map<String, dynamic>>> searchYogaClasses(String query) async 
     return [];
   }
 }
+// ─────────────────────────────────────────────
+// WEEKLY CHALLENGE
+// ─────────────────────────────────────────────
 
+static Future<Map<String, dynamic>?> getActiveChallengeForUser() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return null;
+
+    // Fetch user goal from user_setup
+    final setup = await client
+        .from('user_setup')
+        .select('goal')
+        .eq('id', userId)
+        .maybeSingle();
+
+    final goal = setup?['goal'] ?? 'Stay Fit';
+
+    debugPrint('\x1B[33m[API] GET weekly_challenges | goal: $goal\x1B[0m');
+
+    final data = await client
+        .from('weekly_challenges')
+        .select()
+        .eq('target_goal', goal)
+        .eq('is_active', true)
+        .maybeSingle();
+
+    debugPrint('\x1B[32m[API] 200 OK | Challenge: ${data?['title']}\x1B[0m');
+    return data;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getActiveChallengeForUser | $e\x1B[0m');
+    return null;
+  }
+}
+
+static Future<Map<String, dynamic>?> getTodayChallengeDayForUser(String challengeId) async {
+  try {
+    final todayWeekday = DateTime.now().weekday; // 1=Mon ... 7=Sun
+    debugPrint('\x1B[33m[API] GET challenge_days | day: $todayWeekday\x1B[0m');
+
+    final data = await client
+        .from('challenge_days')
+        .select()
+        .eq('challenge_id', challengeId)
+        .eq('day_number', todayWeekday)
+        .maybeSingle();
+
+    debugPrint('\x1B[32m[API] 200 OK | Day: ${data?['day_name']}\x1B[0m');
+    return data;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTodayChallengeDayForUser | $e\x1B[0m');
+    return null;
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getRoundsForDay(String dayId) async {
+  try {
+    debugPrint('\x1B[33m[API] GET challenge_rounds | dayId: $dayId\x1B[0m');
+    final data = await client
+        .from('challenge_rounds')
+        .select()
+        .eq('day_id', dayId)
+        .order('round_number', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | Rounds: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getRoundsForDay | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getExercisesForRound(String roundId) async {
+  try {
+    debugPrint('\x1B[33m[API] GET challenge_exercises | roundId: $roundId\x1B[0m');
+    final data = await client
+        .from('challenge_exercises')
+        .select()
+        .eq('round_id', roundId)
+        .order('order_number', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | Exercises: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getExercisesForRound | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<Map<String, dynamic>?> getUserExerciseProgress({
+  required String exerciseId,
+  required String challengeId,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return null;
+    final data = await client
+        .from('challenge_user_progress')
+        .select()
+        .eq('user_id', userId)
+        .eq('exercise_id', exerciseId)
+        .eq('challenge_id', challengeId)
+        .maybeSingle();
+    return data;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getUserExerciseProgress | $e\x1B[0m');
+    return null;
+  }
+}
+
+static Future<void> markExerciseDone({
+  required String exerciseId,
+  required String challengeId,
+  required int dayNumber,
+  required int timeSpentSeconds,
+  required int caloriesFull,
+  required int durationSeconds,
+  required bool markedEarly,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+
+    // Proportional calorie calculation
+    final ratio = durationSeconds > 0
+        ? (timeSpentSeconds / durationSeconds).clamp(0.0, 1.0)
+        : 1.0;
+    final caloriesBurned = (caloriesFull * ratio).round();
+
+    debugPrint('\x1B[33m[API] UPSERT challenge_user_progress | exercise: $exerciseId\x1B[0m');
+
+    await client.from('challenge_user_progress').upsert({
+      'user_id': userId,
+      'exercise_id': exerciseId,
+      'challenge_id': challengeId,
+      'day_number': dayNumber,
+      'is_completed': true,
+      'marked_done_early': markedEarly,
+      'time_spent_seconds': timeSpentSeconds,
+      'calories_burned': caloriesBurned,
+      'completed_at': DateTime.now().toIso8601String(),
+    }, onConflict: 'user_id,exercise_id,challenge_id');
+
+    debugPrint('\x1B[32m[API] 200 OK | Marked done | calories: $caloriesBurned\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | markExerciseDone | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+static Future<List<String>> getCompletedExerciseIds({
+  required String challengeId,
+  required int dayNumber,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+    final data = await client
+        .from('challenge_user_progress')
+        .select('exercise_id')
+        .eq('user_id', userId)
+        .eq('challenge_id', challengeId)
+        .eq('day_number', dayNumber)
+        .eq('is_completed', true);
+    return List<String>.from(data.map((r) => r['exercise_id']));
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getCompletedExerciseIds | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<int> getDayTotalCalories({
+  required String challengeId,
+  required int dayNumber,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return 0;
+    final data = await client
+        .from('challenge_user_progress')
+        .select('calories_burned')
+        .eq('user_id', userId)
+        .eq('challenge_id', challengeId)
+        .eq('day_number', dayNumber);
+    return List<Map<String, dynamic>>.from(data)
+        .fold<int>(0, (sum, r) => sum + ((r['calories_burned'] as num?)?.toInt() ?? 0));
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getDayTotalCalories | $e\x1B[0m');
+    return 0;
+  }
+}
 
 }

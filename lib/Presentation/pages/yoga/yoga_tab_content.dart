@@ -5,9 +5,10 @@ import 'package:get_fit/Presentation/pages/yoga/widgets/yoga_challenge_card.dart
 import 'package:get_fit/Presentation/pages/yoga/widgets/yoga_feed_card.dart';
 import 'package:get_fit/Presentation/pages/yoga/widgets/yoga_instructor_card.dart';
 import 'package:get_fit/Presentation/pages/yoga/yoga_instructor_detail_page.dart';
+import 'package:get_fit/Presentation/pages/yoga/yoga_detail_page.dart';
+import 'package:get_fit/Presentation/pages/setting/setting_home_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
-import 'package:get_fit/Presentation/pages/setting/setting_home_page.dart';
 
 class YogaTabContent extends StatefulWidget {
   const YogaTabContent({super.key});
@@ -34,7 +35,7 @@ class _YogaTabContentState extends State<YogaTabContent> {
   Future<void> _loadInstructors() async {
     setState(() {
       _isLoadingInstructors = true;
-      _visibleInstructorCount = _instructorPageSize; // reset on reload
+      _visibleInstructorCount = _instructorPageSize;
     });
     final data = await SupabaseService.getYogaInstructors();
     if (mounted) {
@@ -51,6 +52,14 @@ class _YogaTabContentState extends State<YogaTabContent> {
           (_visibleInstructorCount + _instructorPageSize)
               .clamp(0, _allInstructors.length);
     });
+  }
+
+  void _openSearch(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (_) => _YogaSearchDialog(instructors: _allInstructors),
+    );
   }
 
   @override
@@ -77,9 +86,9 @@ class _YogaTabContentState extends State<YogaTabContent> {
                 _buildTimeSlotTabs(context),
                 const SizedBox(height: 16),
                 YogaScheduleCard(
-                key: ValueKey(_timeSlots[_selectedTimeSlot]),
-                timeSlot: _timeSlots[_selectedTimeSlot],
-              ),
+                  key: ValueKey(_timeSlots[_selectedTimeSlot]),
+                  timeSlot: _timeSlots[_selectedTimeSlot],
+                ),
                 const SizedBox(height: 24),
                 _buildInstructorsSection(context),
                 const SizedBox(height: 24),
@@ -96,41 +105,41 @@ class _YogaTabContentState extends State<YogaTabContent> {
   }
 
   Widget _buildHeader(BuildContext context) {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-  final iconColor = isDark ? themeColor : Colors.black;
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: [
-      Text(
-        'Yoga',
-        style: TextStyle(
-          color: isDark ? themeColor : Colors.black,
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDark ? themeColor : Colors.black;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'Yoga',
+          style: TextStyle(
+            color: isDark ? themeColor : Colors.black,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-      ),
-      Row(
-        children: [
-          IconButton(
-            onPressed: () => _openSearch(context),
-            icon: Icon(Icons.search, color: iconColor, size: 28),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.notifications, color: iconColor, size: 28),
-          ),
-          IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingHomePage()),
+        Row(
+          children: [
+            IconButton(
+              onPressed: () => _openSearch(context),
+              icon: Icon(Icons.search, color: iconColor, size: 28),
             ),
-            icon: Icon(Icons.settings, color: iconColor, size: 28),
-          ),
-        ],
-      ),
-    ],
-  );
-}
+            IconButton(
+              onPressed: () {},
+              icon: Icon(Icons.notifications, color: iconColor, size: 28),
+            ),
+            IconButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingHomePage()),
+              ),
+              icon: Icon(Icons.settings, color: iconColor, size: 28),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
   Widget _buildTimeSlotTabs(BuildContext context) {
     return Container(
@@ -155,12 +164,8 @@ class _YogaTabContentState extends State<YogaTabContent> {
                   child: Text(
                     _timeSlots[index],
                     style: TextStyle(
-                      color: isSelected
-                          ? Colors.black
-                          : context.subtextColor,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
+                      color: isSelected ? Colors.black : context.subtextColor,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                       fontSize: 14,
                     ),
                   ),
@@ -176,8 +181,7 @@ class _YogaTabContentState extends State<YogaTabContent> {
   Widget _buildInstructorsSection(BuildContext context) {
     final visibleInstructors =
         _allInstructors.take(_visibleInstructorCount).toList();
-    final hasMore =
-        _visibleInstructorCount < _allInstructors.length;
+    final hasMore = _visibleInstructorCount < _allInstructors.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,8 +200,7 @@ class _YogaTabContentState extends State<YogaTabContent> {
             if (_allInstructors.isNotEmpty)
               Text(
                 '${_allInstructors.length} available',
-                style: TextStyle(
-                    color: context.subtextColor, fontSize: 13),
+                style: TextStyle(color: context.subtextColor, fontSize: 13),
               ),
           ],
         ),
@@ -210,14 +213,12 @@ class _YogaTabContentState extends State<YogaTabContent> {
                   ? Center(
                       child: Text(
                         'No instructors available',
-                        style: TextStyle(
-                            color: context.subtextColor, fontSize: 14),
+                        style: TextStyle(color: context.subtextColor, fontSize: 14),
                       ),
                     )
                   : ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: visibleInstructors.length +
-                          (hasMore ? 1 : 0),
+                      itemCount: visibleInstructors.length + (hasMore ? 1 : 0),
                       itemBuilder: (context, index) {
                         if (index == visibleInstructors.length) {
                           return _buildInstructorLoadMore(context);
@@ -228,9 +229,8 @@ class _YogaTabContentState extends State<YogaTabContent> {
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => YogaInstructorDetailPage(
-                                instructor: instructor,
-                              ),
+                              builder: (_) =>
+                                  YogaInstructorDetailPage(instructor: instructor),
                             ),
                           ).then((_) => _loadInstructors()),
                         );
@@ -242,8 +242,7 @@ class _YogaTabContentState extends State<YogaTabContent> {
   }
 
   Widget _buildInstructorLoadMore(BuildContext context) {
-    final remaining =
-        _allInstructors.length - _visibleInstructorCount;
+    final remaining = _allInstructors.length - _visibleInstructorCount;
     return GestureDetector(
       onTap: _loadMoreInstructors,
       child: Container(
@@ -265,22 +264,18 @@ class _YogaTabContentState extends State<YogaTabContent> {
                 shape: BoxShape.circle,
                 border: Border.all(color: themeColor, width: 1.5),
               ),
-              child:
-                  const Icon(Icons.add, color: themeColor, size: 24),
+              child: const Icon(Icons.add, color: themeColor, size: 24),
             ),
             const SizedBox(height: 10),
             Text(
               '+$remaining more',
               style: const TextStyle(
-                  color: themeColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold),
+                  color: themeColor, fontSize: 12, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             Text(
               'See more',
-              style: TextStyle(
-                  color: context.subtextColor, fontSize: 10),
+              style: TextStyle(color: context.subtextColor, fontSize: 10),
             ),
           ],
         ),
@@ -308,6 +303,423 @@ class _YogaTabContentState extends State<YogaTabContent> {
   }
 }
 
+// ─────────────────────────────────────────────
+// SEARCH DIALOG
+// ─────────────────────────────────────────────
+
+class _YogaSearchDialog extends StatefulWidget {
+  final List<Map<String, dynamic>> instructors;
+  const _YogaSearchDialog({required this.instructors});
+
+  @override
+  State<_YogaSearchDialog> createState() => _YogaSearchDialogState();
+}
+
+class _YogaSearchDialogState extends State<_YogaSearchDialog> {
+  final _controller = TextEditingController();
+  List<Map<String, dynamic>> _classResults = [];
+  List<Map<String, dynamic>> _instructorResults = [];
+  bool _isLoading = false;
+  bool _hasSearched = false;
+
+  Future<void> _search(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _classResults = [];
+        _instructorResults = [];
+        _hasSearched = false;
+      });
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final q = query.trim().toLowerCase();
+
+    final allClasses = await SupabaseService.searchYogaClasses(q);
+
+    final instructorResults = widget.instructors.where((i) {
+      return (i['name'] ?? '').toString().toLowerCase().contains(q) ||
+          (i['specialty'] ?? '').toString().toLowerCase().contains(q);
+    }).toList();
+
+    if (mounted) {
+      setState(() {
+        _classResults = allClasses;
+        _instructorResults = instructorResults;
+        _isLoading = false;
+        _hasSearched = true;
+      });
+    }
+  }
+
+  String _getClassLabel(Map<String, dynamic> yoga) {
+    return 'Best ${yoga['time_slot']} Yoga · Free Exercise';
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasResults = _classResults.isNotEmpty || _instructorResults.isNotEmpty;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.fromLTRB(16, 40, 16, MediaQuery.of(context).viewInsets.bottom + 40),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: context.bgColor,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+          children: [
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: context.cardBgColor,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: TextField(
+                        controller: _controller,
+                        autofocus: true,
+                        style: TextStyle(color: context.textColor),
+                        decoration: InputDecoration(
+                          hintText: 'Search classes, instructors...',
+                          hintStyle:
+                              TextStyle(color: context.subtextColor, fontSize: 14),
+                          prefixIcon: Icon(Icons.search, color: themeColor),
+                          border: InputBorder.none,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onChanged: _search,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Text('Cancel',
+                        style: TextStyle(
+                            color: themeColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+            ),
+
+            const Divider(height: 1),
+
+            // Results
+            Flexible(
+              child: _isLoading
+                  ? const Padding(
+                      padding: EdgeInsets.all(32),
+                      child: CircularProgressIndicator(
+                          color: themeColor, strokeWidth: 2),
+                    )
+                  : !_hasSearched
+                      ? Padding(
+                          padding: const EdgeInsets.all(28),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.search, color: themeColor, size: 44),
+                              const SizedBox(height: 10),
+                              Text('Search anything yoga',
+                                  style: TextStyle(
+                                      color: context.subtextColor, fontSize: 14)),
+                            ],
+                          ),
+                        )
+                      : !hasResults
+                          ? Padding(
+                              padding: const EdgeInsets.all(28),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.search_off,
+                                      color: context.subtextColor, size: 44),
+                                  const SizedBox(height: 10),
+                                  Text('No results found',
+                                      style: TextStyle(
+                                          color: context.subtextColor,
+                                          fontSize: 14)),
+                                ],
+                              ),
+                            )
+                          : SingleChildScrollView(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Classes section
+                                  if (_classResults.isNotEmpty) ...[
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.self_improvement,
+                                            color: themeColor, size: 16),
+                                        const SizedBox(width: 6),
+                                        Text('Yoga Classes',
+                                            style: TextStyle(
+                                                color: context.textColor,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    ..._classResults.map((yoga) => GestureDetector(
+                                          onTap: () {
+                                            Navigator.pop(context);
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    YogaDetailPage(yoga: yoga),
+                                              ),
+                                            );
+                                          },
+                                          child: Container(
+                                            margin: const EdgeInsets.only(bottom: 10),
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: context.cardBgColor,
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                  child: Image.network(
+                                                    yoga['image_url'] ?? '',
+                                                    width: 56,
+                                                    height: 56,
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (_, __, ___) =>
+                                                        Container(
+                                                      width: 56,
+                                                      height: 56,
+                                                      color: context.isDark
+                                                          ? Colors.grey[800]
+                                                          : Colors.grey[200],
+                                                      child: Icon(
+                                                          Icons.self_improvement,
+                                                          color:
+                                                              context.subtextColor,
+                                                          size: 24),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(yoga['title'] ?? '',
+                                                          style: TextStyle(
+                                                              color:
+                                                                  context.textColor,
+                                                              fontSize: 14,
+                                                              fontWeight:
+                                                                  FontWeight.bold)),
+                                                      const SizedBox(height: 4),
+                                                      Container(
+                                                        padding: const EdgeInsets
+                                                            .symmetric(
+                                                            horizontal: 8,
+                                                            vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          color: themeColor
+                                                              .withOpacity(0.15),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                  6),
+                                                        ),
+                                                        child: Text(
+                                                          _getClassLabel(yoga),
+                                                          style: TextStyle(
+                                                              color: themeColor,
+                                                              fontSize: 10,
+                                                              fontWeight:
+                                                                  FontWeight.w600),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      Text(yoga['level'] ?? '',
+                                                          style: TextStyle(
+                                                              color: context
+                                                                  .subtextColor,
+                                                              fontSize: 12)),
+                                                    ],
+                                                  ),
+                                                ),
+                                                const Icon(Icons.arrow_forward_ios,
+                                                    size: 14, color: Colors.grey),
+                                              ],
+                                            ),
+                                          ),
+                                        )),
+                                  ],
+
+                                  // Instructors section
+                                  if (_instructorResults.isNotEmpty) ...[
+                                    if (_classResults.isNotEmpty)
+                                      const SizedBox(height: 16),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.person_outline,
+                                            color: themeColor, size: 16),
+                                        const SizedBox(width: 6),
+                                        Text('Yoga Instructors',
+                                            style: TextStyle(
+                                                color: context.textColor,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    ..._instructorResults
+                                        .map((instructor) => GestureDetector(
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        YogaInstructorDetailPage(
+                                                            instructor:
+                                                                instructor),
+                                                  ),
+                                                );
+                                              },
+                                              child: Container(
+                                                margin: const EdgeInsets.only(
+                                                    bottom: 10),
+                                                padding: const EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color: context.cardBgColor,
+                                                  borderRadius:
+                                                      BorderRadius.circular(14),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    CircleAvatar(
+                                                      radius: 28,
+                                                      backgroundColor: themeColor,
+                                                      backgroundImage: (instructor[
+                                                                      'image_url'] ??
+                                                                  '')
+                                                              .isNotEmpty
+                                                          ? NetworkImage(instructor[
+                                                              'image_url'])
+                                                          : null,
+                                                      child: (instructor[
+                                                                      'image_url'] ??
+                                                                  '')
+                                                              .isEmpty
+                                                          ? const Icon(
+                                                              Icons.person,
+                                                              color: Colors.black,
+                                                              size: 24)
+                                                          : null,
+                                                    ),
+                                                    const SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                              instructor['name'] ??
+                                                                  '',
+                                                              style: TextStyle(
+                                                                  color: context
+                                                                      .textColor,
+                                                                  fontSize: 14,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold)),
+                                                          const SizedBox(height: 4),
+                                                          Container(
+                                                            padding: const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal: 8,
+                                                                vertical: 2),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: themeColor
+                                                                  .withOpacity(
+                                                                      0.15),
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(6),
+                                                            ),
+                                                            child: Text(
+                                                              'Yoga Instructors',
+                                                              style: TextStyle(
+                                                                  color: themeColor,
+                                                                  fontSize: 10,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(height: 4),
+                                                          Text(
+                                                              instructor[
+                                                                      'specialty'] ??
+                                                                  '',
+                                                              style: TextStyle(
+                                                                  color: context
+                                                                      .subtextColor,
+                                                                  fontSize: 12)),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    const Icon(
+                                                        Icons.arrow_forward_ios,
+                                                        size: 14,
+                                                        color: Colors.grey),
+                                                  ],
+                                                ),
+                                              ),
+                                            )),
+                                  ],
+                                ],
+                              ),
+                            ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// SHIMMER
+// ─────────────────────────────────────────────
+
 class _ShimmerWidget extends StatefulWidget {
   final Widget child;
   const _ShimmerWidget({required this.child});
@@ -328,11 +740,13 @@ class _ShimmerWidgetState extends State<_ShimmerWidget>
     _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
         CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) =>
       FadeTransition(opacity: _animation, child: widget.child);
