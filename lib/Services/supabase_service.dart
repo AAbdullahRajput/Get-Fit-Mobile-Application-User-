@@ -635,10 +635,10 @@ static Future<List<Map<String, dynamic>>> getYogaInstructorReviews(String instru
   try {
     debugPrint('\x1B[33m[API] GET /rest/v1/yoga_instructor_reviews | instructorId: $instructorId\x1B[0m');
     final data = await client
-        .from('yoga_instructor_reviews')
-        .select('*, users(avatar_url, username)')
-        .eq('instructor_id', instructorId)
-        .order('created_at', ascending: false);
+    .from('yoga_instructor_reviews')
+    .select()
+    .eq('instructor_id', instructorId)
+    .order('created_at', ascending: false);
     debugPrint('\x1B[32m[API] 200 OK | YogaReviews: ${data.length}\x1B[0m');
     return List<Map<String, dynamic>>.from(data);
   } catch (e) {

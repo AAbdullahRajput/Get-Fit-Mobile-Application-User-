@@ -38,10 +38,8 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
 
   Future<void> _loadReviews() async {
     setState(() => _isLoading = true);
-    final data =
-        await SupabaseService.getYogaInstructorReviews(widget.instructorId);
-    final myReview =
-        await SupabaseService.getMyYogaReview(widget.instructorId);
+    final data = await SupabaseService.getYogaInstructorReviews(widget.instructorId);
+    final myReview = await SupabaseService.getMyYogaReview(widget.instructorId);
     if (mounted) {
       setState(() {
         _allReviews = data;
@@ -61,12 +59,12 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
         break;
       case 1:
         _filtered = _allReviews
-            .where((r) => (r['rating'] as num).toDouble() <= 3.0)
+            .where((r) => double.parse(r['rating'].toString()) <= 3.0)
             .toList();
         break;
       case 2:
         _filtered = _allReviews
-            .where((r) => (r['rating'] as num).toDouble() >= 4.0)
+            .where((r) => double.parse(r['rating'].toString()) >= 4.0)
             .toList();
         break;
     }
@@ -75,7 +73,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
   Map<int, int> get _distribution {
     final map = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
     for (final r in _allReviews) {
-      final star = (r['rating'] as num).round().clamp(1, 5);
+      final star = double.parse(r['rating'].toString()).round().clamp(1, 5);
       map[star] = (map[star] ?? 0) + 1;
     }
     return map;
@@ -84,7 +82,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
   double get _avgRating {
     if (_allReviews.isEmpty) return double.tryParse(widget.rating) ?? 0.0;
     final sum = _allReviews
-        .map((r) => (r['rating'] as num).toDouble())
+        .map((r) => double.parse(r['rating'].toString()))
         .reduce((a, b) => a + b);
     return sum / _allReviews.length;
   }
@@ -94,19 +92,16 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF2C2C2C),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Review',
-            style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: const Text(
             'Are you sure you want to delete your review? This cannot be undone.',
             style: TextStyle(color: Colors.white70, fontSize: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel',
-                style: TextStyle(color: Colors.grey.shade400)),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade400)),
           ),
           TextButton(
             onPressed: () async {
@@ -132,8 +127,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
             },
             child: const Text('Delete',
                 style: TextStyle(
-                    color: Colors.redAccent,
-                    fontWeight: FontWeight.bold)),
+                    color: Colors.redAccent, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -160,8 +154,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                       backgroundColor: Colors.black54,
                       elevation: 0,
                     ),
-                    child:
-                        const Icon(Icons.arrow_back, color: Colors.white),
+                    child: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -210,8 +203,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                           _applyFilter();
                         }),
                         child: Container(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 24),
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
                           decoration: BoxDecoration(
                             color: _selectedIndex == index
                                 ? themeColor
@@ -248,9 +240,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                       Text(
                         _avgRating.toStringAsFixed(1),
                         style: TextStyle(
-                          color: context.isDark
-                              ? themeColor
-                              : Colors.black87,
+                          color: context.isDark ? themeColor : Colors.black87,
                           fontSize: 48,
                           fontWeight: FontWeight.bold,
                         ),
@@ -279,11 +269,9 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                       children: [5, 4, 3, 2, 1].map((star) {
                         final count = _distribution[star] ?? 0;
                         final total = _allReviews.length;
-                        final fraction =
-                            total == 0 ? 0.0 : count / total;
+                        final fraction = total == 0 ? 0.0 : count / total;
                         return Padding(
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 3),
+                          padding: const EdgeInsets.symmetric(vertical: 3),
                           child: Row(
                             children: [
                               Text('$star',
@@ -291,8 +279,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                                       color: context.subtextColor,
                                       fontSize: 12)),
                               const SizedBox(width: 6),
-                              Icon(Icons.star,
-                                  color: themeColor, size: 12),
+                              Icon(Icons.star, color: themeColor, size: 12),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: ClipRRect(
@@ -359,6 +346,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                       ),
                     ),
                   );
+                  _loadReviews();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: themeColor,
@@ -368,9 +356,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                   minimumSize: const Size(double.infinity, 0),
                 ),
                 child: Text(
-                  _myReview != null
-                      ? 'Edit Your Review'
-                      : 'Write a Review',
+                  _myReview != null ? 'Edit Your Review' : 'Write a Review',
                   style: const TextStyle(
                       color: Colors.black,
                       fontSize: 16,
@@ -386,14 +372,19 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
 
   Widget _buildList(BuildContext context) {
     if (_filtered.isEmpty) {
-      return Center(
-        child: Text(
-          _allReviews.isEmpty
-              ? 'No reviews yet. Be the first!'
-              : 'No reviews in this category.',
-          style:
-              TextStyle(color: context.subtextColor, fontSize: 14),
-        ),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          const SizedBox(height: 40),
+          Center(
+            child: Text(
+              _allReviews.isEmpty
+                  ? 'No reviews yet. Be the first!'
+                  : 'No reviews in this category.',
+              style: TextStyle(color: context.subtextColor, fontSize: 14),
+            ),
+          ),
+        ],
       );
     }
 
@@ -402,11 +393,9 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
       itemCount: _filtered.length,
       itemBuilder: (context, index) {
         final r = _filtered[index];
-        final isMe =
-            r['user_id'] == SupabaseService.currentUser?.id;
+        final isMe = r['user_id'] == SupabaseService.currentUser?.id;
         return Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: GestureDetector(
             onLongPress: isMe
                 ? () {
@@ -414,8 +403,8 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                       context: context,
                       backgroundColor: const Color(0xFF2C2C2C),
                       shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(20)),
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(20)),
                       ),
                       builder: (_) => SafeArea(
                         child: Column(
@@ -427,16 +416,14 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                               height: 4,
                               decoration: BoxDecoration(
                                   color: Colors.white24,
-                                  borderRadius:
-                                      BorderRadius.circular(2)),
+                                  borderRadius: BorderRadius.circular(2)),
                             ),
                             const SizedBox(height: 16),
                             ListTile(
-                              leading: const Icon(Icons.edit,
-                                  color: themeColor),
+                              leading:
+                                  const Icon(Icons.edit, color: themeColor),
                               title: const Text('Edit Review',
-                                  style:
-                                      TextStyle(color: Colors.white)),
+                                  style: TextStyle(color: Colors.white)),
                               onTap: () {
                                 Navigator.pop(context);
                                 Navigator.push(
@@ -444,8 +431,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                                   MaterialPageRoute(
                                     builder: (_) => YogaWriteReviewPage(
                                       instructorId: widget.instructorId,
-                                      instructorName:
-                                          widget.instructorName,
+                                      instructorName: widget.instructorName,
                                       existing: r,
                                       onSubmitted: () {
                                         widget.onReviewChanged?.call();
@@ -453,16 +439,14 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                                       },
                                     ),
                                   ),
-                                );
+                                ).then((_) => _loadReviews());
                               },
                             ),
                             ListTile(
-                              leading: const Icon(
-                                  Icons.delete_outline,
+                              leading: const Icon(Icons.delete_outline,
                                   color: Colors.redAccent),
                               title: const Text('Delete Review',
-                                  style: TextStyle(
-                                      color: Colors.redAccent)),
+                                  style: TextStyle(color: Colors.redAccent)),
                               onTap: () {
                                 Navigator.pop(context);
                                 _confirmDelete();
@@ -486,8 +470,8 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
               ),
               elevation: context.isDark ? 0 : 2,
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -496,19 +480,11 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                         CircleAvatar(
                           radius: 22,
                           backgroundColor: themeColor,
-                          backgroundImage: ((r['users']?['avatar_url'] ??
-                                          r['avatar_url'] ??
-                                          '')
-                                      .toString()
-                                      .isNotEmpty)
-                              ? NetworkImage(r['users']?['avatar_url'] ??
-                                  r['avatar_url'])
-                              : null,
-                          child: ((r['users']?['avatar_url'] ??
-                                          r['avatar_url'] ??
-                                          '')
-                                      .toString()
-                                      .isEmpty)
+                          backgroundImage:
+                              (r['avatar_url'] ?? '').toString().isNotEmpty
+                                  ? NetworkImage(r['avatar_url'])
+                                  : null,
+                          child: (r['avatar_url'] ?? '').toString().isEmpty
                               ? const Icon(Icons.person,
                                   color: Colors.black, size: 22)
                               : null,
@@ -516,15 +492,12 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
                                   Text(
-                                    isMe
-                                        ? 'You'
-                                        : (r['username'] ?? 'User'),
+                                    isMe ? 'You' : (r['username'] ?? 'User'),
                                     style: TextStyle(
                                         color: context.textColor,
                                         fontSize: 15,
@@ -533,34 +506,29 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                                   if (isMe) ...[
                                     const SizedBox(width: 6),
                                     Container(
-                                      padding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
                                           color: themeColor,
                                           borderRadius:
-                                              BorderRadius.circular(
-                                                  6)),
+                                              BorderRadius.circular(6)),
                                       child: const Text('You',
                                           style: TextStyle(
                                               color: Colors.black,
                                               fontSize: 10,
-                                              fontWeight:
-                                                  FontWeight.bold)),
+                                              fontWeight: FontWeight.bold)),
                                     ),
                                   ],
                                   const SizedBox(width: 6),
                                   Container(
-                                    padding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
                                         color: themeColor,
                                         borderRadius:
                                             BorderRadius.circular(6)),
                                     child: Text(
-                                      (r['rating'] as num)
+                                      double.parse(r['rating'].toString())
                                           .toStringAsFixed(1),
                                       style: const TextStyle(
                                           color: Colors.black,
@@ -574,7 +542,8 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                                 children: List.generate(
                                   5,
                                   (i) => Icon(
-                                    i < (r['rating'] as num).round()
+                                    i < double.parse(r['rating'].toString())
+                                            .round()
                                         ? Icons.star
                                         : Icons.star_border,
                                     color: themeColor,
@@ -588,8 +557,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                         Text(
                           _formatDate(r['created_at']),
                           style: TextStyle(
-                              color: context.subtextColor,
-                              fontSize: 11),
+                              color: context.subtextColor, fontSize: 11),
                         ),
                       ],
                     ),
@@ -608,8 +576,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                         child: Text(
                           'Edited ${_formatDate(r['updated_at'])}',
                           style: TextStyle(
-                              color: context.subtextColor
-                                  .withOpacity(0.5),
+                              color: context.subtextColor.withOpacity(0.5),
                               fontSize: 10,
                               fontStyle: FontStyle.italic),
                         ),
@@ -633,10 +600,8 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
       if (diff.inHours < 24) return '${diff.inHours}h ago';
       if (diff.inDays == 1) return '1d ago';
       if (diff.inDays < 7) return '${diff.inDays}d ago';
-      if (diff.inDays < 30)
-        return '${(diff.inDays / 7).floor()}w ago';
-      if (diff.inDays < 365)
-        return '${(diff.inDays / 30).floor()}mo ago';
+      if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w ago';
+      if (diff.inDays < 365) return '${(diff.inDays / 30).floor()}mo ago';
       return '${(diff.inDays / 365).floor()}y ago';
     } catch (_) {
       return '';
@@ -648,8 +613,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
       physics: const AlwaysScrollableScrollPhysics(),
       itemCount: 6,
       itemBuilder: (context, index) => Padding(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         child: _ShimmerWidget(
           child: Container(
             height: 100,
@@ -681,12 +645,10 @@ class _ShimmerWidgetState extends State<_ShimmerWidget>
   void initState() {
     super.initState();
     _controller = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 1200))
+        vsync: this, duration: const Duration(milliseconds: 1200))
       ..repeat(reverse: true);
     _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
-        CurvedAnimation(
-            parent: _controller, curve: Curves.easeInOut));
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
   @override
   void dispose() {

@@ -324,11 +324,10 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                     _reviews.isEmpty
                         ? (instructor['rating'] ?? '0.0').toString()
                         : (_reviews
-                                    .map((r) =>
-                                        (r['rating'] as num).toDouble())
-                                    .reduce((a, b) => a + b) /
-                                _reviews.length)
-                            .toStringAsFixed(1),
+    .map((r) => double.parse(r['rating'].toString()))
+    .reduce((a, b) => a + b) /
+    _reviews.length)
+    .toStringAsFixed(1),
                     style: const TextStyle(
                         color: Colors.black,
                         fontWeight: FontWeight.bold,
