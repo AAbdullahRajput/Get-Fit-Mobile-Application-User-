@@ -19,8 +19,10 @@ class _YogaTabContentState extends State<YogaTabContent> {
   int _selectedTimeSlot = 0;
   final List<String> _timeSlots = ['Morning', 'Afternoon', 'Evening'];
 
-  List<Map<String, dynamic>> _instructors = [];
+  List<Map<String, dynamic>> _allInstructors = [];
   bool _isLoadingInstructors = true;
+  int _visibleInstructorCount = 3;
+  static const int _instructorPageSize = 3;
 
   @override
   void initState() {
@@ -29,14 +31,25 @@ class _YogaTabContentState extends State<YogaTabContent> {
   }
 
   Future<void> _loadInstructors() async {
-    setState(() => _isLoadingInstructors = true);
+    setState(() {
+      _isLoadingInstructors = true;
+      _visibleInstructorCount = _instructorPageSize; // reset on reload
+    });
     final data = await SupabaseService.getYogaInstructors();
     if (mounted) {
       setState(() {
-        _instructors = data;
+        _allInstructors = data;
         _isLoadingInstructors = false;
       });
     }
+  }
+
+  void _loadMoreInstructors() {
+    setState(() {
+      _visibleInstructorCount =
+          (_visibleInstructorCount + _instructorPageSize)
+              .clamp(0, _allInstructors.length);
+    });
   }
 
   @override
@@ -62,7 +75,10 @@ class _YogaTabContentState extends State<YogaTabContent> {
                 const SizedBox(height: 24),
                 _buildTimeSlotTabs(context),
                 const SizedBox(height: 16),
-                YogaScheduleCard(timeSlot: _timeSlots[_selectedTimeSlot]),
+                YogaScheduleCard(
+                key: ValueKey(_timeSlots[_selectedTimeSlot]),
+                timeSlot: _timeSlots[_selectedTimeSlot],
+              ),
                 const SizedBox(height: 24),
                 _buildInstructorsSection(context),
                 const SizedBox(height: 24),
@@ -81,7 +97,6 @@ class _YogaTabContentState extends State<YogaTabContent> {
   Widget _buildHeader(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black87;
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -101,11 +116,13 @@ class _YogaTabContentState extends State<YogaTabContent> {
             ),
             IconButton(
               onPressed: () {},
-              icon: Icon(Icons.notifications_outlined, color: textColor, size: 28),
+              icon: Icon(Icons.notifications_outlined,
+                  color: textColor, size: 28),
             ),
             IconButton(
               onPressed: () {},
-              icon: Icon(Icons.settings_outlined, color: textColor, size: 28),
+              icon: Icon(Icons.settings_outlined,
+                  color: textColor, size: 28),
             ),
           ],
         ),
@@ -136,9 +153,12 @@ class _YogaTabContentState extends State<YogaTabContent> {
                   child: Text(
                     _timeSlots[index],
                     style: TextStyle(
-                      color: isSelected ? Colors.black : context.subtextColor,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected
+                          ? Colors.black
+                          : context.subtextColor,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       fontSize: 14,
                     ),
                   ),
@@ -152,10 +172,14 @@ class _YogaTabContentState extends State<YogaTabContent> {
   }
 
   Widget _buildInstructorsSection(BuildContext context) {
+    final visibleInstructors =
+        _allInstructors.take(_visibleInstructorCount).toList();
+    final hasMore =
+        _visibleInstructorCount < _allInstructors.length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section header
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -167,24 +191,20 @@ class _YogaTabContentState extends State<YogaTabContent> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            if (_instructors.isNotEmpty)
+            if (_allInstructors.isNotEmpty)
               Text(
-                '${_instructors.length} available',
+                '${_allInstructors.length} available',
                 style: TextStyle(
-                  color: context.subtextColor,
-                  fontSize: 13,
-                ),
+                    color: context.subtextColor, fontSize: 13),
               ),
           ],
         ),
         const SizedBox(height: 14),
-
-        // Horizontal scroll list
         SizedBox(
           height: 260,
           child: _isLoadingInstructors
-              ? _buildInstructorSkeleton()
-              : _instructors.isEmpty
+              ? _buildInstructorSkeleton(context)
+              : _allInstructors.isEmpty
                   ? Center(
                       child: Text(
                         'No instructors available',
@@ -194,9 +214,13 @@ class _YogaTabContentState extends State<YogaTabContent> {
                     )
                   : ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: _instructors.length,
+                      itemCount: visibleInstructors.length +
+                          (hasMore ? 1 : 0),
                       itemBuilder: (context, index) {
-                        final instructor = _instructors[index];
+                        if (index == visibleInstructors.length) {
+                          return _buildInstructorLoadMore(context);
+                        }
+                        final instructor = visibleInstructors[index];
                         return YogaInstructorCard(
                           instructor: instructor,
                           onTap: () => Navigator.push(
@@ -215,7 +239,54 @@ class _YogaTabContentState extends State<YogaTabContent> {
     );
   }
 
-  Widget _buildInstructorSkeleton() {
+  Widget _buildInstructorLoadMore(BuildContext context) {
+    final remaining =
+        _allInstructors.length - _visibleInstructorCount;
+    return GestureDetector(
+      onTap: _loadMoreInstructors,
+      child: Container(
+        width: 100,
+        margin: const EdgeInsets.only(right: 14),
+        decoration: BoxDecoration(
+          color: context.cardBgColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: themeColor.withOpacity(0.3)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: themeColor.withOpacity(0.15),
+                shape: BoxShape.circle,
+                border: Border.all(color: themeColor, width: 1.5),
+              ),
+              child:
+                  const Icon(Icons.add, color: themeColor, size: 24),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '+$remaining more',
+              style: const TextStyle(
+                  color: themeColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'See more',
+              style: TextStyle(
+                  color: context.subtextColor, fontSize: 10),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInstructorSkeleton(BuildContext context) {
     return ListView.builder(
       scrollDirection: Axis.horizontal,
       itemCount: 3,
@@ -238,7 +309,6 @@ class _YogaTabContentState extends State<YogaTabContent> {
 class _ShimmerWidget extends StatefulWidget {
   final Widget child;
   const _ShimmerWidget({required this.child});
-
   @override
   State<_ShimmerWidget> createState() => _ShimmerWidgetState();
 }
@@ -247,7 +317,6 @@ class _ShimmerWidgetState extends State<_ShimmerWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
-
   @override
   void initState() {
     super.initState();
@@ -257,13 +326,11 @@ class _ShimmerWidgetState extends State<_ShimmerWidget>
     _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
         CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
-
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-
   @override
   Widget build(BuildContext context) =>
       FadeTransition(opacity: _animation, child: widget.child);
