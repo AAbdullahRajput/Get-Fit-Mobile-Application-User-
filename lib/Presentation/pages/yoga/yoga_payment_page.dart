@@ -62,9 +62,106 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
     }
   }
 
+  void _showDialog({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String message,
+    String buttonText = 'OK',
+    VoidCallback? onPressed,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C2C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Column(
+          children: [
+            Icon(icon, color: iconColor, size: 52),
+            const SizedBox(height: 12),
+            Text(title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                color: Colors.white70, fontSize: 14, height: 1.5)),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              onPressed?.call();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: iconColor,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(buttonText,
+                style: TextStyle(
+                    color: iconColor == themeColor
+                        ? Colors.black
+                        : Colors.white,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _confirmBooking() async {
+    if (_cards.isEmpty) {
+      _showDialog(
+        icon: Icons.credit_card_off_outlined,
+        iconColor: Colors.orangeAccent,
+        title: 'No Payment Method',
+        message:
+            'Please add a payment card before confirming your booking.',
+        buttonText: 'Add Card',
+        onPressed: () async {
+          final added = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AddCardPage()));
+          if (added == true) _loadCards();
+        },
+      );
+      return;
+    }
+
     setState(() => _isBooking = true);
+
     try {
+      // Final duplicate check before writing
+      final alreadyBooked = await SupabaseService.hasExistingYogaBooking(
+        instructorId: widget.instructor['id'],
+        startDate: widget.startDate,
+      );
+
+      if (!mounted) return;
+
+      if (alreadyBooked) {
+        setState(() => _isBooking = false);
+        _showDialog(
+          icon: Icons.event_busy,
+          iconColor: Colors.orangeAccent,
+          title: 'Already Booked',
+          message:
+              'You already have a session booked on ${widget.displayDate} with this instructor.',
+          buttonText: 'Go Back',
+          onPressed: () => Navigator.pop(context),
+        );
+        return;
+      }
+
       await SupabaseService.bookYogaSession(
         instructorId: widget.instructor['id'],
         startDate: widget.startDate,
@@ -72,6 +169,7 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
         totalPrice: widget.totalPrice,
         notes: widget.notes,
       );
+
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -86,21 +184,27 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Failed to book. Please try again.',
-            style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _isBooking = false);
+      setState(() => _isBooking = false);
+      final errMsg = e.toString();
+      if (errMsg.contains('unique') || errMsg.contains('duplicate')) {
+        _showDialog(
+          icon: Icons.event_busy,
+          iconColor: Colors.orangeAccent,
+          title: 'Already Booked',
+          message:
+              'You already have a booking on ${widget.displayDate}. Please go back and choose a different date.',
+          buttonText: 'OK',
+        );
+      } else {
+        _showDialog(
+          icon: Icons.wifi_off_outlined,
+          iconColor: Colors.redAccent,
+          title: 'Booking Failed',
+          message:
+              'Something went wrong while processing your booking. Please try again.',
+          buttonText: 'Try Again',
+        );
+      }
     }
   }
 
@@ -111,7 +215,6 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top bar
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
               child: Row(
@@ -124,17 +227,14 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                       backgroundColor: Colors.black54,
                       elevation: 0,
                     ),
-                    child:
-                        const Icon(Icons.arrow_back, color: Colors.white),
+                    child: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Payment',
-                    style: TextStyle(
-                        color: themeColor,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold),
-                  ),
+                  Text('Payment',
+                      style: TextStyle(
+                          color: themeColor,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -145,208 +245,223 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Payment method
-                    Text(
-                      'Payment Method',
-                      style: TextStyle(
-                          color: context.textColor,
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold),
-                    ),
+                    Text('Payment Method',
+                        style: TextStyle(
+                            color: context.textColor,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 14),
 
-                    // Card selector
                     _loadingCards
                         ? const Center(
                             child: CircularProgressIndicator(
                                 color: themeColor))
-                        : SizedBox(
-                            height: 140,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _cards.length + 1,
-                              itemBuilder: (ctx, i) {
-                                if (i == 0) {
-                                  return GestureDetector(
-                                    onTap: () async {
-                                      final added =
-                                          await Navigator.push(
+                        : _cards.isEmpty
+                            ? GestureDetector(
+                                onTap: () async {
+                                  final added = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) => const AddCardPage()));
+                                  if (added == true) _loadCards();
+                                },
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: context.cardBgColor,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                        color: themeColor.withOpacity(0.3),
+                                        style: BorderStyle.solid),
+                                  ),
+                                  child: Column(
+                                    children: const [
+                                      Icon(Icons.add_card,
+                                          color: themeColor, size: 36),
+                                      SizedBox(height: 8),
+                                      Text('Tap to add a payment card',
+                                          style: TextStyle(
+                                              color: themeColor,
+                                              fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : SizedBox(
+                                height: 140,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: _cards.length + 1,
+                                  itemBuilder: (ctx, i) {
+                                    if (i == 0) {
+                                      return GestureDetector(
+                                        onTap: () async {
+                                          final added = await Navigator.push(
                                               context,
                                               MaterialPageRoute(
                                                   builder: (_) =>
                                                       const AddCardPage()));
-                                      if (added == true) _loadCards();
-                                    },
-                                    child: Container(
-                                      width: 80,
-                                      margin: const EdgeInsets.only(
-                                          right: 12),
-                                      decoration: BoxDecoration(
-                                        color: context.cardBgColor,
-                                        borderRadius:
-                                            BorderRadius.circular(16),
-                                        border: Border.all(
-                                            color: Colors.white12),
-                                      ),
-                                      child: const Icon(Icons.add,
-                                          color: Colors.white54,
-                                          size: 32),
-                                    ),
-                                  );
-                                }
-                                final card = _cards[i - 1];
-                                final isSelected =
-                                    _selectedCardIndex == i - 1;
-                                return GestureDetector(
-                                  onTap: () => setState(
-                                      () => _selectedCardIndex = i - 1),
-                                  onLongPress: () async {
-                                    final edited =
-                                        await Navigator.push(
+                                          if (added == true) _loadCards();
+                                        },
+                                        child: Container(
+                                          width: 80,
+                                          margin: const EdgeInsets.only(
+                                              right: 12),
+                                          decoration: BoxDecoration(
+                                            color: context.cardBgColor,
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                            border: Border.all(
+                                                color: Colors.white12),
+                                          ),
+                                          child: const Icon(Icons.add,
+                                              color: Colors.white54,
+                                              size: 32),
+                                        ),
+                                      );
+                                    }
+                                    final card = _cards[i - 1];
+                                    final isSelected =
+                                        _selectedCardIndex == i - 1;
+                                    return GestureDetector(
+                                      onTap: () => setState(
+                                          () => _selectedCardIndex = i - 1),
+                                      onLongPress: () async {
+                                        final edited = await Navigator.push(
                                             context,
                                             MaterialPageRoute(
                                                 builder: (_) =>
-                                                    EditCardPage(
-                                                        card: card)));
-                                    if (edited == true) _loadCards();
+                                                    EditCardPage(card: card)));
+                                        if (edited == true) _loadCards();
+                                      },
+                                      child: AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 200),
+                                        width: 200,
+                                        margin:
+                                            const EdgeInsets.only(right: 12),
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: _cardGradient(
+                                                card['card_network'] ?? ''),
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? themeColor
+                                                : Colors.transparent,
+                                            width: 2.5,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                const Icon(Icons.sim_card,
+                                                    color: Colors.amber,
+                                                    size: 22),
+                                                _buildNetworkBadge(
+                                                    card['card_network'] ??
+                                                        ''),
+                                              ],
+                                            ),
+                                            Text(
+                                              '•••• •••• •••• ${card['last4']}',
+                                              style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  letterSpacing: 2,
+                                                  fontWeight:
+                                                      FontWeight.w600),
+                                            ),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text('Name',
+                                                        style: TextStyle(
+                                                            color:
+                                                                Colors.white54,
+                                                            fontSize: 9)),
+                                                    Text(
+                                                        card['holder_name'] ??
+                                                            '',
+                                                        style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 11,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600)),
+                                                  ],
+                                                ),
+                                                Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.end,
+                                                  children: [
+                                                    const Text('Expires',
+                                                        style: TextStyle(
+                                                            color:
+                                                                Colors.white54,
+                                                            fontSize: 9)),
+                                                    Text(card['expiry'] ?? '',
+                                                        style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 11,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600)),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
                                   },
-                                  child: AnimatedContainer(
-                                    duration: const Duration(
-                                        milliseconds: 200),
-                                    width: 200,
-                                    margin: const EdgeInsets.only(
-                                        right: 12),
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: _cardGradient(
-                                            card['card_network'] ?? ''),
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius:
-                                          BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? themeColor
-                                            : Colors.transparent,
-                                        width: 2.5,
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment
-                                                  .spaceBetween,
-                                          children: [
-                                            const Icon(Icons.sim_card,
-                                                color: Colors.amber,
-                                                size: 22),
-                                            _buildNetworkBadge(
-                                                card['card_network'] ??
-                                                    ''),
-                                          ],
-                                        ),
-                                        Text(
-                                          '•••• •••• •••• ${card['last4']}',
-                                          style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 14,
-                                              letterSpacing: 2,
-                                              fontWeight:
-                                                  FontWeight.w600),
-                                        ),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment
-                                                  .spaceBetween,
-                                          children: [
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment
-                                                      .start,
-                                              children: [
-                                                const Text('Name',
-                                                    style: TextStyle(
-                                                        color: Colors
-                                                            .white54,
-                                                        fontSize: 9)),
-                                                Text(
-                                                    card['holder_name'] ??
-                                                        '',
-                                                    style: const TextStyle(
-                                                        color:
-                                                            Colors.white,
-                                                        fontSize: 11,
-                                                        fontWeight:
-                                                            FontWeight
-                                                                .w600)),
-                                              ],
-                                            ),
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.end,
-                                              children: [
-                                                const Text('Expires',
-                                                    style: TextStyle(
-                                                        color: Colors
-                                                            .white54,
-                                                        fontSize: 9)),
-                                                Text(
-                                                    card['expiry'] ?? '',
-                                                    style: const TextStyle(
-                                                        color:
-                                                            Colors.white,
-                                                        fontSize: 11,
-                                                        fontWeight:
-                                                            FontWeight
-                                                                .w600)),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
+                                ),
+                              ),
                     const SizedBox(height: 24),
 
                     // Order details
-                    Text(
-                      'Order Details',
-                      style: TextStyle(
-                          color: context.textColor,
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold),
-                    ),
+                    Text('Order Details',
+                        style: TextStyle(
+                            color: context.textColor,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold)),
                     Divider(
                         color: context.isDark
                             ? Colors.white12
                             : Colors.grey.shade200,
                         height: 20),
 
-                    // Instructor row
                     Row(
                       children: [
                         CircleAvatar(
                           radius: 26,
                           backgroundColor: themeColor,
-                          backgroundImage: (widget.instructor['image_url'] ??
-                                      '')
-                                  .isNotEmpty
-                              ? NetworkImage(
-                                  widget.instructor['image_url'])
-                              : null,
-                          child: (widget.instructor['image_url'] ?? '')
-                                  .isEmpty
+                          backgroundImage:
+                              (widget.instructor['image_url'] ?? '').isNotEmpty
+                                  ? NetworkImage(widget.instructor['image_url'])
+                                  : null,
+                          child: (widget.instructor['image_url'] ?? '').isEmpty
                               ? const Icon(Icons.self_improvement,
                                   color: Colors.black, size: 28)
                               : null,
@@ -356,19 +471,15 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                widget.instructor['name'] ?? '',
-                                style: TextStyle(
-                                    color: context.textColor,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                widget.instructor['specialty'] ?? '',
-                                style: TextStyle(
-                                    color: context.subtextColor,
-                                    fontSize: 13),
-                              ),
+                              Text(widget.instructor['name'] ?? '',
+                                  style: TextStyle(
+                                      color: context.textColor,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold)),
+                              Text(widget.instructor['specialty'] ?? '',
+                                  style: TextStyle(
+                                      color: context.subtextColor,
+                                      fontSize: 13)),
                             ],
                           ),
                         ),
@@ -380,9 +491,8 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            (widget.instructor['rating'] as num?)
-                                    ?.toStringAsFixed(1) ??
-                                '0.0',
+                            double.parse(widget.instructor['rating'].toString())
+                                .toStringAsFixed(1),
                             style: const TextStyle(
                                 color: Colors.black,
                                 fontWeight: FontWeight.bold,
@@ -397,72 +507,59 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                             : Colors.grey.shade200,
                         height: 24),
 
-                    // Start date
                     Text('Start Date',
                         style: TextStyle(
                             color: context.subtextColor, fontSize: 16)),
                     const SizedBox(height: 6),
-                    Text(
-                      widget.displayDate,
-                      style: TextStyle(
-                          color: context.textColor,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600),
-                    ),
+                    Text(widget.displayDate,
+                        style: TextStyle(
+                            color: context.textColor,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600)),
                     Divider(
                         color: context.isDark
                             ? Colors.white12
                             : Colors.grey.shade200,
                         height: 24),
 
-                    // Sessions
                     Text('Sessions',
                         style: TextStyle(
                             color: context.subtextColor, fontSize: 16)),
                     const SizedBox(height: 6),
-                    Text(
-                      '${widget.numSessions} sessions',
-                      style: TextStyle(
-                          color: context.textColor,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600),
-                    ),
+                    Text('${widget.numSessions} sessions',
+                        style: TextStyle(
+                            color: context.textColor,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600)),
                     Divider(
                         color: context.isDark
                             ? Colors.white12
                             : Colors.grey.shade200,
                         height: 24),
 
-                    // Total
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('Total Amount',
                             style: TextStyle(
-                                color: context.subtextColor,
-                                fontSize: 15)),
-                        Text(
-                          '\$${widget.totalPrice.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                              color: themeColor,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold),
-                        ),
+                                color: context.subtextColor, fontSize: 15)),
+                        Text('\$${widget.totalPrice.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                                color: themeColor,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 36),
 
-                    // Confirm button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed:
-                            _isBooking ? null : _confirmBooking,
+                        onPressed: _isBooking ? null : _confirmBooking,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: themeColor,
                           disabledBackgroundColor: Colors.grey,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30)),
                         ),
@@ -471,15 +568,12 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                                 width: 22,
                                 height: 22,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: Colors.black))
-                            : const Text(
-                                'Confirm & Book',
+                                    strokeWidth: 2.5, color: Colors.black))
+                            : const Text('Confirm & Book',
                                 style: TextStyle(
                                     color: Colors.black,
                                     fontSize: 16,
-                                    fontWeight: FontWeight.bold),
-                              ),
+                                    fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
@@ -503,27 +597,22 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                 fontStyle: FontStyle.italic,
                 letterSpacing: 2));
       case 'Mastercard':
-        return Row(
-          children: [
-            Container(
+        return Row(children: [
+          Container(
               width: 22,
               height: 22,
               decoration: const BoxDecoration(
-                  color: Color(0xFFEB001B), shape: BoxShape.circle),
-            ),
-            Transform.translate(
-              offset: const Offset(-8, 0),
-              child: Container(
+                  color: Color(0xFFEB001B), shape: BoxShape.circle)),
+          Transform.translate(
+            offset: const Offset(-8, 0),
+            child: Container(
                 width: 22,
                 height: 22,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF79E1B).withOpacity(0.9),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ],
-        );
+                    color: const Color(0xFFF79E1B).withOpacity(0.9),
+                    shape: BoxShape.circle)),
+          ),
+        ]);
       case 'Amex':
         return const Text('AMEX',
             style: TextStyle(
@@ -539,8 +628,7 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1));
       default:
-        return const Icon(Icons.credit_card,
-            color: Colors.white54, size: 22);
+        return const Icon(Icons.credit_card, color: Colors.white54, size: 22);
     }
   }
 }
