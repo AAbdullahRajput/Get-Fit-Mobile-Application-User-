@@ -574,9 +574,7 @@ class _YogaReviewsPageState extends State<YogaReviewsPage> {
                                 children: List.generate(
                                   5,
                                   (i) => Icon(
-                                    i 
-                                            (r['rating'] as num)
-                                                .round()
+                                    i < (r['rating'] as num).round()
                                         ? Icons.star
                                         : Icons.star_border,
                                     color: themeColor,
