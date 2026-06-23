@@ -61,8 +61,8 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                   // Top bar
                   SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       child: Row(
                         children: [
                           ElevatedButton(
@@ -95,7 +95,9 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                     width: double.infinity,
                     height: 320,
                     child: Image.network(
-                      instructor['bg_image_url'] ?? instructor['image_url'] ?? '',
+                      instructor['bg_image_url'] ??
+                          instructor['image_url'] ??
+                          '',
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
                         height: 320,
@@ -139,7 +141,7 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Name + phone + badges row
+        // Name + phone + badges
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -163,7 +165,6 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      // Level badge
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
@@ -182,7 +183,6 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Active badge
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
@@ -230,8 +230,7 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                 child: CircleAvatar(
                   radius: 22,
                   backgroundColor: themeColor,
-                  child:
-                      const Icon(Icons.phone, color: Colors.black, size: 20),
+                  child: const Icon(Icons.phone, color: Colors.black, size: 20),
                 ),
               ),
           ],
@@ -259,24 +258,25 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _statColumn(context,
-                    instructor['experience'] ?? '-', 'Experience'),
-                _statColumn(context,
-                    instructor['sessions_completed'] ?? '-', 'Sessions'),
-                _statColumn(context,
-                    instructor['active_clients'] ?? '-', 'Clients'),
-                _statColumn(context,
-                    '${instructor['sessions_per_week'] ?? '-'}/wk', 'Frequency'),
+                _statColumn(context, instructor['experience'] ?? '-',
+                    'Experience'),
+                _statColumn(context, instructor['sessions_completed'] ?? '-',
+                    'Sessions'),
+                _statColumn(
+                    context, instructor['active_clients'] ?? '-', 'Clients'),
+                _statColumn(
+                    context,
+                    '${instructor['sessions_per_week'] ?? '-'}/wk',
+                    'Frequency'),
               ],
             ),
           ),
         ),
         const SizedBox(height: 16),
 
-        // Session price chip
+        // Session price
         Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             color: themeColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
@@ -311,30 +311,29 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                   fontSize: 20,
                   fontWeight: FontWeight.bold),
             ),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: themeColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    _reviews.isEmpty
-                        ? (instructor['rating'] ?? '0.0').toString()
-                        : (_reviews
-    .map((r) => double.parse(r['rating'].toString()))
-    .reduce((a, b) => a + b) /
-    _reviews.length)
-    .toStringAsFixed(1),
-                    style: const TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13),
-                  ),
-                ),
-              ],
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: themeColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                _reviews.isEmpty
+                    ? double.parse(
+                            instructor['rating'].toString())
+                        .toStringAsFixed(1)
+                    : (_reviews
+                                .map((r) =>
+                                    double.parse(r['rating'].toString()))
+                                .reduce((a, b) => a + b) /
+                            _reviews.length)
+                        .toStringAsFixed(1),
+                style: const TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13),
+              ),
             ),
           ],
         ),
@@ -349,7 +348,12 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                 height: 36,
                 width: (_reviews.take(4).length * 24.0) + 12,
                 child: Stack(
-                  children: _reviews.take(4).toList().asMap().entries.map((entry) {
+                  children: _reviews
+                      .take(4)
+                      .toList()
+                      .asMap()
+                      .entries
+                      .map((entry) {
                     final i = entry.key;
                     final r = entry.value;
                     return Positioned(
@@ -357,17 +361,16 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border:
-                              Border.all(color: context.bgColor, width: 2),
+                          border: Border.all(
+                              color: context.bgColor, width: 2),
                         ),
                         child: CircleAvatar(
                           radius: 16,
                           backgroundColor: themeColor,
-                          backgroundImage: (r['avatar_url'] ?? '')
-                                  .toString()
-                                  .isNotEmpty
-                              ? NetworkImage(r['avatar_url'])
-                              : null,
+                          backgroundImage:
+                              (r['avatar_url'] ?? '').toString().isNotEmpty
+                                  ? NetworkImage(r['avatar_url'])
+                                  : null,
                           child: (r['avatar_url'] ?? '').toString().isEmpty
                               ? const Icon(Icons.person,
                                   color: Colors.black, size: 14)
@@ -405,15 +408,51 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
         ),
         const SizedBox(height: 12),
 
-        // Review previews
+        // Review previews or placeholder
         if (_reviews.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Center(
-              child: Text(
-                'No reviews yet. Be the first!',
-                style:
-                    TextStyle(color: context.subtextColor, fontSize: 14),
+          GestureDetector(
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => YogaReviewsPage(
+                    instructorId: instructor['id'],
+                    instructorName: instructor['name'] ?? '',
+                    rating: instructor['rating'].toString(),
+                    onReviewChanged: _loadData,
+                  ),
+                ),
+              );
+              _loadData();
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              decoration: BoxDecoration(
+                color: context.cardBgColor,
+                borderRadius: BorderRadius.circular(14),
+                border:
+                    Border.all(color: themeColor.withOpacity(0.3)),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.rate_review_outlined,
+                      color: themeColor, size: 32),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No reviews yet. Be the first!',
+                    style: TextStyle(
+                        color: context.subtextColor, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Tap to write a review',
+                    style: TextStyle(
+                        color: themeColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
             ),
           )
@@ -428,9 +467,7 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => YogaBookingPage(
-                instructor: instructor,
-              ),
+              builder: (_) => YogaBookingPage(instructor: instructor),
             ),
           ),
         ),
@@ -446,13 +483,11 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
         backgroundColor: const Color(0xFF2C2C2C),
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title:
-            const Icon(Icons.phone, color: themeColor, size: 40),
+        title: const Icon(Icons.phone, color: themeColor, size: 40),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Text(instructor['name'] ?? '',
               textAlign: TextAlign.center,
-              style:
-                  const TextStyle(color: Colors.white70, fontSize: 13)),
+              style: const TextStyle(color: Colors.white70, fontSize: 13)),
           const SizedBox(height: 8),
           Text(instructor['phone_number'],
               textAlign: TextAlign.center,
@@ -467,15 +502,13 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 24, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               decoration: BoxDecoration(
                   color: themeColor,
                   borderRadius: BorderRadius.circular(10)),
               child: const Text('OK',
                   style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold)),
+                      color: Colors.black, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -506,8 +539,7 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         Text(label,
-            style:
-                TextStyle(color: context.subtextColor, fontSize: 11)),
+            style: TextStyle(color: context.subtextColor, fontSize: 11)),
       ],
     );
   }
@@ -536,8 +568,7 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
           color: context.cardBgColor,
           borderRadius: BorderRadius.circular(14),
           border: isMyReview
-              ? Border.all(
-                  color: themeColor.withOpacity(0.5), width: 1.5)
+              ? Border.all(color: themeColor.withOpacity(0.5), width: 1.5)
               : null,
         ),
         child: Column(
@@ -565,9 +596,7 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                       Row(
                         children: [
                           Text(
-                            isMyReview
-                                ? 'You'
-                                : (r['username'] ?? 'User'),
+                            isMyReview ? 'You' : (r['username'] ?? 'User'),
                             style: TextStyle(
                                 color: context.textColor,
                                 fontWeight: FontWeight.bold,
@@ -595,7 +624,7 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                         children: List.generate(
                           5,
                           (i) => Icon(
-                            i < (r['rating'] as num).toInt()
+                            i < double.parse(r['rating'].toString()).round()
                                 ? Icons.star
                                 : Icons.star_border,
                             color: themeColor,
@@ -608,8 +637,8 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                 ),
                 Text(
                   _formatDate(r['created_at']),
-                  style: TextStyle(
-                      color: context.subtextColor, fontSize: 11),
+                  style:
+                      TextStyle(color: context.subtextColor, fontSize: 11),
                 ),
               ],
             ),
@@ -617,9 +646,7 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
             Text(
               r['review_text'] ?? '',
               style: TextStyle(
-                  color: context.subtextColor,
-                  fontSize: 14,
-                  height: 1.4),
+                  color: context.subtextColor, fontSize: 14, height: 1.4),
             ),
           ],
         ),
