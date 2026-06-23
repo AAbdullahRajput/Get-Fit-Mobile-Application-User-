@@ -613,4 +613,174 @@ static Future<Map<String, dynamic>?> getNextAppointment() async {
   }
 }
 
+// YOGA INSTRUCTORS
+
+static Future<List<Map<String, dynamic>>> getYogaInstructors({int page = 0, int pageSize = 10}) async {
+  try {
+    debugPrint('\x1B[33m[API] GET /rest/v1/yoga_instructors | page: $page\x1B[0m');
+    final data = await client
+        .from('yoga_instructors')
+        .select()
+        .order('rating', ascending: false)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+    debugPrint('\x1B[32m[API] 200 OK | YogaInstructors: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getYogaInstructors | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getYogaInstructorReviews(String instructorId) async {
+  try {
+    debugPrint('\x1B[33m[API] GET /rest/v1/yoga_instructor_reviews | instructorId: $instructorId\x1B[0m');
+    final data = await client
+        .from('yoga_instructor_reviews')
+        .select('*, users(avatar_url, username)')
+        .eq('instructor_id', instructorId)
+        .order('created_at', ascending: false);
+    debugPrint('\x1B[32m[API] 200 OK | YogaReviews: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getYogaInstructorReviews | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<Map<String, dynamic>?> getMyYogaReview(String instructorId) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return null;
+    final data = await client
+        .from('yoga_instructor_reviews')
+        .select()
+        .eq('instructor_id', instructorId)
+        .eq('user_id', userId)
+        .maybeSingle();
+    return data;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getMyYogaReview | $e\x1B[0m');
+    return null;
+  }
+}
+
+static Future<void> submitYogaReview({
+  required String instructorId,
+  required double rating,
+  required String reviewText,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    final profile = await getUserProfile();
+    debugPrint('\x1B[33m[API] POST /rest/v1/yoga_instructor_reviews\x1B[0m');
+    await client.from('yoga_instructor_reviews').upsert({
+      'instructor_id': instructorId,
+      'user_id': userId,
+      'username': profile?['username'] ?? 'User',
+      'avatar_url': profile?['avatar_url'] ?? '',
+      'rating': rating,
+      'review_text': reviewText,
+      'updated_at': DateTime.now().toIso8601String(),
+    }, onConflict: 'instructor_id,user_id');
+    // Recalculate avg rating
+    final reviews = await getYogaInstructorReviews(instructorId);
+    if (reviews.isNotEmpty) {
+      final avg = reviews
+              .map((r) => (r['rating'] as num).toDouble())
+              .reduce((a, b) => a + b) /
+          reviews.length;
+      await client
+          .from('yoga_instructors')
+          .update({'rating': double.parse(avg.toStringAsFixed(1))})
+          .eq('id', instructorId);
+    }
+    debugPrint('\x1B[32m[API] 200 OK | Yoga review submitted\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | submitYogaReview | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+static Future<void> deleteYogaReview({required String instructorId}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    debugPrint('\x1B[33m[API] DELETE /rest/v1/yoga_instructor_reviews\x1B[0m');
+    await client
+        .from('yoga_instructor_reviews')
+        .delete()
+        .eq('instructor_id', instructorId)
+        .eq('user_id', userId);
+    // Recalculate avg
+    final reviews = await getYogaInstructorReviews(instructorId);
+    if (reviews.isEmpty) {
+      await client
+          .from('yoga_instructors')
+          .update({'rating': 0.0})
+          .eq('id', instructorId);
+    } else {
+      final avg = reviews
+              .map((r) => (r['rating'] as num).toDouble())
+              .reduce((a, b) => a + b) /
+          reviews.length;
+      await client
+          .from('yoga_instructors')
+          .update({'rating': double.parse(avg.toStringAsFixed(1))})
+          .eq('id', instructorId);
+    }
+    debugPrint('\x1B[32m[API] 200 OK | Yoga review deleted\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | deleteYogaReview | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+// YOGA SESSION BOOKINGS
+
+static Future<void> bookYogaSession({
+  required String instructorId,
+  required String startDate,
+  required int numSessions,
+  required double totalPrice,
+  String notes = '',
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    debugPrint('\x1B[33m[API] POST /rest/v1/yoga_session_bookings\x1B[0m');
+    await client.from('yoga_session_bookings').insert({
+      'instructor_id': instructorId,
+      'user_id': userId,
+      'start_date': startDate,
+      'num_sessions': numSessions,
+      'total_price': totalPrice,
+      'notes': notes,
+      'status': 'pending',
+    });
+    debugPrint('\x1B[32m[API] 200 OK | Yoga session booked\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | bookYogaSession | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getMyYogaBookings() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+    debugPrint('\x1B[33m[API] GET /rest/v1/yoga_session_bookings\x1B[0m');
+    final data = await client
+        .from('yoga_session_bookings')
+        .select('*, yoga_instructors(name, image_url, specialty)')
+        .eq('user_id', userId)
+        .order('start_date', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | YogaBookings: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getMyYogaBookings | $e\x1B[0m');
+    return [];
+  }
+}
+
 }
