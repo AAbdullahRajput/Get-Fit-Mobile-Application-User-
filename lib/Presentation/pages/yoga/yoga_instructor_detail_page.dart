@@ -4,6 +4,7 @@ import 'package:get_fit/Presentation/pages/yoga/yoga_booking_page.dart';
 import 'package:get_fit/Presentation/widgets/reuseable_button.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Presentation/pages/yoga/instructor_class_detail_page.dart';
 
 class YogaInstructorDetailPage extends StatefulWidget {
   final Map<String, dynamic> instructor;
@@ -568,11 +569,21 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
             ? Border.all(color: themeColor.withOpacity(0.25))
             : Border.all(color: Colors.white12),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image with lock overlay
-          Stack(
+      child: GestureDetector(
+        onTap: isUnlocked ? () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => InstructorClassDetailPage(
+              classData: cls,
+              instructorData: widget.instructor,
+            ),
+          ),
+        ) : null,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image with lock overlay
+            Stack(
             children: [
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(
@@ -812,11 +823,12 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
                                     BorderRadius.circular(12)),
                           ),
                         ),
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
