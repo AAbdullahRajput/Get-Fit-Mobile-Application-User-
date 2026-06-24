@@ -100,7 +100,7 @@ class _RunnerPageState extends State<RunnerPage>
     if (mounted) setState(() { _stats = stats; _isLoading = false; });
   }
 
- void _tapBar(int i) {
+  void _tapBar(int i) {
     if (_selectedIdx == i) return;
     setState(() => _selectedIdx = i);
   }
@@ -153,7 +153,7 @@ class _RunnerPageState extends State<RunnerPage>
     );
   }
 
-  // ── header ─────────────────────────────────────────────────────────────────
+  // ── header — 3-dots replaces history icon button ───────────────────────────
   Widget _buildHeader(BuildContext context) => Row(children: [
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('Activities',
@@ -162,16 +162,32 @@ class _RunnerPageState extends State<RunnerPage>
       Text('Tap a bar to see that day\'s breakdown',
         style: TextStyle(color: context.subtextColor, fontSize: 12)),
     ])),
-    GestureDetector(
-      onTap: _goHistory,
-      child: Container(
-        padding: const EdgeInsets.all(10),
+    PopupMenuButton<String>(
+      onSelected: (val) { if (val == 'history') _goHistory(); },
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      color: context.isDark ? const Color(0xFF2A2A2A) : Colors.white,
+      icon: Container(
+        width: 40, height: 40,
         decoration: BoxDecoration(
-          color: themeColor.withOpacity(context.isDark ? 0.15 : 0.18),
-          borderRadius: BorderRadius.circular(12),
+          color: context.isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade100,
+          shape: BoxShape.circle,
         ),
-        child: Icon(Icons.history_rounded, color: _accent(context), size: 24),
+        child: Icon(Icons.more_vert_rounded,
+            color: context.isDark ? Colors.white : Colors.black, size: 20),
       ),
+      itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'history',
+          child: Row(children: [
+            Icon(Icons.history_rounded, color: _accent(context), size: 18),
+            const SizedBox(width: 10),
+            Text('View History',
+                style: TextStyle(
+                    color: context.isDark ? Colors.white : Colors.black,
+                    fontSize: 14)),
+          ]),
+        ),
+      ],
     ),
   ]);
 
@@ -204,7 +220,7 @@ class _RunnerPageState extends State<RunnerPage>
     ),
   );
 
-  // ── calories card (yellow) ─────────────────────────────────────────────────
+  // ── calories card — themeColor bg, striped unselected bars, solid black selected ──
   Widget _buildCaloriesCard(BuildContext context) {
     final maxKcal = _stats.isEmpty ? 1 :
         _stats.map((d) => d.totalKcal.toDouble()).fold<double>(0, (a, b) => a > b ? a : b);
@@ -214,12 +230,12 @@ class _RunnerPageState extends State<RunnerPage>
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
       decoration: BoxDecoration(
-        color: _challengeColor, borderRadius: BorderRadius.circular(24)),
+        color: themeColor, borderRadius: BorderRadius.circular(24)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // title row
+        // title row — filled fire icon, 3-dots history button
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Row(children: [
-            const Icon(Icons.local_fire_department_rounded, color: Colors.red, size: 22),
+            const Icon(Icons.local_fire_department_rounded, color: Colors.black, size: 22),
             const SizedBox(width: 8),
             const Text('Calories Burn',
               style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -229,7 +245,7 @@ class _RunnerPageState extends State<RunnerPage>
             child: Container(
               width: 34, height: 34,
               decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
-              child: const Icon(Icons.history_rounded, color: Colors.white, size: 18),
+              child: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 18),
             ),
           ),
         ]),
@@ -296,7 +312,7 @@ class _RunnerPageState extends State<RunnerPage>
     );
   }
 
-  // ── selected day card ──────────────────────────────────────────────────────
+  // ── selected day card — solid bg, filled icon boxes, no glass ─────────────
   Widget _buildSelectedDayCard(BuildContext context) {
     final stat  = _selectedStat;
     final mins  = _selSeconds ~/ 60;
@@ -315,100 +331,113 @@ class _RunnerPageState extends State<RunnerPage>
           : '${selD.day}/${selD.month}/${selD.year}';
     }
 
+    // solid card colors
+    final cardBg  = context.isDark ? Colors.white       : const Color(0xFF1A1A1A);
+    final textCol = context.isDark ? Colors.black        : Colors.white;
+    final subCol  = context.isDark ? Colors.black54      : Colors.white60;
+
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
       child: Container(
         key: ValueKey(_effectiveIdx),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: context.cardBgColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: themeColor.withOpacity(0.3), width: 1),
-          boxShadow: context.isDark ? null
-              : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+          color: cardBg,
+          borderRadius: BorderRadius.circular(22),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Row(children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                width: 30, height: 30,
                 decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8)),
-                child: Icon(Icons.calendar_today_rounded, color: _accent(context), size: 14),
+                  color: themeColor, borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.calendar_today_rounded, color: Colors.black, size: 15),
               ),
               const SizedBox(width: 8),
               Text(dayLabel, style: TextStyle(
-                color: context.textColor, fontSize: 15, fontWeight: FontWeight.bold)),
+                color: textCol, fontSize: 15, fontWeight: FontWeight.bold)),
             ]),
             if (isToday)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: themeColor, borderRadius: BorderRadius.circular(20)),
-                child: const Text('Today',
-                  style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
+                decoration: BoxDecoration(
+                  color: context.isDark ? Colors.black : themeColor,
+                  borderRadius: BorderRadius.circular(20)),
+                child: Text('Today',
+                  style: TextStyle(
+                    color: context.isDark ? themeColor : Colors.black,
+                    fontSize: 11, fontWeight: FontWeight.bold)),
               ),
           ]),
           const SizedBox(height: 16),
           Row(children: [
             _dayPill(context, Icons.local_fire_department_rounded,
-              '$_selKcal', 'kcal', Colors.orange),
+              '$_selKcal', 'kcal', Colors.orange, textCol, subCol),
             const SizedBox(width: 10),
             _dayPill(context, Icons.timer_rounded,
-              tStr, 'active', _accent(context)),
+              tStr, 'active', themeColor, textCol, subCol),
             const SizedBox(width: 10),
             _dayPill(context, Icons.fitness_center_rounded,
-              '${stat?.gymKcal ?? 0}', 'gym kcal', _gymColor),
+              '${stat?.gymKcal ?? 0}', 'gym kcal', _gymColor, textCol, subCol),
           ]),
         ]),
       ),
     );
   }
 
-  Widget _dayPill(BuildContext context, IconData icon, String value, String unit, Color color) =>
+  Widget _dayPill(BuildContext context, IconData icon, String value,
+      String unit, Color color, Color textCol, Color subCol) =>
     Expanded(child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(context.isDark ? 0.1 : 0.09),
+        color: color.withOpacity(context.isDark ? 0.18 : 0.15),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.18)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, color: color, size: 16),
-        const SizedBox(height: 6),
+        Container(
+          width: 30, height: 30,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.25), borderRadius: BorderRadius.circular(8)),
+          child: Icon(icon, color: color, size: 16),
+        ),
+        const SizedBox(height: 8),
         Text(value, style: TextStyle(
-          color: context.textColor, fontSize: 16, fontWeight: FontWeight.bold)),
-        Text(unit, style: TextStyle(color: context.subtextColor, fontSize: 10)),
+          color: textCol, fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(unit, style: TextStyle(color: subCol, fontSize: 10)),
       ]),
     ));
 
-  // ── duration card ──────────────────────────────────────────────────────────
+  // ── duration card — solid bg, filled icon box ──────────────────────────────
   Widget _buildDurationCard(BuildContext context) {
     if (_stats.isEmpty) return const SizedBox.shrink();
     final selMins  = _selSeconds ~/ 60;
     final maxMins  = _stats
         .map((d) => (d.challengeSec + d.gymSec) / 60.0)
         .fold<double>(0, (a, b) => a > b ? a : b);
-    final count    = _stats.length;
+    final count     = _stats.length;
     final showEvery = count <= 7 ? 1 : count <= 14 ? 2 : 5;
-    final accent   = _accent(context);
+    final accent    = _accent(context);
+
+    final cardBg = context.isDark ? const Color(0xFF1E1E1E) : Colors.white;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
       decoration: BoxDecoration(
-        color: context.cardBgColor, borderRadius: BorderRadius.circular(20),
-        boxShadow: context.isDark ? null
-            : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        color: cardBg, borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: context.isDark ? Colors.white10 : Colors.grey.shade200),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
+          // filled square icon box
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 40, height: 40,
             decoration: BoxDecoration(
-              color: accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-            child: Icon(Icons.timer_rounded, color: accent, size: 18),
+              color: accent, borderRadius: BorderRadius.circular(11)),
+            child: const Icon(Icons.timer_rounded, color: Colors.black, size: 20),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Workout Duration',
               style: TextStyle(
@@ -463,7 +492,7 @@ class _RunnerPageState extends State<RunnerPage>
     );
   }
 
-  // ── source card ────────────────────────────────────────────────────────────
+  // ── source card — solid bg, filled icon boxes, progress bars ──────────────
   Widget _buildSourceCard(BuildContext context) {
     final stat  = _selectedStat;
     final c = stat?.challengeKcal ?? 0;
@@ -471,27 +500,29 @@ class _RunnerPageState extends State<RunnerPage>
     final y = stat?.yogaKcal      ?? 0;
     final total = c + g + y;
 
+    final cardBg = context.isDark ? const Color(0xFF1E1E1E) : Colors.white;
+
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
       child: Container(
         key: ValueKey('src_$_effectiveIdx'),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: context.cardBgColor, borderRadius: BorderRadius.circular(16),
-          boxShadow: context.isDark ? null
-              : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+          color: cardBg, borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: context.isDark ? Colors.white10 : Colors.grey.shade200),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Calories by Source',
             style: TextStyle(
               color: context.textColor, fontSize: 15, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           _sourceRow(context, Icons.emoji_events_rounded,
             'Weekly Challenge', c, total, _challengeColor),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           _sourceRow(context, Icons.fitness_center_rounded,
             'Gym Exercises', g, total, _gymColor),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           _sourceRow(context, Icons.self_improvement_rounded,
             'Yoga', y, total, _yogaColor),
         ]),
@@ -503,13 +534,14 @@ class _RunnerPageState extends State<RunnerPage>
       int kcal, int total, Color color) {
     final pct = total > 0 ? kcal / total : 0.0;
     return Row(children: [
+      // filled square icon box
       Container(
-        padding: const EdgeInsets.all(7),
+        width: 40, height: 40,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-        child: Icon(icon, color: color, size: 16),
+          color: color.withOpacity(0.18), borderRadius: BorderRadius.circular(11)),
+        child: Icon(icon, color: color, size: 20),
       ),
-      const SizedBox(width: 10),
+      const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text(label, style: TextStyle(
@@ -517,11 +549,11 @@ class _RunnerPageState extends State<RunnerPage>
           Text('$kcal kcal', style: TextStyle(
             color: color, fontSize: 13, fontWeight: FontWeight.bold)),
         ]),
-        const SizedBox(height: 5),
+        const SizedBox(height: 6),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
-            value: pct, minHeight: 5,
+            value: pct, minHeight: 6,
             backgroundColor: context.isDark ? Colors.grey[800] : Colors.grey[200],
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
@@ -530,49 +562,57 @@ class _RunnerPageState extends State<RunnerPage>
     ]);
   }
 
-  // ── range overview ─────────────────────────────────────────────────────────
+  // ── range overview — solid bg, filled icons ────────────────────────────────
   Widget _buildRangeOverview(BuildContext context) {
     final mins  = _totalSeconds ~/ 60;
     final hrs   = mins ~/ 60;
     final remM  = mins % 60;
     final tStr  = hrs > 0 ? '${hrs}h ${remM}m' : '${mins}m';
 
+    final cardBg  = context.isDark ? const Color(0xFF222222) : Colors.grey.shade100;
+    final headCol = context.isDark ? Colors.white : Colors.black;
+    final subCol  = context.isDark ? Colors.white60 : Colors.grey.shade600;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: context.cardBgColor, borderRadius: BorderRadius.circular(16),
-        boxShadow: context.isDark ? null
-            : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        color: cardBg, borderRadius: BorderRadius.circular(22),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('${_filterIdx < _filters.length ? _filters[_filterIdx] : _filters.last} Overview',
           style: TextStyle(
-            color: context.textColor, fontSize: 15, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 14),
+            color: headCol, fontSize: 15, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 16),
         Row(children: [
           _overviewStat(context, Icons.local_fire_department_rounded,
             '$_totalKcal', 'Total kcal', Colors.orange),
           _vSep(context),
           _overviewStat(context, Icons.timer_rounded, tStr, 'Total time', _accent(context)),
           _vSep(context),
-          _overviewStat(context, Icons.calendar_today_rounded,
+          _overviewStat(context, Icons.event_available_rounded,
             '$_activeDays', 'Active days', _gymColor),
         ]),
       ]),
     );
   }
 
-  Widget _overviewStat(BuildContext context, IconData icon, String value, String label, Color color) =>
+  Widget _overviewStat(BuildContext context, IconData icon, String value,
+      String label, Color color) =>
     Expanded(child: Column(children: [
-      Icon(icon, color: color, size: 18),
-      const SizedBox(height: 6),
+      Container(
+        width: 36, height: 36,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+        child: Icon(icon, color: color, size: 18),
+      ),
+      const SizedBox(height: 8),
       Text(value, style: TextStyle(
         color: context.textColor, fontSize: 17, fontWeight: FontWeight.bold)),
       Text(label, style: TextStyle(color: context.subtextColor, fontSize: 10)),
     ]));
 
   Widget _vSep(BuildContext context) => Container(
-    width: 1, height: 40,
+    width: 1, height: 50,
     color: context.isDark ? Colors.grey[800] : Colors.grey[300]);
 
   Widget _buildDivider(BuildContext context, String label) => Row(children: [
@@ -611,7 +651,7 @@ class _StripePainter extends CustomPainter {
     canvas.drawRect(Offset.zero & size,
       Paint()..color = const Color(0xFFB8CC00));
     final p = Paint()
-      ..color = const Color(0xFFCCE600)
+      ..color = Colors.white.withOpacity(0.45)
       ..strokeWidth = 5
       ..style = PaintingStyle.stroke;
     const spacing = 10.0;
