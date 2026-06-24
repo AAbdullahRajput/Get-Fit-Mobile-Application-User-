@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/newsfeed/newsfeed_page.dart';
 
@@ -10,31 +11,39 @@ class YogaFeedCard extends StatefulWidget {
 }
 
 class _YogaFeedCardState extends State<YogaFeedCard> {
-  List<Map<String, dynamic>> _feedItems = [
-    {
-      'id': 1,
-      'title': 'Workout of the Day (WOD)',
-      'description': 'Quick reels or carousels showing daily workout routines.',
-      'image': null,
-    },
-    {
-      'id': 2,
-      'title': 'Yoga for Beginners',
-      'description': 'Essential poses to start your yoga journey.',
-      'image': null,
-    },
-    {
-      'id': 3,
-      'title': 'Meditation Tips',
-      'description': 'Learn how to calm your mind in 5 minutes.',
-      'image': null,
-    },
-  ];
+  List<Map<String, dynamic>> _feedItems = [];
+  bool _isLoading = true;
 
-  void _removeFeedItem(int id) {
-    setState(() {
-      _feedItems.removeWhere((item) => item['id'] == id);
-    });
+  @override
+  void initState() {
+    super.initState();
+    _loadFeed();
+  }
+
+  Future<void> _loadFeed() async {
+    setState(() => _isLoading = true);
+    final data = await SupabaseService.getUserFeedClasses();
+    if (mounted) {
+      setState(() {
+        _feedItems = data;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _removeItem(String classId) async {
+    try {
+      await SupabaseService.removeClassFromFeed(classId);
+      setState(() {
+        _feedItems.removeWhere((item) => item['class_id'] == classId);
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to remove. Try again.')),
+        );
+      }
+    }
   }
 
   @override
@@ -42,11 +51,12 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'News Feed',
+              'My Classes Feed',
               style: TextStyle(
                 color: context.textColor,
                 fontSize: 18,
@@ -54,14 +64,11 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
               ),
             ),
             IconButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const NewsfeedPage(),
-                  ),
-                );
-              },
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const NewsfeedPage()),
+              ),
               icon: Icon(
                 Icons.add_circle_outline_rounded,
                 color: context.textColor,
@@ -71,131 +78,223 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
           ],
         ),
         const SizedBox(height: 12),
-        if (_feedItems.isEmpty)
+
+        // Loading
+        if (_isLoading)
+          _buildSkeleton(context)
+
+        // Empty state
+        else if (_feedItems.isEmpty)
           Container(
-            padding: const EdgeInsets.all(20),
-            alignment: Alignment.center,
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
             decoration: BoxDecoration(
               color: context.cardBgColor,
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: themeColor.withOpacity(0.2)),
             ),
             child: Column(
               children: [
-                Icon(
-                  Icons.feed_outlined,
-                  size: 48,
-                  color: context.subtextColor,
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: themeColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.play_lesson_outlined,
+                      color: themeColor, size: 32),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
-                  'No feed items',
+                  'No classes in your feed yet',
+                  style: TextStyle(
+                    color: context.textColor,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Book an instructor and add their classes\nto see them here.',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: context.subtextColor,
-                    fontSize: 14,
+                    fontSize: 12,
+                    height: 1.5,
                   ),
                 ),
               ],
             ),
           )
+
+        // Feed items
         else
           ..._feedItems.map((item) {
+            final cls = item['instructor_paid_classes'] as Map<String, dynamic>?;
+            final instructor = item['yoga_instructors'] as Map<String, dynamic>?;
+            final classId = item['class_id'] as String;
+            final title = cls?['title'] ?? '';
+            final description = cls?['description'] ?? '';
+            final imageUrl = cls?['image_url'] ?? '';
+            final level = cls?['level'] ?? '';
+            final duration = cls?['duration_minutes']?.toString() ?? '';
+            final classType = cls?['class_type'] ?? 'guide';
+            final instructorName = instructor?['name'] ?? '';
+            final instructorSpecialty = instructor?['specialty'] ?? '';
+            final instructorImage = instructor?['image_url'] ?? '';
+
             return Container(
-              margin: const EdgeInsets.only(bottom: 12),
+              margin: const EdgeInsets.only(bottom: 14),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
                 color: context.cardBgColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: themeColor.withOpacity(0.15)),
               ),
               child: Stack(
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Image Section - No Expanded
-                      Container(
-                        width: double.infinity,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: context.isDark
-                              ? const Color(0xff3a3a3a)
-                              : Colors.grey[200],
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                            topRight: Radius.circular(16),
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.image_outlined,
-                          size: 40,
-                          color: context.isDark ? themeColor : Colors.grey,
-                        ),
+                      // Image
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16)),
+                        child: imageUrl.isNotEmpty
+                            ? Image.network(
+                                imageUrl,
+                                height: 160,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    _imageFallback(context),
+                              )
+                            : _imageFallback(context),
                       ),
-                      // Content Section
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: context.isDark
-                              ? const Color(0xff2f2f2f)
-                              : const Color(0xff2a2a2a),
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(16),
-                            bottomRight: Radius.circular(16),
-                          ),
-                        ),
+
+                      // Badges row over image bottom
+                      Padding(
+                        padding:
+                            const EdgeInsets.fromLTRB(12, 10, 12, 0),
                         child: Row(
                           children: [
+                            _badge(level, themeColor),
+                            const SizedBox(width: 6),
+                            _badge(classType, Colors.white24,
+                                textColor: context.subtextColor),
+                            const Spacer(),
+                            Icon(Icons.timer_outlined,
+                                color: context.subtextColor, size: 13),
+                            const SizedBox(width: 3),
+                            Text('$duration min',
+                                style: TextStyle(
+                                    color: context.subtextColor,
+                                    fontSize: 11)),
+                          ],
+                        ),
+                      ),
+
+                      // Title + description
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 44, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: TextStyle(
+                                color: context.textColor,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (description.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                description,
+                                style: TextStyle(
+                                  color: context.subtextColor,
+                                  fontSize: 12,
+                                  height: 1.4,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+
+                      // Instructor row
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: themeColor,
+                              backgroundImage: instructorImage.isNotEmpty
+                                  ? NetworkImage(instructorImage)
+                                  : null,
+                              child: instructorImage.isEmpty
+                                  ? const Icon(Icons.person,
+                                      color: Colors.black, size: 14)
+                                  : null,
+                            ),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    item['title'],
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
+                                    instructorName,
+                                    style: TextStyle(
+                                      color: context.textColor,
+                                      fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
                                   Text(
-                                    item['description'],
-                                    style: const TextStyle(
+                                    instructorSpecialty,
+                                    style: TextStyle(
+                                      color: context.subtextColor,
                                       fontSize: 10,
-                                      color: Colors.white70,
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),
                             ),
-                            Icon(
-                              Icons.arrow_circle_right_sharp,
-                              color: themeColor,
-                              size: 32,
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: themeColor.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: themeColor,
+                                  size: 18),
                             ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  // Remove Button
+
+                  // Remove button
                   Positioned(
-                    top: 4,
-                    right: 4,
+                    top: 8,
+                    right: 8,
                     child: GestureDetector(
-                      onTap: () => _removeFeedItem(item['id']),
+                      onTap: () => _removeItem(classId),
                       child: Container(
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
+                          color: Colors.black.withOpacity(0.55),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 16,
-                        ),
+                        child: const Icon(Icons.close,
+                            color: Colors.white, size: 15),
                       ),
                     ),
                   ),
@@ -206,4 +305,85 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
       ],
     );
   }
+
+  Widget _imageFallback(BuildContext context) {
+    return Container(
+      height: 160,
+      color:
+          context.isDark ? const Color(0xff3a3a3a) : Colors.grey[200],
+      child: Icon(Icons.play_circle_outline,
+          color: context.subtextColor, size: 48),
+    );
+  }
+
+  Widget _badge(String label, Color bgColor,
+      {Color textColor = Colors.black}) {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+            color: textColor,
+            fontSize: 10,
+            fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildSkeleton(BuildContext context) {
+    return Column(
+      children: List.generate(
+        2,
+        (_) => _ShimmerWidget(
+          child: Container(
+            height: 240,
+            margin: const EdgeInsets.only(bottom: 14),
+            decoration: BoxDecoration(
+              color: context.isDark
+                  ? const Color(0xff3a3a3a)
+                  : Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShimmerWidget extends StatefulWidget {
+  final Widget child;
+  const _ShimmerWidget({required this.child});
+  @override
+  State<_ShimmerWidget> createState() => _ShimmerWidgetState();
+}
+
+class _ShimmerWidgetState extends State<_ShimmerWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 1200))
+      ..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
+        CurvedAnimation(
+            parent: _controller, curve: Curves.easeInOut));
+  }
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) =>
+      FadeTransition(opacity: _animation, child: widget.child);
 }
