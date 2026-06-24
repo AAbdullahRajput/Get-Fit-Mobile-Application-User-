@@ -1675,5 +1675,26 @@ class SupabaseService {
       return null;
     }
   }
+
+  static Future<void> deleteInstructorClassLog({
+    required String classId,
+    required String date,
+  }) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return;
+      debugPrint('\x1B[33m[API] DELETE instructor_class_logs | class: $classId | date: $date\x1B[0m');
+      await client
+          .from('instructor_class_logs')
+          .delete()
+          .eq('user_id', userId)
+          .eq('class_id', classId)
+          .eq('scheduled_date', date);
+      debugPrint('\x1B[32m[API] 200 OK | Class log deleted\x1B[0m');
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | deleteInstructorClassLog | $e\x1B[0m');
+      rethrow;
+    }
+  }
   
 }
