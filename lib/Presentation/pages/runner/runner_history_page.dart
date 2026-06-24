@@ -677,8 +677,8 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
             child: Icon(icon, color: color, size: 15),
           ),
           const SizedBox(width: 8),
-          Text(title, style: const TextStyle(
-            color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold)),
+          Text(title, style: TextStyle(
+            color: context.textColor, fontSize: 13, fontWeight: FontWeight.bold)),
         ]),
         const SizedBox(height: 8),
         ...rows,
@@ -747,7 +747,8 @@ class _RoundRow extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+              color: context.isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade100,
+
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withOpacity(0.2)),
       ),
@@ -763,15 +764,15 @@ class _RoundRow extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         Expanded(child: Text(label ?? 'Round $index',
-          style: const TextStyle(
-            color: Colors.black, fontSize: 12, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: context.textColor, fontSize: 12, fontWeight: FontWeight.w600),
           overflow: TextOverflow.ellipsis)),
         Row(children: [
           const Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 13),
           const SizedBox(width: 3),
           Text('$kcal kcal',
-            style: const TextStyle(
-              color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold)),
+            style: TextStyle(
+              color: context.textColor, fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(width: 12),
           Icon(Icons.timer_rounded, color: color, size: 13),
           const SizedBox(width: 3),
@@ -978,7 +979,8 @@ class _GymExerciseBlock extends StatelessWidget {
     margin: const EdgeInsets.only(bottom: 10),
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: Colors.grey.shade100,
+            color: context.isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade100,
+
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: color.withOpacity(0.2)),
     ),
@@ -993,14 +995,14 @@ class _GymExerciseBlock extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(child: Text(title,
-          style: const TextStyle(
-            color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold))),
+          style: TextStyle(
+            color: context.textColor, fontSize: 13, fontWeight: FontWeight.bold))),
         Row(children: [
           const Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 13),
           const SizedBox(width: 3),
           Text('$totalKcal kcal',
-            style: const TextStyle(
-              color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold)),
+            style: TextStyle(
+              color: context.textColor, fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(width: 10),
           Icon(Icons.timer_rounded, color: color, size: 13),
           const SizedBox(width: 3),
@@ -1031,7 +1033,7 @@ class _GymExerciseBlock extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text('Set $setNum  •  $reps reps',
-                style: const TextStyle(color: Colors.black54, fontSize: 11)),
+                style: TextStyle(color: context.subtextColor, fontSize: 11)),
               const Spacer(),
               Text('$kcal kcal',
                 style: const TextStyle(
