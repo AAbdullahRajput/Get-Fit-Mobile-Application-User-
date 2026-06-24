@@ -3,6 +3,10 @@ import 'package:get_fit/Presentation/pages/gym/gym_exercises/arms/arms_exercise_
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class ArmsExercisesScreen extends StatefulWidget {
   const ArmsExercisesScreen({super.key});
 
@@ -80,8 +84,8 @@ class _ArmsExercisesScreenState extends State<ArmsExercisesScreen> {
         centerTitle: false,
       ),
       body: RefreshIndicator(
-        color: themeColor,
-        backgroundColor: context.cardBgColor,
+        color: _accent(context),
+backgroundColor: context.cardBgColor,
         displacement: 100,
         onRefresh: _onRefresh,
         child: _isLoading ? _buildSkeleton(context) : _buildList(context),
@@ -117,20 +121,20 @@ class _ArmsExercisesScreenState extends State<ArmsExercisesScreen> {
                   OutlinedButton(
                     onPressed: _loadMore,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: themeColor,
-                      side: const BorderSide(color: themeColor),
+                      foregroundColor: _accent(context),
+                      side: BorderSide(color: _accent(context)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       minimumSize: const Size(double.infinity, 0),
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.expand_more, size: 18),
-                        SizedBox(width: 6),
-                        Text('Show More', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.expand_more, size: 18),
+                          SizedBox(width: 6),
+                          Text('Show More', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
                   ),
                 if (_hasMore && _hasLess) const SizedBox(height: 8),
                 if (!_isLoadingMore && _hasLess)
@@ -186,7 +190,7 @@ class _ArmsExercisesScreenState extends State<ArmsExercisesScreen> {
                         errorBuilder: (context, error, stack) => Container(
                           color: context.cardBgColor,
                           child: Icon(Icons.fitness_center,
-                              color: context.isDark ? themeColor : Colors.black, size: 48),
+                              color: _accent(context), size: 48),
                         ),
                       ),
                     ),

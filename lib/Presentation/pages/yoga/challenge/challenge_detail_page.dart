@@ -4,6 +4,13 @@ import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/yoga/challenge/success_page.dart';
 
+// Darker accent used in LIGHT mode wherever themeColor would otherwise be
+// used as TEXT/ICON color directly on a light background (low contrast).
+// In DARK mode this returns themeColor, unchanged from before.
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class ChallengeDetailPage extends StatefulWidget {
   final Map<String, dynamic> exercise;
   final Map<String, dynamic> challenge;
@@ -97,6 +104,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
 
   void _showSuccessDialog({required bool markedEarly}) {
     if (!mounted) return;
+    final accent = _accent(context);
     final calories = markedEarly ? _caloriesSoFar : _caloriesFull;
     final muscles = (widget.exercise['muscle_groups'] as List?)
             ?.map((m) => m.toString())
@@ -117,10 +125,10 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.12),
+                  color: themeColor.withOpacity(context.isDark ? 0.12 : 0.16),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_circle, color: themeColor, size: 56),
+                child: Icon(Icons.check_circle, color: accent, size: 56),
               ),
               const SizedBox(height: 16),
               Text(
@@ -134,7 +142,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
               const SizedBox(height: 8),
               Text(
                 widget.exercise['title'] ?? '',
-                style: TextStyle(color: themeColor, fontSize: 15, fontWeight: FontWeight.w600),
+                style: TextStyle(color: accent, fontSize: 15, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 16),
               // Stats row
@@ -142,7 +150,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _dialogStat(Icons.local_fire_department, '$calories', 'kcal', Colors.orange),
-                  _dialogStat(Icons.timer, _formatTime(_secondsElapsed), 'time', themeColor),
+                  _dialogStat(Icons.timer, _formatTime(_secondsElapsed), 'time', accent),
                   if (muscles.isNotEmpty)
                     _dialogStat(Icons.fitness_center, muscles.split(',').length.toString(), 'muscles', Colors.blue),
                 ],
@@ -155,18 +163,27 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                     color: Colors.blue.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
-                    '💪 Worked: $muscles',
-                    style: TextStyle(color: context.subtextColor, fontSize: 12),
-                    textAlign: TextAlign.center,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.fitness_center, size: 14, color: context.subtextColor),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Worked: $muscles',
+                          style: TextStyle(color: context.subtextColor, fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
               const SizedBox(height: 8),
               Text(
                 markedEarly
-                    ? 'Great effort! Every rep counts. 🔥'
-                    : 'Full session completed! Incredible work! 🏆',
+                    ? 'Great effort! Every rep counts.'
+                    : 'Full session completed! Incredible work!',
                 style: TextStyle(color: context.subtextColor, fontSize: 13),
                 textAlign: TextAlign.center,
               ),
@@ -227,13 +244,15 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final accent = _accent(context);
+
     return Scaffold(
       backgroundColor: context.bgColor,
       appBar: AppBar(
         centerTitle: true,
         title: Text(
           widget.roundTitle,
-          style: TextStyle(color: themeColor, fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(color: accent, fontSize: 18, fontWeight: FontWeight.bold),
         ),
         backgroundColor: context.bgColor,
         elevation: 0,
@@ -258,7 +277,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                 errorBuilder: (_, __, ___) => Container(
                   height: 220,
                   color: context.cardBgColor,
-                  child: Icon(Icons.fitness_center, color: themeColor, size: 80),
+                  child: Icon(Icons.fitness_center, color: accent, size: 80),
                 ),
               ),
             ),
@@ -278,12 +297,12 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: themeColor.withOpacity(0.15),
+                color: themeColor.withOpacity(context.isDark ? 0.15 : 0.18),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 widget.exercise['level'] ?? '',
-                style: TextStyle(color: themeColor, fontSize: 12, fontWeight: FontWeight.bold),
+                style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ),
 
@@ -308,9 +327,16 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
 
             // Live calories counter
             if (_isStarted)
-              Text(
-                '🔥 $_caloriesSoFar kcal burned so far',
-                style: TextStyle(color: Colors.orange, fontSize: 14, fontWeight: FontWeight.w600),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$_caloriesSoFar kcal burned so far',
+                    style: const TextStyle(color: Colors.orange, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ],
               ),
 
             const SizedBox(height: 24),
@@ -322,6 +348,15 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
               decoration: BoxDecoration(
                 color: context.cardBgColor,
                 borderRadius: BorderRadius.circular(16),
+                boxShadow: context.isDark
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,7 +364,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                   Text(
                     'How to do it',
                     style: TextStyle(
-                      color: themeColor,
+                      color: accent,
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
@@ -353,13 +388,22 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                 decoration: BoxDecoration(
                   color: context.cardBgColor,
                   borderRadius: BorderRadius.circular(16),
+                  boxShadow: context.isDark
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Muscles Worked',
-                      style: TextStyle(color: themeColor, fontSize: 15, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: accent, fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 10),
                     Wrap(
@@ -369,13 +413,13 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                           .map((m) => Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: themeColor.withOpacity(0.12),
+                                  color: themeColor.withOpacity(context.isDark ? 0.12 : 0.16),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
                                   m.toString(),
                                   style: TextStyle(
-                                      color: themeColor, fontSize: 12, fontWeight: FontWeight.w600),
+                                      color: accent, fontSize: 12, fontWeight: FontWeight.w600),
                                 ),
                               ))
                           .toList(),
@@ -435,16 +479,16 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.12),
+                  color: themeColor.withOpacity(context.isDark ? 0.12 : 0.16),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: themeColor.withOpacity(0.4)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.check_circle, color: themeColor),
+                    Icon(Icons.check_circle, color: accent),
                     const SizedBox(width: 8),
-                    Text('Completed!', style: TextStyle(color: themeColor, fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text('Completed!', style: TextStyle(color: accent, fontSize: 16, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -458,6 +502,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
 
   Widget _buildTimerCircle() {
     final remaining = _secondsRemaining;
+    final accent = _accent(context);
     return SizedBox(
       width: 160,
       height: 160,
@@ -472,7 +517,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
               strokeWidth: 10,
               backgroundColor: context.cardBgColor,
               valueColor: AlwaysStoppedAnimation<Color>(
-                _timerFinished ? Colors.green : themeColor,
+                _timerFinished ? Colors.green : accent,
               ),
             ),
           ),
@@ -501,9 +546,10 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
   }
 
   Widget _buildInfoChip(IconData icon, String value, String label) {
+    final accent = _accent(context);
     return Column(
       children: [
-        Icon(icon, color: themeColor, size: 22),
+        Icon(icon, color: accent, size: 22),
         const SizedBox(height: 4),
         Text(value, style: TextStyle(color: context.textColor, fontSize: 14, fontWeight: FontWeight.bold)),
         Text(label, style: TextStyle(color: context.subtextColor, fontSize: 11)),

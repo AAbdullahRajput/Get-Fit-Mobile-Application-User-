@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class BackExerciseDetail extends StatefulWidget {
   final Map<String, dynamic> exercise;
   const BackExerciseDetail({super.key, required this.exercise});
@@ -103,7 +107,7 @@ class _BackExerciseDetailState extends State<BackExerciseDetail> {
                           fit: BoxFit.fill,
                           errorBuilder: (context, error, stack) => Container(
                             color: context.cardBgColor,
-                            child: Icon(Icons.fitness_center, color: themeColor, size: 64),
+                            child: Icon(Icons.fitness_center, color: _accent(context), size: 64),
                           ),
                         ),
                         Positioned.fill(
@@ -197,7 +201,7 @@ class _BackExerciseDetailState extends State<BackExerciseDetail> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.play_circle_filled, size: 64, color: themeColor),
+                                Icon(Icons.play_circle_filled, size: 64, color: _accent(context)),
                                 const SizedBox(height: 8),
                                 Text('Tap to play video', style: TextStyle(color: context.subtextColor, fontSize: 14)),
                               ],
@@ -239,11 +243,11 @@ class _BackExerciseDetailState extends State<BackExerciseDetail> {
                               height: 56,
                               decoration: BoxDecoration(color: context.cardBgColor, borderRadius: BorderRadius.circular(12)),
                               child: _isLoading
-                                  ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: themeColor)))
+                                  ? Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _accent(context))))
                                   : IconButton(
                                       icon: Icon(
                                         _isFavorite ? Icons.favorite : Icons.favorite_border,
-                                        color: _isFavorite ? themeColor : context.textColor,
+                                        color: _isFavorite ? _accent(context) : context.textColor,
                                         size: 28,
                                       ),
                                       onPressed: _isToggling ? null : _toggleFavorite,

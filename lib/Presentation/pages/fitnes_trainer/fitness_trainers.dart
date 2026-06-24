@@ -3,6 +3,10 @@ import 'package:get_fit/Presentation/pages/fitnes_trainer/fitness_tainer_detail_
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class FitnessTrainers extends StatefulWidget {
   const FitnessTrainers({super.key});
 
@@ -138,7 +142,7 @@ class _FitnessTrainersState extends State<FitnessTrainers> {
                   width: 28,
                   height: 28,
                   child: CircularProgressIndicator(
-                    color: themeColor,
+                    color: _accent(context),
                     strokeWidth: 2.5,
                   ),
                 ),
@@ -192,7 +196,7 @@ class _FitnessTrainersState extends State<FitnessTrainers> {
               Text(trainer['training_type'] ?? '',
                   style: TextStyle(color: context.subtextColor, fontSize: 14)),
               Text('${trainer['experience']} experience',
-                  style: TextStyle(color: themeColor, fontSize: 13)),
+              style: TextStyle(color: _accent(context), fontSize: 13)),
             ],
           ),
           trailing: Column(

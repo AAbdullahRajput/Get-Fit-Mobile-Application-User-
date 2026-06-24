@@ -4,6 +4,10 @@ import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/payment/edit_card_page.dart';
 import 'package:get_fit/Presentation/pages/booking/booking_confirmation_page.dart';
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class AppointmentPaymentPage extends StatefulWidget {
   final String trainerId;
   final String trainerName;
@@ -172,7 +176,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                   ),
                   const SizedBox(width: 8),
                   Text('Payment',
-                      style: TextStyle(color: themeColor, fontSize: 22, fontWeight: FontWeight.bold)),
+    style: TextStyle(color: _accent(context), fontSize: 22, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -190,7 +194,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
 
                     // Card selector
                     _loadingCards
-                        ? const Center(child: CircularProgressIndicator(color: themeColor))
+                        ? Center(child: CircularProgressIndicator(color: _accent(context)))
                         :
                     SizedBox(
                       height: 140,

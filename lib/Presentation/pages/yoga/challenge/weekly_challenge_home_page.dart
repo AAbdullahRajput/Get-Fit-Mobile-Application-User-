@@ -3,6 +3,13 @@ import 'package:get_fit/Presentation/pages/yoga/challenge/challenge_detail_page.
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
+// Darker accent used in LIGHT mode wherever themeColor would otherwise be
+// used as TEXT/ICON color directly on a light background (low contrast).
+// In DARK mode this returns themeColor, unchanged from before.
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class WeeklyChallengeHomePage extends StatefulWidget {
   const WeeklyChallengeHomePage({super.key});
 
@@ -94,7 +101,7 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
         title: Text(
           'Weekly Challenge',
           style: TextStyle(
-            color: themeColor,
+            color: _accent(context),
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
@@ -107,11 +114,11 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: themeColor))
+          ? Center(child: CircularProgressIndicator(color: _accent(context)))
           : _challenge == null
               ? _buildNoChallenge()
               : RefreshIndicator(
-                  color: themeColor,
+                  color: _accent(context),
                   backgroundColor: context.cardBgColor,
                   onRefresh: _load,
                   child: SingleChildScrollView(
@@ -139,6 +146,8 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
   }
 
   Widget _buildBanner() {
+    // Banner sits on top of a dark image with darkening overlay,
+    // so themeColor/white stay as-is in both themes — already readable.
     return Container(
       height: 460,
       width: double.infinity,
@@ -192,6 +201,7 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
       child: Row(
         children: [
           Container(
+            // Solid themeColor pill with BLACK text — fine in both themes.
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             decoration: BoxDecoration(
               color: themeColor,
@@ -249,7 +259,7 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
         children: [
           _buildStatChip(Icons.local_fire_department_rounded, '$_todayCalories kcal', Colors.orange),
           const SizedBox(width: 10),
-          _buildStatChip(Icons.access_time_rounded, '$completed/$total done', themeColor),
+          _buildStatChip(Icons.access_time_rounded, '$completed/$total done', _accent(context)),
           const SizedBox(width: 10),
           _buildStatChip(Icons.directions_run_rounded, '${_rounds.length} rounds', Colors.blue),
         ],
@@ -261,7 +271,7 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withOpacity(context.isDark ? 0.12 : 0.14),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -286,6 +296,7 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
     final exercises = _exercisesByRound[round['id']] ?? [];
     final doneInRound = exercises.where((e) => _completedIds.contains(e['id'])).length;
     final allDone = doneInRound == exercises.length && exercises.isNotEmpty;
+    final accent = _accent(context);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -302,16 +313,16 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
                     Row(
                       children: [
                         if (allDone)
-                          const Padding(
-                            padding: EdgeInsets.only(right: 6),
-                            child: Icon(Icons.check_circle_rounded, color: themeColor, size: 18),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Icon(Icons.check_circle_rounded, color: accent, size: 18),
                           ),
                         Expanded(
                           child: Text(
                             round['title'] ?? '',
                             style: TextStyle(
                               fontSize: 17,
-                              color: allDone ? themeColor : context.textColor,
+                              color: allDone ? accent : context.textColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -334,14 +345,14 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: allDone
-                      ? themeColor.withOpacity(0.15)
+                      ? themeColor.withOpacity(context.isDark ? 0.15 : 0.18)
                       : context.cardBgColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '$doneInRound/${exercises.length}',
                   style: TextStyle(
-                    color: allDone ? themeColor : context.subtextColor,
+                    color: allDone ? accent : context.subtextColor,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -365,6 +376,7 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
     final timeStr = mins > 0
         ? (secs > 0 ? '${mins}m ${secs}s' : '${mins}m')
         : '${secs}s';
+    final accent = _accent(context);
 
     return GestureDetector(
       onTap: () async {
@@ -386,12 +398,21 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
           color: isDone
-              ? themeColor.withOpacity(0.07)
+              ? themeColor.withOpacity(context.isDark ? 0.07 : 0.10)
               : context.cardBgColor,
           borderRadius: BorderRadius.circular(16),
           border: isDone
               ? Border.all(color: themeColor.withOpacity(0.25), width: 1)
               : Border.all(color: Colors.transparent),
+          boxShadow: context.isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
         child: Row(
           children: [
@@ -417,6 +438,7 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
                   ),
                 ),
                 if (isDone)
+                  // Dark overlay + themeColor check — already high-contrast in both themes.
                   Positioned.fill(
                     child: Container(
                       decoration: BoxDecoration(
@@ -458,13 +480,13 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: themeColor.withOpacity(0.13),
+                          color: themeColor.withOpacity(context.isDark ? 0.13 : 0.16),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           exercise['level'] ?? '',
                           style: TextStyle(
-                            color: themeColor,
+                            color: accent,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
@@ -485,10 +507,10 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
             const SizedBox(width: 8),
             // Action icon
             isDone
-                ? const Icon(Icons.check_circle_rounded, color: themeColor, size: 28)
+                ? Icon(Icons.check_circle_rounded, color: accent, size: 28)
                 : Icon(
                     Icons.play_circle_filled_rounded,
-                    color: themeColor,
+                    color: accent,
                     size: 32,
                   ),
           ],
@@ -498,6 +520,7 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
   }
 
   Widget _buildRestDay() {
+    final accent = _accent(context);
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -505,10 +528,10 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: themeColor.withOpacity(0.1),
+              color: themeColor.withOpacity(context.isDark ? 0.1 : 0.14),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.self_improvement_rounded, color: themeColor, size: 56),
+            child: Icon(Icons.self_improvement_rounded, color: accent, size: 56),
           ),
           const SizedBox(height: 16),
           Text(

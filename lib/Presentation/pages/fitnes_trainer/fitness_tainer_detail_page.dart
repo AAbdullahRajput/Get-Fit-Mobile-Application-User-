@@ -5,6 +5,10 @@ import 'package:get_fit/Presentation/widgets/reuseable_button.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class FitnessTrainerDetailPage extends StatefulWidget {
   final Map<String, dynamic> trainer;
 
@@ -85,9 +89,10 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                 ),
               ),
               const SizedBox(height: 4),
+              // Trainer name in sheet — always on dark sheet bg, themeColor fine as-is
               Text(
                 widget.trainer['name'] ?? '',
-                style: TextStyle(color: themeColor, fontSize: 14),
+                style: const TextStyle(color: themeColor, fontSize: 14),
               ),
               const SizedBox(height: 20),
 
@@ -100,6 +105,7 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                     onTap: () => setSheetState(() => _rating = i + 1.0),
                     child: Icon(
                       i < _rating ? Icons.star : Icons.star_border,
+                      // Stars on dark sheet bg — themeColor fine as-is
                       color: themeColor,
                       size: 36,
                     ),
@@ -197,7 +203,6 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
       backgroundColor: context.bgColor,
       body: Stack(
         children: [
-          // Full page scroll
           RefreshIndicator(
             color: context.subtextColor,
             backgroundColor: context.cardBgColor,
@@ -207,8 +212,6 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
               physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 children: [
-                  // Hero image with overlaid name
-                  // Title bar
                   SafeArea(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -225,10 +228,11 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                             child: const Icon(Icons.arrow_back, color: Colors.white),
                           ),
                           const SizedBox(width: 8),
-                          const Text(
+                          Text(
                             'Fitness Trainers',
                             style: TextStyle(
-                              color: themeColor,
+                              // Title on scaffold bg → accent
+                              color: _accent(context),
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
@@ -238,10 +242,9 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                     ),
                   ),
 
-                  // Image below title
                   SizedBox(
                     width: double.infinity,
-                    height: 320,
+                    height: 450,
                     child: Image.network(
                       trainer['bg_image_url'] ?? '',
                       fit: BoxFit.cover,
@@ -253,7 +256,6 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                     ),
                   ),
 
-                  // Content below image
                   Container(
                     width: double.infinity,
                     constraints: BoxConstraints(
@@ -279,78 +281,79 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
 
   Widget _buildContent(BuildContext context, Map<String, dynamic> trainer) {
     final previewReviews = _reviews.take(2).toList();
+    final accent = _accent(context);
 
-    // Name + phone row
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    trainer['name'] ?? '',
-                    style: const TextStyle(
-                        color: themeColor,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    trainer['training_type'] ?? '',
-                    style: TextStyle(color: context.subtextColor, fontSize: 16),
-                  ),
-                ],
+    // Name + phone row (dead code block from original — preserved as-is)
+    Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                trainer['name'] ?? '',
+                style: TextStyle(
+                    color: accent,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold),
               ),
-            ),
-            if (trainer['phone_number'] != null && trainer['phone_number'].toString().isNotEmpty)
-              GestureDetector(
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      backgroundColor: const Color(0xFF2C2C2C),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      title: const Icon(Icons.phone, color: themeColor, size: 40),
-                      content: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Text(trainer['name'] ?? '',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                        const SizedBox(height: 8),
-                        Text(trainer['phone_number'],
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.5)),
-                      ]),
-                      actionsAlignment: MainAxisAlignment.center,
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                            decoration: BoxDecoration(
-                                color: themeColor, borderRadius: BorderRadius.circular(10)),
-                            child: const Text('OK',
-                                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      ],
+              const SizedBox(height: 4),
+              Text(
+                trainer['training_type'] ?? '',
+                style: TextStyle(color: context.subtextColor, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+        if (trainer['phone_number'] != null && trainer['phone_number'].toString().isNotEmpty)
+          GestureDetector(
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  backgroundColor: const Color(0xFF2C2C2C),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: const Icon(Icons.phone, color: themeColor, size: 40),
+                  content: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(trainer['name'] ?? '',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    Text(trainer['phone_number'],
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5)),
+                  ]),
+                  actionsAlignment: MainAxisAlignment.center,
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                        decoration: BoxDecoration(
+                            color: themeColor, borderRadius: BorderRadius.circular(10)),
+                        child: const Text('OK',
+                            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                      ),
                     ),
-                  );
-                },
-                child: CircleAvatar(
-                  radius: 22,
-                  backgroundColor: themeColor,
-                  child: const Icon(Icons.phone, color: Colors.black, size: 20),
+                  ],
                 ),
-              ),
-          ],
-        );
-        const SizedBox(height: 12);
+              );
+            },
+            child: CircleAvatar(
+              radius: 22,
+              backgroundColor: themeColor,
+              child: const Icon(Icons.phone, color: Colors.black, size: 20),
+            ),
+          ),
+      ],
+    );
+    const SizedBox(height: 12);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,8 +369,9 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                 children: [
                   Text(
                     trainer['name'] ?? '',
-                    style: const TextStyle(
-                        color: themeColor,
+                    // Trainer name on scaffold/card bg → accent
+                    style: TextStyle(
+                        color: accent,
                         fontSize: 24,
                         fontWeight: FontWeight.bold),
                   ),
@@ -386,6 +390,7 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                   showDialog(
                     context: context,
                     builder: (_) => AlertDialog(
+                      // Phone dialog always has dark bg — themeColor fine as-is
                       backgroundColor: const Color(0xFF2C2C2C),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16)),
@@ -463,7 +468,6 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
         const SizedBox(height: 16),
 
         // Reviews header
-        // Reviews header — Figma style
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -479,7 +483,7 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                 ),
                 Row(
                   children: [
-                    // Correct avg rating from reviews
+                    // Rating badge: themeColor bg + black text — fine as-is
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
@@ -526,6 +530,7 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                             ),
                             child: CircleAvatar(
                               radius: 16,
+                              // Avatar bg: themeColor bg + black icon — fine as-is
                               backgroundColor: themeColor,
                               backgroundImage: (r['avatar_url'] ?? '').toString().isNotEmpty
                                   ? NetworkImage(r['avatar_url'])
@@ -629,6 +634,7 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
   Widget _buildReviewCard(BuildContext context, Map<String, dynamic> r) {
     final isMyReview = r['user_id'] == SupabaseService.currentUser?.id;
     final trainer = widget.trainer;
+    final accent = _accent(context);
     return GestureDetector(
       onTap: () async {
         await Navigator.push(
@@ -645,88 +651,91 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
         _loadData();
       },
       child: Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: context.cardBgColor,
-        borderRadius: BorderRadius.circular(14),
-        border: isMyReview
-            ? Border.all(color: themeColor.withOpacity(0.5), width: 1.5)
-            : null,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: themeColor,
-                backgroundImage: (r['avatar_url'] ?? '').toString().isNotEmpty
-                    ? NetworkImage(r['avatar_url'])
-                    : null,
-                child: (r['avatar_url'] ?? '').toString().isEmpty
-                    ? const Icon(Icons.person, color: Colors.black, size: 18)
-                    : null,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          isMyReview ? 'You' : (r['username'] ?? 'User'),
-                          style: TextStyle(
-                              color: context.textColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14),
-                        ),
-                        if (isMyReview) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: themeColor,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text('Your review',
-                                style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ],
-                    ),
-                    Row(
-                      children: List.generate(5, (i) => Icon(
-                        i < (r['rating'] as num).toInt()
-                            ? Icons.star
-                            : Icons.star_border,
-                        color: themeColor,
-                        size: 14,
-                      )),
-                    ),
-                  ],
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: context.cardBgColor,
+          borderRadius: BorderRadius.circular(14),
+          border: isMyReview
+              ? Border.all(color: themeColor.withOpacity(0.5), width: 1.5)
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  // Avatar bg: themeColor bg + black icon — fine as-is
+                  backgroundColor: themeColor,
+                  backgroundImage: (r['avatar_url'] ?? '').toString().isNotEmpty
+                      ? NetworkImage(r['avatar_url'])
+                      : null,
+                  child: (r['avatar_url'] ?? '').toString().isEmpty
+                      ? const Icon(Icons.person, color: Colors.black, size: 18)
+                      : null,
                 ),
-              ),
-              Text(
-                _formatDate(r['created_at']),
-                style: TextStyle(color: context.subtextColor, fontSize: 11),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            r['review_text'] ?? '',
-            style: TextStyle(color: context.subtextColor, fontSize: 14, height: 1.4),
-          ),
-        ],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            isMyReview ? 'You' : (r['username'] ?? 'User'),
+                            style: TextStyle(
+                                color: context.textColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14),
+                          ),
+                          if (isMyReview) ...[
+                            const SizedBox(width: 6),
+                            // "Your review" badge: themeColor bg + black text — fine as-is
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: themeColor,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text('Your review',
+                                  style: TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ],
+                      ),
+                      Row(
+                        // Stars on cardBgColor → accent
+                        children: List.generate(5, (i) => Icon(
+                          i < (r['rating'] as num).toInt()
+                              ? Icons.star
+                              : Icons.star_border,
+                          color: accent,
+                          size: 14,
+                        )),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  _formatDate(r['created_at']),
+                  style: TextStyle(color: context.subtextColor, fontSize: 11),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              r['review_text'] ?? '',
+              style: TextStyle(color: context.subtextColor, fontSize: 14, height: 1.4),
+            ),
+          ],
+        ),
       ),
-      )
     );
   }
 

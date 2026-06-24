@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class WriteReviewPage extends StatefulWidget {
   final String trainerId;
   final String trainerName;
@@ -95,9 +99,9 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
                       Text(
                         'Write a Review',
                         style: TextStyle(
-                          color: themeColor,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                          color: _accent(context),
+fontSize: 22,
+fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],

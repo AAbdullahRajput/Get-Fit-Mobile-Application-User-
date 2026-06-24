@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/payment/payment_page.dart';
+
+// Darker accent used in LIGHT mode wherever themeColor would otherwise be
+// used as TEXT/ICON color directly on a light background (low contrast).
+// In DARK mode this returns themeColor, unchanged from before.
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class AppointmentBookingPage extends StatefulWidget {
   final String trainerId;
   final String trainerName;
@@ -126,6 +134,8 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final accent = _accent(context);
+
     return Scaffold(
       backgroundColor: context.bgColor,
       body: SafeArea(
@@ -148,7 +158,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                   ),
                   const SizedBox(width: 8),
                   Text('Appointment',
-                      style: TextStyle(color: themeColor, fontSize: 22, fontWeight: FontWeight.bold)),
+                      style: TextStyle(color: accent, fontSize: 22, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -158,7 +168,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Trainer card — Figma style
+                  // Trainer card
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -194,8 +204,10 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                               children: [
                                 if (widget.trainerExperience.isNotEmpty)
                                   Text('${widget.trainerExperience} years experience',
-                                      style: TextStyle(color: themeColor, fontSize: 12)),
+                                      // themeColor as text on cardBgColor → use accent in light
+                                      style: TextStyle(color: accent, fontSize: 12)),
                                 const Spacer(),
+                                // Rating badge: themeColor bg + black text — fine as-is
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
@@ -279,13 +291,14 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: themeColor.withOpacity(0.15),
+                        // themeColor tint bg is fine, icon/text use accent for readability
+                        color: themeColor.withOpacity(context.isDark ? 0.15 : 0.14),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: themeColor.withOpacity(0.4)),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.calendar_today, color: themeColor, size: 16),
+                          Icon(Icons.calendar_today, color: accent, size: 16),
                           const SizedBox(width: 8),
                           Text(_formatDisplayDate(_selectedDate!),
                               style: TextStyle(
@@ -298,7 +311,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                     const SizedBox(height: 20),
                   ],
 
-                  // Time slots — always shown, Figma style horizontal
+                  // Time slots
                   Text('Time',
                       style: TextStyle(
                           color: context.textColor,
@@ -306,13 +319,12 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
                   _loadingSlots
-                      ? const Center(child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: CircularProgressIndicator(color: themeColor)))
+                      ? Center(child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: CircularProgressIndicator(color: accent)))
                       : _buildTimeSlots(),
                   const SizedBox(height: 20),
 
-                  // Confirm button
                   // Next button → Payment
                   SizedBox(
                     width: double.infinity,
@@ -368,13 +380,11 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   Widget _buildCalendarGrid() {
     final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
-    // weekday: 1=Mon, 7=Sun
     final startOffset = firstDay.weekday - 1;
     final today = DateTime.now();
 
     final cells = <Widget>[];
 
-    // Empty cells before first day
     for (int i = 0; i < startOffset; i++) {
       cells.add(const SizedBox(width: 36, height: 36));
     }
@@ -399,6 +409,8 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
+            // Selected: themeColor bg + black text — fine as-is
+            // Today: themeColor tint bg — text uses context.textColor, fine
             color: isSelected
                 ? themeColor
                 : isToday
@@ -426,11 +438,9 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
       ));
     }
 
-    // Build rows of 7
     final rows = <Widget>[];
     for (int i = 0; i < cells.length; i += 7) {
       final rowCells = cells.sublist(i, i + 7 > cells.length ? cells.length : i + 7);
-      // Pad last row
       while (rowCells.length < 7) {
         rowCells.add(const SizedBox(width: 36, height: 36));
       }
@@ -447,10 +457,12 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   }
 
   Widget _buildTimeSlots() {
+    final accent = _accent(context);
+
     if (_loadingTrainerSlots) {
-      return const Center(child: Padding(
-        padding: EdgeInsets.all(16),
-        child: CircularProgressIndicator(color: themeColor),
+      return Center(child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: CircularProgressIndicator(color: accent),
       ));
     }
     if (_trainerSlots.isEmpty) {
@@ -480,6 +492,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
+              // Selected: themeColor bg + black text — fine as-is
               color: isSelected
                   ? themeColor
                   : isBooked
@@ -510,7 +523,8 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                 Text(
                   '\$${price.toStringAsFixed(0)}',
                   style: TextStyle(
-                    color: isSelected ? Colors.black87 : themeColor,
+                    // Price text on cardBgColor → use accent in light mode
+                    color: isSelected ? Colors.black87 : accent,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),

@@ -9,6 +9,10 @@ import 'package:get_fit/Presentation/pages/gym/gym_exercises/arms/arms_exercises
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/core/core_exercises_screen.dart';
 import 'package:flutter/foundation.dart';
 
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class GymPage extends StatefulWidget {
   const GymPage({super.key});
 
@@ -141,7 +145,7 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
                     color: themeColor.withOpacity(0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.fitness_center, color: themeColor, size: 48),
+                  child: Icon(Icons.fitness_center, color: _accent(context), size: 48),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -274,14 +278,14 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
             // Exercise Cards
             Expanded(
               child: RefreshIndicator(
-                color: themeColor,
-                backgroundColor: context.cardBgColor,
+                color: _accent(context),
+backgroundColor: context.cardBgColor,
                 onRefresh: _onRefresh,
                 child: _isLoading
                     ? _buildSkeleton(context)
                     : RefreshIndicator(
-                        color: themeColor,
-                        backgroundColor: context.cardBgColor,
+                        color: _accent(context),
+backgroundColor: context.cardBgColor,
                         onRefresh: _onRefresh,
                         child: ListView.builder(
                           physics: const AlwaysScrollableScrollPhysics(),
@@ -294,19 +298,19 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
                                 child: Column(
                                   children: [
                                     if (_isLoadingMore)
-                                      const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 16),
-                                        child: Center(child: SizedBox(
-                                          width: 28, height: 28,
-                                          child: CircularProgressIndicator(color: themeColor, strokeWidth: 2.5),
-                                        )),
-                                      ),
+                                      Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 16),
+                                          child: Center(child: SizedBox(
+                                            width: 28, height: 28,
+                                            child: CircularProgressIndicator(color: _accent(context), strokeWidth: 2.5),
+                                          )),
+                                        ),
                                     if (!_isLoadingMore && _hasMore)
                                       OutlinedButton(
                                         onPressed: _loadMore,
                                         style: OutlinedButton.styleFrom(
-                                          foregroundColor: themeColor,
-                                          side: const BorderSide(color: themeColor),
+                                          foregroundColor: _accent(context),
+side: BorderSide(color: _accent(context)),
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                           padding: const EdgeInsets.symmetric(vertical: 14),
                                           minimumSize: const Size(double.infinity, 0),
@@ -424,7 +428,7 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
                   },
                   errorBuilder: (context, error, stack) => Container(
                     color: context.cardBgColor,
-                    child: Icon(Icons.fitness_center, color: isDark ? themeColor : Colors.black, size: 48),
+                    child: Icon(Icons.fitness_center, color: _accent(context), size: 48),
                   ),
                 ),
               ),
@@ -475,7 +479,7 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Text('View $category Exercises →', style: const TextStyle(color: themeColor, fontSize: 12, fontWeight: FontWeight.w500)),
+                          Text('View $category Exercises →', style: TextStyle(color: _accent(context), fontSize: 12, fontWeight: FontWeight.w500)),
                         ],
                       ),
                     ],

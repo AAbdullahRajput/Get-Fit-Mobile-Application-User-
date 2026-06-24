@@ -4,6 +4,13 @@ import 'package:get_fit/Presentation/pages/home/home_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Presentation/pages/yoga/challenge/challenge_detail_page.dart';
 
+// Darker accent used in LIGHT mode wherever themeColor would otherwise be
+// used as TEXT/ICON color directly on a light background (low contrast).
+// In DARK mode this returns themeColor, unchanged from before.
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class SuccessPage extends StatefulWidget {
   final String exerciseTitle;
   final int caloriesBurned;
@@ -85,13 +92,15 @@ class _SuccessPageState extends State<SuccessPage> {
 
   @override
   Widget build(BuildContext context) {
+    final accent = _accent(context);
+
     return Scaffold(
       backgroundColor: context.bgColor,
       appBar: AppBar(
         centerTitle: true,
         title: Text(
           'Weekly Challenge',
-          style: TextStyle(color: themeColor, fontSize: 24, fontWeight: FontWeight.bold),
+          style: TextStyle(color: accent, fontSize: 24, fontWeight: FontWeight.bold),
         ),
         backgroundColor: context.bgColor,
         elevation: 0,
@@ -109,15 +118,15 @@ class _SuccessPageState extends State<SuccessPage> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.1),
+                  color: themeColor.withOpacity(context.isDark ? 0.1 : 0.14),
                   shape: BoxShape.circle,
                 ),
                 child: Image.asset('assets/challenge/success.png', height: 140, width: 140),
               ),
               const SizedBox(height: 24),
               Text(
-                'Congratulations! 🎉',
-                style: TextStyle(color: themeColor, fontSize: 26, fontWeight: FontWeight.bold),
+                'Congratulations!',
+                style: TextStyle(color: accent, fontSize: 26, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
@@ -131,7 +140,7 @@ class _SuccessPageState extends State<SuccessPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _statBox(Icons.local_fire_department, '${widget.caloriesBurned}', 'kcal burned', Colors.orange),
-                  _statBox(Icons.timer, _formatTime(widget.timeSpentSeconds), 'time spent', themeColor),
+                  _statBox(Icons.timer, _formatTime(widget.timeSpentSeconds), 'time spent', accent),
                 ],
               ),
               if (widget.muscleGroups.isNotEmpty) ...[
@@ -141,22 +150,40 @@ class _SuccessPageState extends State<SuccessPage> {
                   decoration: BoxDecoration(
                     color: context.cardBgColor,
                     borderRadius: BorderRadius.circular(14),
+                    boxShadow: context.isDark
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                   ),
-                  child: Text(
-                    '💪 Muscles worked: ${widget.muscleGroups}',
-                    style: TextStyle(color: context.subtextColor, fontSize: 13),
-                    textAlign: TextAlign.center,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.fitness_center, size: 14, color: context.subtextColor),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Muscles worked: ${widget.muscleGroups}',
+                          style: TextStyle(color: context.subtextColor, fontSize: 13),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
               const SizedBox(height: 28),
               // Next exercise button
               if (_isLoading)
-                const CircularProgressIndicator(color: themeColor)
+                CircularProgressIndicator(color: accent)
               else if (_nextExercise != null)
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
@@ -170,25 +197,26 @@ class _SuccessPageState extends State<SuccessPage> {
                         ),
                       );
                     },
+                    icon: const Icon(Icons.arrow_forward_rounded, color: Colors.black, size: 20),
+                    label: const Text(
+                      'Next Exercise',
+                      style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: themeColor,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text(
-                      'Next Exercise →',
-                      style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 )
               else
                 Column(
                   children: [
-                    const Icon(Icons.emoji_events, color: themeColor, size: 48),
+                    Icon(Icons.emoji_events, color: accent, size: 48),
                     const SizedBox(height: 8),
                     Text(
-                      "You've completed today's challenge! 🏆",
-                      style: TextStyle(color: themeColor, fontSize: 16, fontWeight: FontWeight.bold),
+                      "You've completed today's challenge!",
+                      style: TextStyle(color: accent, fontSize: 16, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -222,7 +250,7 @@ class _SuccessPageState extends State<SuccessPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(context.isDark ? 0.1 : 0.14),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -254,7 +282,7 @@ class ChallengeDetailPageWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Import challenge_detail_page inline to avoid circular dependency
+    // Lazy import via builder avoids circular dependency
     return _ChallengeDetailPageRouter(
       exercise: exercise,
       challengeId: challengeId,
@@ -284,8 +312,9 @@ class _ChallengeDetailPageRouter extends StatelessWidget {
       future: SupabaseService.getActiveChallengeForUser(),
       builder: (context, snap) {
         if (!snap.hasData) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator(color: themeColor)),
+          return Scaffold(
+            backgroundColor: context.bgColor,
+            body: Center(child: CircularProgressIndicator(color: _accent(context))),
           );
         }
         final challenge = snap.data!;

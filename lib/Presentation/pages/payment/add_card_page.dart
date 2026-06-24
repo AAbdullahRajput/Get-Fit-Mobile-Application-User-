@@ -3,6 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class AddCardPage extends StatefulWidget {
   const AddCardPage({super.key});
 
@@ -147,7 +151,7 @@ class _AddCardPageState extends State<AddCardPage> {
                   ),
                   const SizedBox(width: 8),
                   Text('Add Card',
-                      style: TextStyle(color: themeColor, fontSize: 22, fontWeight: FontWeight.bold)),
+    style: TextStyle(color: _accent(context), fontSize: 22, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),

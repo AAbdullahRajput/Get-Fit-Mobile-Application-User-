@@ -3,6 +3,10 @@ import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/review/write_review_page.dart';
 
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class ReviewsPage extends StatefulWidget {
   final String trainerId;
   final String trainerName;
@@ -139,7 +143,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
                   value: rating,
                   min: 1.0,
                   max: 5.0,
-                  divisions: 8, // 1.0, 1.5, 2.0 ... 5.0
+                  divisions: 8,
                   onChanged: (val) => setSheet(() => rating = val),
                 ),
               ),
@@ -285,7 +289,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
                       Text(
                         'Reviews',
                         style: TextStyle(
-                          color: themeColor,
+                          color: _accent(context),
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
                         ),
@@ -387,7 +391,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
                                 children: [
                                   Text('$star', style: TextStyle(color: context.subtextColor, fontSize: 12)),
                                   const SizedBox(width: 6),
-                                  Icon(Icons.star, color: themeColor, size: 12),
+                                  Icon(Icons.star, color: _accent(context), size: 12),
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: ClipRRect(
@@ -537,92 +541,92 @@ class _ReviewsPageState extends State<ReviewsPage> {
               );
             } : null,
             child: Card(
-            color: context.cardBgColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: isMe ? BorderSide(color: themeColor.withOpacity(0.5), width: 1.5) : BorderSide.none,
-            ),
-            elevation: context.isDark ? 0 : 2,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 22,
-                        backgroundColor: themeColor,
-                        backgroundImage: ((r['users']?['avatar_url'] ?? r['avatar_url'] ?? '').toString().isNotEmpty)
-    ? NetworkImage(r['users']?['avatar_url'] ?? r['avatar_url']) : null,
-child: ((r['users']?['avatar_url'] ?? r['avatar_url'] ?? '').toString().isEmpty)
-    ? const Icon(Icons.person, color: Colors.black, size: 22) : null,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  isMe ? 'You' : (r['username'] ?? 'User'),
-                                  style: TextStyle(color: context.textColor, fontSize: 15, fontWeight: FontWeight.bold),
-                                ),
-                                if (isMe) ...[
+              color: context.cardBgColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: isMe ? BorderSide(color: themeColor.withOpacity(0.5), width: 1.5) : BorderSide.none,
+              ),
+              elevation: context.isDark ? 0 : 2,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 22,
+                          backgroundColor: themeColor,
+                          backgroundImage: ((r['users']?['avatar_url'] ?? r['avatar_url'] ?? '').toString().isNotEmpty)
+                              ? NetworkImage(r['users']?['avatar_url'] ?? r['avatar_url']) : null,
+                          child: ((r['users']?['avatar_url'] ?? r['avatar_url'] ?? '').toString().isEmpty)
+                              ? const Icon(Icons.person, color: Colors.black, size: 22) : null,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    isMe ? 'You' : (r['username'] ?? 'User'),
+                                    style: TextStyle(color: context.textColor, fontSize: 15, fontWeight: FontWeight.bold),
+                                  ),
+                                  if (isMe) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(color: themeColor, borderRadius: BorderRadius.circular(6)),
+                                      child: const Text('You', style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
                                   const SizedBox(width: 6),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(color: themeColor, borderRadius: BorderRadius.circular(6)),
-                                    child: const Text('You', style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    child: Text(
+                                      (r['rating'] as num).toStringAsFixed(1),
+                                      style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
                                   ),
                                 ],
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: themeColor, borderRadius: BorderRadius.circular(6)),
-                                  child: Text(
-                                    (r['rating'] as num).toStringAsFixed(1),
-                                    style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: List.generate(5, (i) => Icon(
-                                i < (r['rating'] as num).round() ? Icons.star : Icons.star_border,
-                                color: themeColor, size: 14,
-                              )),
-                            ),
+                              ),
+                              Row(
+                                children: List.generate(5, (i) => Icon(
+                                  i < (r['rating'] as num).round() ? Icons.star : Icons.star_border,
+                                  color: themeColor, size: 14,
+                                )),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(_formatDate(r['created_at']),
+                                style: TextStyle(color: context.subtextColor, fontSize: 11)),
                           ],
                         ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(_formatDate(r['created_at']),
-                              style: TextStyle(color: context.subtextColor, fontSize: 11)),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    r['review_text'] ?? '',
-                    style: TextStyle(color: context.subtextColor, fontSize: 13, height: 1.4),
-                  ),
-                  if (r['updated_at'] != null && r['updated_at'] != r['created_at'])
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        'Edited ${_formatDate(r['updated_at'])}',
-                        style: TextStyle(color: context.subtextColor.withOpacity(0.5), fontSize: 10, fontStyle: FontStyle.italic),
-                      ),
+                      ],
                     ),
-                ],
+                    const SizedBox(height: 10),
+                    Text(
+                      r['review_text'] ?? '',
+                      style: TextStyle(color: context.subtextColor, fontSize: 13, height: 1.4),
+                    ),
+                    if (r['updated_at'] != null && r['updated_at'] != r['created_at'])
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          'Edited ${_formatDate(r['updated_at'])}',
+                          style: TextStyle(color: context.subtextColor.withOpacity(0.5), fontSize: 10, fontStyle: FontStyle.italic),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
           ),
         );
       },

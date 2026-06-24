@@ -3,6 +3,10 @@ import 'package:get_fit/Presentation/pages/gym/gym_exercises/core/core_exercise_
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class CoreExercisesScreen extends StatefulWidget {
   const CoreExercisesScreen({super.key});
 
@@ -88,8 +92,8 @@ class _CoreExercisesScreenState extends State<CoreExercisesScreen> with Automati
         centerTitle: false,
       ),
       body: RefreshIndicator(
-        color: themeColor,
-        backgroundColor: context.cardBgColor,
+        color: _accent(context),
+backgroundColor: context.cardBgColor,
         displacement: 100,
         onRefresh: _onRefresh,
         child: _isLoading ? _buildSkeleton(context) : _buildList(context),
@@ -122,17 +126,17 @@ class _CoreExercisesScreenState extends State<CoreExercisesScreen> with Automati
             child: Column(
               children: [
                 if (_isLoadingMore)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(child: SizedBox(width: 28, height: 28,
-                      child: CircularProgressIndicator(color: themeColor, strokeWidth: 2.5))),
-                  ),
+                  Padding(
+  padding: const EdgeInsets.symmetric(vertical: 16),
+  child: Center(child: SizedBox(width: 28, height: 28,
+    child: CircularProgressIndicator(color: _accent(context), strokeWidth: 2.5))),
+),
                 if (!_isLoadingMore && _hasMore)
                   OutlinedButton(
                     onPressed: _loadMore,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: themeColor,
-                      side: const BorderSide(color: themeColor),
+                      foregroundColor: _accent(context),
+side: BorderSide(color: _accent(context)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       minimumSize: const Size(double.infinity, 0),
@@ -189,7 +193,7 @@ class _CoreExercisesScreenState extends State<CoreExercisesScreen> with Automati
                         cacheWidth: 600,
                         errorBuilder: (context, error, stack) => Container(
                           color: context.cardBgColor,
-                          child: Icon(Icons.fitness_center, color: context.isDark ? themeColor : Colors.black, size: 48),
+                          child: Icon(Icons.fitness_center, color: _accent(context), size: 48),
                         ),
                       ),
                     ),

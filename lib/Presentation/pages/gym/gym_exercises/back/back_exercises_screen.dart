@@ -3,6 +3,10 @@ import 'package:get_fit/Presentation/pages/gym/gym_exercises/back/back_exercise_
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class BackExercisesScreen extends StatefulWidget {
   const BackExercisesScreen({super.key});
 
@@ -127,17 +131,17 @@ class _BackExercisesScreenState extends State<BackExercisesScreen> {
             child: Column(
               children: [
                 if (_isLoadingMore)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(child: SizedBox(width: 28, height: 28,
-                      child: CircularProgressIndicator(color: themeColor, strokeWidth: 2.5))),
-                  ),
+                  Padding(
+  padding: const EdgeInsets.symmetric(vertical: 16),
+  child: Center(child: SizedBox(width: 28, height: 28,
+    child: CircularProgressIndicator(color: _accent(context), strokeWidth: 2.5))),
+),
                 if (!_isLoadingMore && _hasMore)
                   OutlinedButton(
                     onPressed: _loadMore,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: themeColor,
-                      side: const BorderSide(color: themeColor),
+                      foregroundColor: _accent(context),
+side: BorderSide(color: _accent(context)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       minimumSize: const Size(double.infinity, 0),
@@ -203,7 +207,7 @@ class _BackExercisesScreenState extends State<BackExercisesScreen> {
                         errorBuilder: (context, error, stack) => Container(
                           color: context.cardBgColor,
                           child: Icon(Icons.fitness_center,
-                              color: context.isDark ? themeColor : Colors.black, size: 48),
+                              color: _accent(context), size: 48),
                         ),
                       ),
                     ),

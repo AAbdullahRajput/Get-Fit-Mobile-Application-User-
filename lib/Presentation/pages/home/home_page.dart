@@ -8,6 +8,13 @@ import 'package:get_fit/Presentation/pages/gym/gym_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 
+// Darker accent used in LIGHT mode wherever themeColor would otherwise be
+// used as TEXT/ICON color directly on a light background (low contrast).
+// In DARK mode this returns themeColor, unchanged from before.
+Color _accent(BuildContext context) {
+  return context.isDark ? themeColor : const Color(0xFF6B7A00);
+}
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -221,9 +228,10 @@ class _OverviewTabState extends State<_OverviewTab> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = _accent(context);
 
     return RefreshIndicator(
-      color: themeColor,
+      color: accent,
       backgroundColor: Theme.of(context).cardColor,
       displacement: 100,
       onRefresh: _onRefresh,
@@ -271,7 +279,7 @@ class _OverviewTabState extends State<_OverviewTab> {
                 ),
               ),
 
-              // ── Workout Today banner ──
+              // ── Workout Today banner ── (themeColor bg + black text, fine as-is)
               const SizedBox(height: 20),
               Container(
                 height: 80,
@@ -313,7 +321,7 @@ class _OverviewTabState extends State<_OverviewTab> {
               const SizedBox(height: 30),
               Row(
                 children: [
-                  // Steps card
+                  // Steps card (dark inner card in both themes — unchanged, already readable)
                   Expanded(
                     child: Stack(
                       clipBehavior: Clip.none,
@@ -333,10 +341,10 @@ class _OverviewTabState extends State<_OverviewTab> {
                                 children: [
                                   SvgPicture.asset("assets/icons/steps_icon.svg",
                                       width: 16, height: 16,
-                                      colorFilter: const ColorFilter.mode(Color.fromARGB(255, 0, 0, 0), BlendMode.srcIn)),
+                                      colorFilter: ColorFilter.mode(isDark ? Colors.black : Colors.white, BlendMode.srcIn)),
                                   const SizedBox(width: 6),
-                                  const Text("Steps",
-                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color.fromARGB(255, 0, 0, 0))),
+                                  Text("Steps",
+    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.black : Colors.white)),
                                 ],
                               ),
                               const SizedBox(height: 10),
@@ -351,9 +359,9 @@ class _OverviewTabState extends State<_OverviewTab> {
                                           style: TextStyle(
                                               fontSize: 22,
                                               fontWeight: FontWeight.bold,
-                                              color: isDark ? const Color.fromARGB(255, 210, 231, 16) : Colors.black)),
-                                      const Text("/10000",
-                                          style: TextStyle(fontSize: 15, color: Color.fromARGB(255, 0, 0, 0))),
+                                              color: isDark ? const Color.fromARGB(255, 210, 231, 16) : themeColor)),
+                                      Text("/10000",
+    style: TextStyle(fontSize: 15, color: isDark ? Colors.black : Colors.white)),
                                     ],
                                   ),
                                   Column(
@@ -363,12 +371,12 @@ class _OverviewTabState extends State<_OverviewTab> {
                                         children: [
                                           SvgPicture.asset("assets/icons/clock_icon.svg",
                                               width: 12, height: 12,
-                                              colorFilter: const ColorFilter.mode(Color.fromARGB(255, 0, 0, 0), BlendMode.srcIn)),
+                                              colorFilter: ColorFilter.mode(isDark ? Colors.black : Colors.white, BlendMode.srcIn)),
                                           const SizedBox(width: 4),
-                                          const Text("Last", style: TextStyle(fontSize: 11, color: Color.fromARGB(255, 0, 0, 0))),
+                                          Text("Last", style: TextStyle(fontSize: 11, color: isDark ? Colors.black : Colors.white)),
                                         ],
                                       ),
-                                      const Text("7 Days", style: TextStyle(fontSize: 11, color: Color.fromARGB(255, 0, 0, 0))),
+                                      Text("7 Days", style: TextStyle(fontSize: 11, color: isDark ? Colors.black : Colors.white)),
                                     ],
                                   ),
                                 ],
@@ -399,7 +407,7 @@ class _OverviewTabState extends State<_OverviewTab> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  // Calories card
+                  // Calories card (same as steps — unchanged)
                   Expanded(
                     child: Stack(
                       clipBehavior: Clip.none,
@@ -419,10 +427,9 @@ class _OverviewTabState extends State<_OverviewTab> {
                                 children: [
                                   SvgPicture.asset("assets/icons/calories_icon.svg",
                                       width: 16, height: 16,
-                                      colorFilter: const ColorFilter.mode(Color.fromARGB(255, 0, 0, 0), BlendMode.srcIn)),
+                                      colorFilter: ColorFilter.mode(isDark ? Colors.black : Colors.white, BlendMode.srcIn)),
                                   const SizedBox(width: 6),
-                                  const Text("Calories",
-                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color.fromARGB(255, 0, 0, 0))),
+                                  Text("Calories", style: TextStyle(fontSize: 11, color: isDark ? Colors.black : Colors.white)),
                                 ],
                               ),
                               const SizedBox(height: 10),
@@ -437,9 +444,8 @@ class _OverviewTabState extends State<_OverviewTab> {
                                           style: TextStyle(
                                               fontSize: 22,
                                               fontWeight: FontWeight.bold,
-                                              color: isDark ? const Color.fromARGB(255, 210, 231, 16) : Colors.black)),
-                                      const Text("/20000",
-                                          style: TextStyle(fontSize: 15, color: Color.fromARGB(255, 0, 0, 0))),
+                                              color: isDark ? const Color.fromARGB(255, 210, 231, 16) : themeColor)),
+                                      Text("2000 Days", style: TextStyle(fontSize: 11, color: isDark ? Colors.black : Colors.white)),
                                     ],
                                   ),
                                   Column(
@@ -449,12 +455,12 @@ class _OverviewTabState extends State<_OverviewTab> {
                                         children: [
                                           SvgPicture.asset("assets/icons/clock_icon.svg",
                                               width: 12, height: 12,
-                                              colorFilter: const ColorFilter.mode(Color.fromARGB(255, 0, 0, 0), BlendMode.srcIn)),
+                                              colorFilter: ColorFilter.mode(isDark ? Colors.black : Colors.white, BlendMode.srcIn)),
                                           const SizedBox(width: 4),
-                                          const Text("Last", style: TextStyle(fontSize: 11, color: Color.fromARGB(255, 0, 0, 0))),
+                                          Text("Last", style: TextStyle(fontSize: 11, color: isDark ? Colors.black : Colors.white)),
                                         ],
                                       ),
-                                      const Text("7 Days", style: TextStyle(fontSize: 11, color: Color.fromARGB(255, 0, 0, 0))),
+                                      Text("7 Days", style: TextStyle(fontSize: 11, color: isDark ? Colors.black : Colors.white)),
                                     ],
                                   ),
                                 ],
@@ -487,7 +493,7 @@ class _OverviewTabState extends State<_OverviewTab> {
                 ],
               ),
 
-              // ── YOGA CLASS CARD ──
+              // ── YOGA CLASS CARD ── (themeColor bg + black text, fine as-is)
               const SizedBox(height: 30),
               GestureDetector(
                 onTap: () => widget.onTabSwitch(2),
@@ -535,7 +541,7 @@ class _OverviewTabState extends State<_OverviewTab> {
                 ),
               ),
 
-              // ── FITNESS TRAINER CARD ──
+              // ── FITNESS TRAINER CARD ── (dark/black bg in both themes — themeColor text on black is fine)
               const SizedBox(height: 20),
               GestureDetector(
                 onTap: () => widget.onTabSwitch(1),
@@ -603,15 +609,15 @@ class _OverviewTabState extends State<_OverviewTab> {
                       fontSize: 18,
                       fontWeight: FontWeight.bold)),
 
-              // ── YOGA CLASSES ──
+              // ── YOGA CLASSES ── (section label on scaffold bg → use accent)
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Icon(Icons.self_improvement_outlined, color: themeColor, size: 16),
+                  Icon(Icons.self_improvement_outlined, color: accent, size: 16),
                   const SizedBox(width: 6),
                   Text("Yoga Classes",
                       style: TextStyle(
-                          color: themeColor,
+                          color: accent,
                           fontSize: 14,
                           fontWeight: FontWeight.bold)),
                 ],
@@ -627,36 +633,36 @@ class _OverviewTabState extends State<_OverviewTab> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.self_improvement_outlined, color: themeColor, size: 20),
+                      Icon(Icons.self_improvement_outlined, color: accent, size: 20),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text("No upcoming yoga classes. Join one!",
                             style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 13)),
                       ),
-                      Icon(Icons.arrow_forward_ios, color: themeColor, size: 14),
+                      Icon(Icons.arrow_forward_ios, color: accent, size: 14),
                     ],
                   ),
                 ),
               ),
 
-              // ── TRAINER APPOINTMENTS ──
+              // ── TRAINER APPOINTMENTS ── (section label + cards on cardColor → accent)
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Icon(Icons.directions_run, color: themeColor, size: 16),
+                  Icon(Icons.directions_run, color: accent, size: 16),
                   const SizedBox(width: 6),
                   Text("Trainer Appointments",
                       style: TextStyle(
-                          color: themeColor,
+                          color: accent,
                           fontSize: 14,
                           fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 8),
               _loadingAppointments
-                  ? const Center(child: Padding(
-                      padding: EdgeInsets.all(20),
-                      child: CircularProgressIndicator(color: themeColor, strokeWidth: 2)))
+                  ? Center(child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: CircularProgressIndicator(color: accent, strokeWidth: 2)))
                   : _upcomingAppointments.isEmpty
                       ? GestureDetector(
                           onTap: () => widget.onTabSwitch(1),
@@ -668,13 +674,13 @@ class _OverviewTabState extends State<_OverviewTab> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.directions_run, color: themeColor, size: 20),
+                                Icon(Icons.directions_run, color: accent, size: 20),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text("No upcoming appointments. Book a trainer!",
                                       style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 13)),
                                 ),
-                                Icon(Icons.arrow_forward_ios, color: themeColor, size: 14),
+                                Icon(Icons.arrow_forward_ios, color: accent, size: 14),
                               ],
                             ),
                           ),
@@ -712,7 +718,7 @@ class _OverviewTabState extends State<_OverviewTab> {
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 14)),
                                           Text(trainer?['training_type'] ?? '',
-                                              style: TextStyle(color: themeColor, fontSize: 12)),
+                                              style: TextStyle(color: accent, fontSize: 12)),
                                         ],
                                       ),
                                     ),
@@ -742,13 +748,13 @@ class _OverviewTabState extends State<_OverviewTab> {
                                           decoration: BoxDecoration(
                                             color: a['status'] == 'confirmed'
                                                 ? Colors.green.withOpacity(0.15)
-                                                : themeColor.withOpacity(0.15),
+                                                : themeColor.withOpacity(isDark ? 0.15 : 0.2),
                                             borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: Text(
                                             (a['status'] ?? 'pending').toString().toUpperCase(),
                                             style: TextStyle(
-                                              color: a['status'] == 'confirmed' ? Colors.green : themeColor,
+                                              color: a['status'] == 'confirmed' ? Colors.green : accent,
                                               fontSize: 10,
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -821,6 +827,7 @@ class _FitnessTabContentState extends State<_FitnessTabContent> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = _accent(context);
     return Padding(
       padding: const EdgeInsets.all(10.0),
       child: Column(
@@ -837,7 +844,7 @@ class _FitnessTabContentState extends State<_FitnessTabContent> {
             child: _isLoading
                 ? _buildSkeleton(context, isDark)
                 : RefreshIndicator(
-                    color: themeColor,
+                    color: accent,
                     backgroundColor: Theme.of(context).cardColor,
                     onRefresh: _load,
                     child: ListView.builder(
@@ -846,11 +853,11 @@ class _FitnessTabContentState extends State<_FitnessTabContent> {
                         itemBuilder: (context, index) {
                           if (index == _trainers.length) {
                             if (_isLoadingMore) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 20),
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 20),
                                 child: Center(child: SizedBox(
                                   width: 28, height: 28,
-                                  child: CircularProgressIndicator(color: themeColor, strokeWidth: 2.5),
+                                  child: CircularProgressIndicator(color: accent, strokeWidth: 2.5),
                                 )),
                               );
                             }
@@ -866,8 +873,8 @@ class _FitnessTabContentState extends State<_FitnessTabContent> {
                               child: OutlinedButton(
                                 onPressed: _loadMore,
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: themeColor,
-                                  side: BorderSide(color: themeColor),
+                                  foregroundColor: accent,
+                                  side: BorderSide(color: accent),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   padding: const EdgeInsets.symmetric(vertical: 14),
                                 ),
@@ -919,7 +926,7 @@ class _FitnessTabContentState extends State<_FitnessTabContent> {
                                                 fontSize: 13)),
                                         const SizedBox(height: 3),
                                         Text('${t['experience']} experience',
-                                            style: TextStyle(color: themeColor, fontSize: 12, fontWeight: FontWeight.w500)),
+                                            style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.w500)),
                                         const SizedBox(height: 6),
                                         Row(
                                           children: [
