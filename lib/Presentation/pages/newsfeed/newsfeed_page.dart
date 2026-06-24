@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:get_fit/Presentation/pages/newsfeed/newsfeed_detail_page.dart';
-import 'package:get_fit/Presentation/widgets/newsfeed/newsfeed_card.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
 class NewsfeedPage extends StatefulWidget {
@@ -11,119 +10,28 @@ class NewsfeedPage extends StatefulWidget {
 }
 
 class _NewsfeedPageState extends State<NewsfeedPage> {
-  static bool _hasLoaded = false;
-  bool _isLoading = false;
-  int selectedCategory = 0;
-  final TextEditingController _searchController = TextEditingController();
+  bool _isLoading = true;
+
+  // All instructor paid classes with instructor info joined
+  List<Map<String, dynamic>> _allClasses = [];
+
+  // Instructors the user has booked — set of instructor IDs
+  Set<String> _bookedInstructorIds = {};
+
+  // Classes already in user's feed
+  Set<String> _feedClassIds = {};
+
+  // Filter
+  int _selectedFilter = 0;
+  final List<String> _filters = ['All', 'Unlocked', 'Locked'];
+
   String _searchQuery = '';
-
-  final List<String> categories = [
-    'All',
-    'Health',
-    'Nutrition',
-    'Fitness',
-    'Gym',
-    'Trainer Tips'
-  ];
-
-  // Dummy newsfeed data
-  final List<Map<String, dynamic>> newsfeedData = [
-    {
-      'id': '1',
-      'title': 'Workout of the Day (WOD)',
-      'category': 'Fitness',
-      'description': 'Quick meal or carousel showing daily workout routines.',
-      'content': 'Full workout routine for today including warmup, main sets, and cooldown.',
-      'imageUrl': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&fit=crop',
-      'date': 'Today',
-      'author': 'Coach Mike',
-    },
-    {
-      'id': '2',
-      'title': 'Trainer Tips',
-      'category': 'Trainer Tips',
-      'description': 'Short videos from personal trainers giving workout or nutrition advice.',
-      'content': 'Detailed tips from our expert trainers on proper form and nutrition.',
-      'imageUrl': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&fit=crop',
-      'date': 'Yesterday',
-      'author': 'Coach Sarah',
-    },
-    {
-      'id': '3',
-      'title': 'Healthy and nutritious food',
-      'category': 'Nutrition',
-      'description': 'Before & after photos with short testimonials.',
-      'content': 'Discover the best foods for muscle recovery and overall health.',
-      'imageUrl': 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&fit=crop',
-      'date': '2 days ago',
-      'author': 'Nutrition Expert',
-    },
-    {
-      'id': '4',
-      'title': '5 advantages of gym exercise',
-      'category': 'Health',
-      'description': 'Regular workouts strengthen your heart, muscles, and bones.',
-      'content': 'Detailed breakdown of 5 key benefits of regular exercise.',
-      'imageUrl': 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400&fit=crop',
-      'date': '3 days ago',
-      'author': 'Health Expert',
-    },
-    {
-      'id': '5',
-      'title': 'Benefits of yoga with a partner',
-      'category': 'Gym',
-      'description': 'Partner yoga improves communication and coordination.',
-      'content': 'Partner yoga benefits: improved communication, deeper stretches, enhanced trust.',
-      'imageUrl': 'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?w=400&fit=crop',
-      'date': '5 days ago',
-      'author': 'Yoga Instructor',
-    },
-    {
-      'id': '6',
-      'title': 'Healthy and nutritious food tips',
-      'category': 'Nutrition',
-      'description': 'Essential nutrition tips for a healthy lifestyle.',
-      'content': 'Essential nutrition tips: macronutrient balance, meal timing, hydration.',
-      'imageUrl': 'https://images.unsplash.com/photo-1617922001439-4a2e6562f328?w=400&fit=crop',
-      'date': '1 week ago',
-      'author': 'Dietician',
-    },
-  ];
-
-  List<Map<String, dynamic>> get filteredNewsfeed {
-    var result = newsfeedData;
-    
-    if (selectedCategory != 0) {
-      result = result
-          .where((item) => item['category'] == categories[selectedCategory])
-          .toList();
-    }
-    
-    if (_searchQuery.isNotEmpty) {
-      result = result
-          .where((item) =>
-              item['title']!.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              item['category']!.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              item['author']!.toLowerCase().contains(_searchQuery.toLowerCase()))
-          .toList();
-    }
-    
-    return result;
-  }
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _hasLoaded = true;
-    _isLoading = false;
-  }
-
-  Future<void> _onRefresh() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+    _loadData();
   }
 
   @override
@@ -132,268 +40,618 @@ class _NewsfeedPageState extends State<NewsfeedPage> {
     super.dispose();
   }
 
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+
+    // 1. Get all instructors
+    final instructors = await SupabaseService.getYogaInstructors(pageSize: 100);
+
+    // 2. Get all paid classes for each instructor
+    final List<Map<String, dynamic>> allClasses = [];
+    for (final instructor in instructors) {
+      final classes = await SupabaseService.getInstructorPaidClasses(
+          instructor['id'] as String);
+      for (final cls in classes) {
+        allClasses.add({
+          ...cls,
+          'instructor': instructor,
+        });
+      }
+    }
+
+    // 3. Get user's bookings to know which instructors are unlocked
+    final bookings = await SupabaseService.getMyYogaBookings();
+    final bookedIds = bookings
+        .map((b) => b['instructor_id'] as String)
+        .toSet();
+
+    // 4. Get user's feed classes
+    final feedClasses = await SupabaseService.getUserFeedClasses();
+    final feedIds = feedClasses
+        .map((f) => f['class_id'] as String)
+        .toSet();
+
+    if (mounted) {
+      setState(() {
+        _allClasses = allClasses;
+        _bookedInstructorIds = bookedIds;
+        _feedClassIds = feedIds;
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredClasses {
+    var result = _allClasses;
+
+    // Search filter
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      result = result.where((cls) {
+        final title = (cls['title'] ?? '').toString().toLowerCase();
+        final level = (cls['level'] ?? '').toString().toLowerCase();
+        final instructorName =
+            ((cls['instructor'] as Map?)?['name'] ?? '').toString().toLowerCase();
+        final specialty =
+            ((cls['instructor'] as Map?)?['specialty'] ?? '').toString().toLowerCase();
+        return title.contains(q) ||
+            level.contains(q) ||
+            instructorName.contains(q) ||
+            specialty.contains(q);
+      }).toList();
+    }
+
+    // Lock/unlock filter
+    if (_selectedFilter == 1) {
+      // Unlocked only
+      result = result.where((cls) {
+        final instructorId =
+            (cls['instructor'] as Map?)?['id'] as String? ?? '';
+        return _bookedInstructorIds.contains(instructorId);
+      }).toList();
+    } else if (_selectedFilter == 2) {
+      // Locked only
+      result = result.where((cls) {
+        final instructorId =
+            (cls['instructor'] as Map?)?['id'] as String? ?? '';
+        return !_bookedInstructorIds.contains(instructorId);
+      }).toList();
+    }
+
+    return result;
+  }
+
+  Future<void> _toggleFeed(String classId, String instructorId) async {
+    try {
+      if (_feedClassIds.contains(classId)) {
+        await SupabaseService.removeClassFromFeed(classId);
+        setState(() => _feedClassIds.remove(classId));
+      } else {
+        await SupabaseService.addClassToFeed(
+          classId: classId,
+          instructorId: instructorId,
+        );
+        setState(() => _feedClassIds.add(classId));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Something went wrong. Try again.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final subTextColor = isDark ? Colors.white70 : Colors.grey[600];
+    final filtered = _filteredClasses;
 
     return Scaffold(
       backgroundColor: context.bgColor,
-      appBar: AppBar(
-        backgroundColor: context.bgColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: textColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'News Feed',
-          style: TextStyle(
-            fontSize: 22,
-            color: isDark ? themeColor : Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.search, color: textColor),
-            onPressed: () {
-              // Focus search
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Category Filter
-          SizedBox(
-            height: 40,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final selected = selectedCategory == index;
-                return GestureDetector(
-                  onTap: () => setState(() => selectedCategory = index),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: selected ? themeColor : context.cardBgColor,
-                      borderRadius: BorderRadius.circular(20),
-                      border: selected
-                          ? null
-                          : Border.all(
-                              color: isDark
-                                  ? Colors.grey.shade700
-                                  : Colors.grey.shade300,
-                            ),
-                    ),
-                    child: Text(
-                      categories[index],
-                      style: TextStyle(
-                        color: selected ? Colors.black : context.textColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Result count
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              '${filteredNewsfeed.length} posts',
-              style: TextStyle(
-                color: subTextColor,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Newsfeed List
-          Expanded(
-            child: RefreshIndicator(
-              color: themeColor,
-              backgroundColor: context.cardBgColor,
-              displacement: 100,
-              onRefresh: _onRefresh,
-              child: _isLoading
-                  ? _buildSkeleton(context)
-                  : _buildList(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildList(BuildContext context) {
-    if (filteredNewsfeed.isEmpty) {
-      return Center(
+      body: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.search_off,
-              size: 64,
-              color: context.subtextColor,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No posts found',
-              style: TextStyle(
-                color: context.subtextColor,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Try adjusting your search or filter',
-              style: TextStyle(
-                color: context.subtextColor,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: filteredNewsfeed.length,
-      itemBuilder: (context, index) {
-        final item = filteredNewsfeed[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => NewsfeedDetailPage(
-                    id: item['id'] ?? '',
-                    title: item['title'] ?? '',
-                    description: item['content'] ?? item['description'] ?? '',
-                    category: item['category'] ?? '',
-                    imageUrl: item['imageUrl'],
-                    author: item['author'] ?? '',
-                    date: item['date'] ?? '',
-                  ),
-                ),
-              );
-            },
-            child: NewfeedCard(
-              id: item['id'] ?? '',
-              title: item['title'] ?? '',
-              description: item['description'] ?? '',
-              category: item['category'] ?? '',
-              imageUrl: item['imageUrl'],
-              author: item['author'] ?? '',
-              date: item['date'] ?? '',
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildSkeleton(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final skeletonColor = isDark ? const Color(0xff3a3a3a) : Colors.grey.shade300;
-    final skeletonLight = isDark ? const Color(0xff4a4a4a) : Colors.grey.shade400;
-
-    return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: 3,
-      itemBuilder: (context, index) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _ShimmerWidget(
-            child: Container(
-              height: 168,
-              decoration: BoxDecoration(
-                color: skeletonColor,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
+            // ── Header ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
+              child: Row(
                 children: [
-                  Container(
-                    height: 84,
-                    decoration: BoxDecoration(
-                      color: skeletonLight,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        topRight: Radius.circular(16),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Padding(
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      shape: const CircleBorder(),
                       padding: const EdgeInsets.all(10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 14,
-                            decoration: BoxDecoration(
-                              color: skeletonLight,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            width: 160,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: skeletonLight,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            width: 180,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: skeletonLight,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            width: 120,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: skeletonLight,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ],
-                      ),
+                      backgroundColor: Colors.black54,
+                      elevation: 0,
+                    ),
+                    child: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Instructor Classes',
+                    style: TextStyle(
+                      color: themeColor,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
             ),
+
+            // ── Search bar ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: context.cardBgColor,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  style: TextStyle(color: context.textColor),
+                  decoration: InputDecoration(
+                    hintText: 'Search classes or instructors...',
+                    hintStyle:
+                        TextStyle(color: context.subtextColor, fontSize: 13),
+                    prefixIcon:
+                        const Icon(Icons.search, color: themeColor, size: 20),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onChanged: (val) => setState(() => _searchQuery = val),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Filter tabs ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: List.generate(_filters.length, (i) {
+                  final selected = _selectedFilter == i;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedFilter = i),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: selected ? themeColor : context.cardBgColor,
+                        borderRadius: BorderRadius.circular(20),
+                        border: selected
+                            ? null
+                            : Border.all(color: Colors.white12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (i == 1)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Icon(Icons.lock_open,
+                                  size: 12,
+                                  color: selected
+                                      ? Colors.black
+                                      : Colors.green),
+                            )
+                          else if (i == 2)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Icon(Icons.lock,
+                                  size: 12,
+                                  color: selected
+                                      ? Colors.black
+                                      : Colors.orange),
+                            ),
+                          Text(
+                            _filters[i],
+                            style: TextStyle(
+                              color: selected
+                                  ? Colors.black
+                                  : context.textColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // ── Result count ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Text(
+                _isLoading
+                    ? 'Loading...'
+                    : '${filtered.length} class${filtered.length == 1 ? '' : 'es'}',
+                style:
+                    TextStyle(color: context.subtextColor, fontSize: 12),
+              ),
+            ),
+
+            // ── List ──
+            Expanded(
+              child: _isLoading
+                  ? _buildSkeleton(context)
+                  : filtered.isEmpty
+                      ? _buildEmpty(context)
+                      : RefreshIndicator(
+                          color: themeColor,
+                          backgroundColor: context.cardBgColor,
+                          onRefresh: _loadData,
+                          child: ListView.builder(
+                            physics:
+                                const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(
+                                16, 4, 16, 24),
+                            itemCount: filtered.length,
+                            itemBuilder: (context, index) =>
+                                _buildClassCard(
+                                    context, filtered[index]),
+                          ),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClassCard(
+      BuildContext context, Map<String, dynamic> cls) {
+    final classId = cls['id'] as String;
+    final instructor = cls['instructor'] as Map<String, dynamic>?;
+    final instructorId = instructor?['id'] as String? ?? '';
+    final isUnlocked = _bookedInstructorIds.contains(instructorId);
+    final isInFeed = _feedClassIds.contains(classId);
+
+    final imageUrl = cls['image_url'] ?? '';
+    final title = cls['title'] ?? '';
+    final description = cls['description'] ?? '';
+    final level = cls['level'] ?? '';
+    final duration = cls['duration_minutes']?.toString() ?? '';
+    final classType = cls['class_type'] ?? 'guide';
+    final instructorName = instructor?['name'] ?? '';
+    final instructorSpecialty = instructor?['specialty'] ?? '';
+    final instructorImage = instructor?['image_url'] ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: context.cardBgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: isUnlocked
+            ? Border.all(color: themeColor.withOpacity(0.25))
+            : Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image + overlays
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16)),
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        height: 160,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            _imageFallback(context),
+                      )
+                    : _imageFallback(context),
+              ),
+
+              // Lock overlay
+              if (!isUnlocked)
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16)),
+                    child: Container(
+                      color: Colors.black.withOpacity(0.65),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: Colors.white30, width: 1.5),
+                            ),
+                            child: const Icon(Icons.lock_outline,
+                                color: Colors.white, size: 26),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Book this instructor to unlock',
+                            style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Level badge — top left
+              Positioned(
+                top: 8,
+                left: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: themeColor.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(level,
+                      style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold)),
+                ),
+              ),
+
+              // Duration badge — bottom left
+              Positioned(
+                bottom: 8,
+                left: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.timer_outlined,
+                          color: Colors.white70, size: 11),
+                      const SizedBox(width: 3),
+                      Text('$duration min',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Class type badge — bottom right
+              Positioned(
+                bottom: 8,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(classType,
+                      style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500)),
+                ),
+              ),
+
+              // Feed badge — top right (if added)
+              if (isInFeed)
+                Positioned(
+                  top: 8,
+                  right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check, color: Colors.white, size: 10),
+                        SizedBox(width: 3),
+                        Text('In Feed',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
           ),
-        );
-      },
+
+          // Content
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: isUnlocked
+                        ? context.textColor
+                        : context.subtextColor,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    description,
+                    style: TextStyle(
+                        color: context.subtextColor,
+                        fontSize: 12,
+                        height: 1.4),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 12),
+
+                // Instructor row
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: themeColor,
+                      backgroundImage: instructorImage.isNotEmpty
+                          ? NetworkImage(instructorImage)
+                          : null,
+                      child: instructorImage.isEmpty
+                          ? const Icon(Icons.person,
+                              color: Colors.black, size: 14)
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(instructorName,
+                              style: TextStyle(
+                                  color: context.textColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold)),
+                          Text(instructorSpecialty,
+                              style: TextStyle(
+                                  color: context.subtextColor,
+                                  fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Action button
+                SizedBox(
+                  width: double.infinity,
+                  child: isUnlocked
+                      ? ElevatedButton.icon(
+                          onPressed: () =>
+                              _toggleFeed(classId, instructorId),
+                          icon: Icon(
+                              isInFeed
+                                  ? Icons.remove_circle_outline
+                                  : Icons.add_circle_outline,
+                              size: 16),
+                          label: Text(isInFeed
+                              ? 'Remove from Feed'
+                              : 'Add to My Feed'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isInFeed
+                                ? Colors.red.withOpacity(0.15)
+                                : themeColor,
+                            foregroundColor: isInFeed
+                                ? Colors.redAccent
+                                : Colors.black,
+                            elevation: 0,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(12)),
+                          ),
+                        )
+                      : OutlinedButton.icon(
+                          onPressed: null,
+                          icon: const Icon(Icons.lock_outline,
+                              size: 14, color: Colors.orange),
+                          label: const Text('Book to Unlock',
+                              style:
+                                  TextStyle(color: Colors.orange)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(
+                                color: Colors.orange, width: 1),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(12)),
+                          ),
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _imageFallback(BuildContext context) {
+    return Container(
+      height: 160,
+      color: context.isDark
+          ? const Color(0xff3a3a3a)
+          : Colors.grey[200],
+      child: Icon(Icons.play_circle_outline,
+          color: context.subtextColor, size: 48),
+    );
+  }
+
+  Widget _buildEmpty(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 56, color: context.subtextColor),
+          const SizedBox(height: 12),
+          Text('No classes found',
+              style: TextStyle(
+                  color: context.textColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          Text('Try a different search or filter',
+              style: TextStyle(
+                  color: context.subtextColor, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkeleton(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      itemCount: 3,
+      itemBuilder: (_, __) => _ShimmerWidget(
+        child: Container(
+          height: 280,
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: context.isDark
+                ? const Color(0xff3a3a3a)
+                : Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -401,7 +659,6 @@ class _NewsfeedPageState extends State<NewsfeedPage> {
 class _ShimmerWidget extends StatefulWidget {
   final Widget child;
   const _ShimmerWidget({required this.child});
-
   @override
   State<_ShimmerWidget> createState() => _ShimmerWidgetState();
 }
@@ -410,27 +667,23 @@ class _ShimmerWidgetState extends State<_ShimmerWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
-
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
+        vsync: this,
+        duration: const Duration(milliseconds: 1200))
+      ..repeat(reverse: true);
     _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+        CurvedAnimation(
+            parent: _controller, curve: Curves.easeInOut));
   }
-
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-
   @override
-  Widget build(BuildContext context) {
-    return FadeTransition(opacity: _animation, child: widget.child);
-  }
+  Widget build(BuildContext context) =>
+      FadeTransition(opacity: _animation, child: widget.child);
 }

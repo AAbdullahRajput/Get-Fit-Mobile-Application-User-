@@ -25,6 +25,7 @@ class _YogaTabContentState extends State<YogaTabContent> {
   bool _isLoadingInstructors = true;
   int _visibleInstructorCount = 3;
   static const int _instructorPageSize = 3;
+  int _feedRefreshKey = 0;
 
   @override
   void initState() {
@@ -42,6 +43,7 @@ class _YogaTabContentState extends State<YogaTabContent> {
       setState(() {
         _allInstructors = data;
         _isLoadingInstructors = false;
+        _feedRefreshKey++;
       });
     }
   }
@@ -94,7 +96,7 @@ class _YogaTabContentState extends State<YogaTabContent> {
                 const SizedBox(height: 24),
                 const YogaChallengeCard(),
                 const SizedBox(height: 24),
-                const YogaFeedCard(),
+                YogaFeedCard(key: ValueKey(_feedRefreshKey)),
                 const SizedBox(height: 20),
               ],
             ),
