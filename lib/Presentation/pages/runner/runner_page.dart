@@ -240,13 +240,26 @@ class _RunnerPageState extends State<RunnerPage>
             const Text('Calories Burn',
               style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold)),
           ]),
-          GestureDetector(
-            onTap: _goHistory,
-            child: Container(
+          PopupMenuButton<String>(
+            onSelected: (val) { if (val == 'history') _goHistory(); },
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            color: const Color(0xFF1A1A1A),
+            icon: Container(
               width: 34, height: 34,
               decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
               child: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 18),
             ),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'history',
+                child: Row(children: [
+                  const Icon(Icons.history_rounded, color: themeColor, size: 18),
+                  const SizedBox(width: 10),
+                  const Text('View History',
+                    style: TextStyle(color: Colors.white, fontSize: 14)),
+                ]),
+              ),
+            ],
           ),
         ]),
         const SizedBox(height: 6),
@@ -391,20 +404,20 @@ class _RunnerPageState extends State<RunnerPage>
     Expanded(child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(context.isDark ? 0.18 : 0.15),
+        color: themeColor,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
           width: 30, height: 30,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.25), borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, color: color, size: 16),
+            color: Colors.black.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+          child: Icon(icon, color: Colors.black, size: 16),
         ),
         const SizedBox(height: 8),
-        Text(value, style: TextStyle(
-          color: textCol, fontSize: 16, fontWeight: FontWeight.bold)),
-        Text(unit, style: TextStyle(color: subCol, fontSize: 10)),
+        Text(value, style: const TextStyle(
+          color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(unit, style: TextStyle(color: Colors.black.withOpacity(0.55), fontSize: 10)),
       ]),
     ));
 
@@ -649,9 +662,9 @@ class _StripePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size,
-      Paint()..color = const Color(0xFFB8CC00));
+      Paint()..color = themeColor);
     final p = Paint()
-      ..color = Colors.white.withOpacity(0.45)
+      ..color = Colors.white.withOpacity(0.50)
       ..strokeWidth = 5
       ..style = PaintingStyle.stroke;
     const spacing = 10.0;
