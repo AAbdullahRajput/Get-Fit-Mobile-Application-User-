@@ -244,7 +244,7 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
     if (day.gymKcal > 0)
       rows.add(_pdfSourceRow('Gym Sessions', day.gymKcal, day.gymSessions.length));
     if (day.yogaKcal > 0)
-      rows.add(_pdfSourceRow('Yoga', day.yogaKcal, 0));
+  rows.add(_pdfSourceRow('Yoga Classes', day.yogaKcal, day.yogaSessions.length));
 
     if (day.challengeRounds.isNotEmpty) {
       rows.add(pw.SizedBox(height: 8));
@@ -276,6 +276,21 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
         ));
       }
     }
+
+if (day.yogaSessions.isNotEmpty) {
+  rows.add(pw.SizedBox(height: 8));
+  rows.add(pw.Text('Yoga Classes',
+    style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)));
+  for (final s in day.yogaSessions) {
+    rows.add(pw.Padding(
+      padding: const pw.EdgeInsets.only(left: 12, top: 3),
+      child: pw.Text(
+        '${s['title']}  •  ${s['kcal']} kcal  •  ${s['mins']} min',
+        style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+      ),
+    ));
+  }
+}
 
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
@@ -617,21 +632,22 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
                   const SizedBox(height: 12),
                 ],
 
-                if (day.yogaKcal > 0) ...[
-                  _detailSection(context, Icons.self_improvement_rounded,
-                    'Yoga', _yogaColor,
-                    [
-                      _RoundRow(
-                        index: 1,
-                        label: 'Yoga Session',
-                        kcal: day.yogaKcal,
-                        secs: 0,
-                        color: _yogaColor,
-                      ),
-                    ]
-                  ),
-                  const SizedBox(height: 12),
-                ],
+                if (day.yogaSessions.isNotEmpty) ...[
+  _detailSection(
+    context,
+    Icons.self_improvement_rounded,
+    'Yoga Classes',
+    _yogaColor,
+    day.yogaSessions.asMap().entries.map((e) => _RoundRow(
+      index: e.key + 1,
+      label: e.value['title'] as String? ?? 'Yoga Class',
+      kcal:  (e.value['kcal'] as num? ?? 0).toInt(),
+      secs:  (e.value['secs'] as num? ?? 0).toInt(),
+      color: _yogaColor,
+    )).toList(),
+  ),
+  const SizedBox(height: 12),
+],
 
                 const SizedBox(height: 4),
               ]),
