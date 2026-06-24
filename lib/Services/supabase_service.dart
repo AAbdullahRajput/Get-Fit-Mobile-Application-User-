@@ -1048,15 +1048,16 @@ class SupabaseService {
           .gte('completed_at', start.toIso8601String());
 
       // 2. Gym workout sessions (graceful if table missing)
+      // 2. Gym workout logs (per-set)
       List<dynamic> gymRows = [];
       try {
         gymRows = await client
-            .from('workout_sessions')
+            .from('gym_workout_logs')
             .select('calories_burned, duration_seconds, completed_at')
             .eq('user_id', userId)
             .gte('completed_at', start.toIso8601String());
       } catch (_) {
-        debugPrint('\x1B[33m[API] workout_sessions not found — skipping\x1B[0m');
+        debugPrint('\x1B[33m[API] gym_workout_logs not found — skipping\x1B[0m');
       }
 
       // Build day buckets
@@ -1185,11 +1186,11 @@ class SupabaseService {
       List<dynamic> gymRows = [];
       try {
         gymRows = await client
-            .from('workout_sessions')
-            .select('calories_burned, duration_seconds, completed_at, exercise_title')
+            .from('gym_workout_logs')
+            .select('calories_burned, duration_seconds, completed_at, exercise_title, exercise_id, set_number, reps_completed')
             .eq('user_id', userId)
             .gte('completed_at', start.toIso8601String())
-            .order('completed_at', ascending: false);
+            .order('completed_at', ascending: true);
       } catch (_) {}
 
       // bucket by date
@@ -1224,19 +1225,54 @@ class SupabaseService {
         });
       }
 
+      // Group gym rows by date → exercise_id
+      final Map<String, Map<String, Map<String, dynamic>>> gymGrouped = {};
       for (final row in gymRows) {
         final dt  = DateTime.tryParse(row['completed_at'] ?? ''); if (dt == null) continue;
         final key = '${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}';
         if (!buckets.containsKey(key)) continue;
-        final kcal = (row['calories_burned'] as num? ?? 0).toInt();
-        final secs = (row['duration_seconds'] as num? ?? 0).toInt();
-        buckets[key]!['gymKcal']   = (buckets[key]!['gymKcal'] as int) + kcal;
-        buckets[key]!['totalSecs'] = (buckets[key]!['totalSecs'] as int) + secs;
-        (buckets[key]!['gymSessions'] as List).add({
-          'title': row['exercise_title'] ?? 'Gym Exercise',
-          'kcal':  kcal,
-          'secs':  secs,
+        final exId    = row['exercise_id'] as String? ?? 'unknown';
+        final exTitle = row['exercise_title'] as String? ?? 'Gym Exercise';
+        final kcal    = (row['calories_burned'] as num? ?? 0).toInt();
+        final secs    = (row['duration_seconds'] as num? ?? 0).toInt();
+        final setNum  = (row['set_number'] as num? ?? 0).toInt();
+        final reps    = (row['reps_completed'] as num? ?? 0).toInt();
+
+        gymGrouped.putIfAbsent(key, () => {});
+        if (!gymGrouped[key]!.containsKey(exId)) {
+          gymGrouped[key]![exId] = {
+            'title': exTitle,
+            'totalKcal': 0,
+            'totalSecs': 0,
+            'sets': <Map<String, dynamic>>[],
+          };
+        }
+        gymGrouped[key]![exId]!['totalKcal'] =
+            (gymGrouped[key]![exId]!['totalKcal'] as int) + kcal;
+        gymGrouped[key]![exId]!['totalSecs'] =
+            (gymGrouped[key]![exId]!['totalSecs'] as int) + secs;
+        (gymGrouped[key]![exId]!['sets'] as List).add({
+          'setNumber': setNum,
+          'reps': reps,
+          'kcal': kcal,
+          'secs': secs,
         });
+      }
+
+      for (final key in gymGrouped.keys) {
+        if (!buckets.containsKey(key)) continue;
+        for (final ex in gymGrouped[key]!.values) {
+          final kcal = ex['totalKcal'] as int;
+          final secs = ex['totalSecs'] as int;
+          buckets[key]!['gymKcal']   = (buckets[key]!['gymKcal'] as int) + kcal;
+          buckets[key]!['totalSecs'] = (buckets[key]!['totalSecs'] as int) + secs;
+          (buckets[key]!['gymSessions'] as List).add({
+            'title': ex['title'],
+            'kcal':  kcal,
+            'secs':  secs,
+            'sets':  ex['sets'],
+          });
+        }
       }
 
       final result = buckets.values.toList()

@@ -604,16 +604,17 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
               if (day.gymSessions.isNotEmpty) ...[
                 _detailSection(context, Icons.fitness_center_rounded,
                   'Gym Sessions', _gymColor,
-                  day.gymSessions.asMap().entries.map((e) =>
-                    _RoundRow(
+                  day.gymSessions.map((session) {
+                    final sets = (session['sets'] as List? ?? []);
+                    return _GymExerciseBlock(
                       context: context,
-                      index: e.key + 1,
-                      label: e.value['title'] as String,
-                      kcal: e.value['kcal'] as int,
-                      secs: e.value['secs'] as int,
+                      title: session['title'] as String,
+                      totalKcal: session['kcal'] as int,
+                      totalSecs: session['secs'] as int,
+                      sets: sets.cast<Map<String, dynamic>>(),
                       color: _gymColor,
-                    )
-                  ).toList()
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 12),
               ],
@@ -890,6 +891,87 @@ class _WeekBar extends StatelessWidget {
         ]),
       ]),
     ));
+}
+
+class _GymExerciseBlock extends StatelessWidget {
+  final BuildContext context;
+  final String title;
+  final int totalKcal, totalSecs;
+  final List<Map<String, dynamic>> sets;
+  final Color color;
+
+  const _GymExerciseBlock({
+    required this.context,
+    required this.title,
+    required this.totalKcal,
+    required this.totalSecs,
+    required this.sets,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext _) => Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: context.isDark ? Colors.white.withOpacity(0.04) : Colors.grey.shade50,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: color.withOpacity(0.2)),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // Exercise header
+      Row(children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
+          child: Icon(Icons.fitness_center_rounded, color: color, size: 13),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Text(title,
+          style: TextStyle(color: context.textColor, fontSize: 13, fontWeight: FontWeight.bold))),
+        Row(children: [
+          Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 13),
+          const SizedBox(width: 3),
+          Text('$totalKcal kcal',
+            style: TextStyle(color: context.textColor, fontSize: 12, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 10),
+          Icon(Icons.timer_rounded, color: color, size: 13),
+          const SizedBox(width: 3),
+          Text(_fmtDuration(totalSecs),
+            style: TextStyle(color: color, fontSize: 12)),
+        ]),
+      ]),
+      if (sets.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        ...sets.map((s) {
+          final setNum = s['setNumber'] as int? ?? 0;
+          final reps   = s['reps'] as int? ?? 0;
+          final kcal   = s['kcal'] as int? ?? 0;
+          final secs   = s['secs'] as int? ?? 0;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Row(children: [
+              Container(
+                width: 22, height: 22,
+                decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
+                child: Center(child: Text('$setNum',
+                  style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold))),
+              ),
+              const SizedBox(width: 8),
+              Text('Set $setNum  •  $reps reps',
+                style: TextStyle(color: context.subtextColor, fontSize: 11)),
+              const Spacer(),
+              Text('$kcal kcal',
+                style: TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 10),
+              Text(_fmtDuration(secs),
+                style: TextStyle(color: color, fontSize: 11)),
+            ]),
+          );
+        }),
+      ],
+    ]),
+  );
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
