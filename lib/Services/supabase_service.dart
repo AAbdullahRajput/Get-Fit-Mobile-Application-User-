@@ -1187,7 +1187,7 @@ class SupabaseService {
       try {
         gymRows = await client
             .from('gym_workout_logs')
-            .select('calories_burned, duration_seconds, completed_at, exercise_title, exercise_id, set_number, reps_completed')
+            .select('calories_burned, duration_seconds, completed_at, exercise_title, exercise_id, set_number, reps_completed, category')
             .eq('user_id', userId)
             .gte('completed_at', start.toIso8601String())
             .order('completed_at', ascending: true);
@@ -1242,6 +1242,7 @@ class SupabaseService {
         if (!gymGrouped[key]!.containsKey(exId)) {
           gymGrouped[key]![exId] = {
             'title': exTitle,
+            'category': row['category'] as String? ?? 'Gym',
             'totalKcal': 0,
             'totalSecs': 0,
             'sets': <Map<String, dynamic>>[],
@@ -1267,10 +1268,11 @@ class SupabaseService {
           buckets[key]!['gymKcal']   = (buckets[key]!['gymKcal'] as int) + kcal;
           buckets[key]!['totalSecs'] = (buckets[key]!['totalSecs'] as int) + secs;
           (buckets[key]!['gymSessions'] as List).add({
-            'title': ex['title'],
-            'kcal':  kcal,
-            'secs':  secs,
-            'sets':  ex['sets'],
+            'title':    ex['title'],
+            'category': ex['category'],
+            'kcal':     kcal,
+            'secs':     secs,
+            'sets':     ex['sets'],
           });
         }
       }

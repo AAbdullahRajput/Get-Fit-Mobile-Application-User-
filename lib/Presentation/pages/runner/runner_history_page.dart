@@ -602,20 +602,7 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
               ],
 
               if (day.gymSessions.isNotEmpty) ...[
-                _detailSection(context, Icons.fitness_center_rounded,
-                  'Gym Sessions', _gymColor,
-                  day.gymSessions.map((session) {
-                    final sets = (session['sets'] as List? ?? []);
-                    return _GymExerciseBlock(
-                      context: context,
-                      title: session['title'] as String,
-                      totalKcal: session['kcal'] as int,
-                      totalSecs: session['secs'] as int,
-                      sets: sets.cast<Map<String, dynamic>>(),
-                      color: _gymColor,
-                    );
-                  }).toList(),
-                ),
+                ..._buildGymCategorySections(context, day.gymSessions),
                 const SizedBox(height: 12),
               ],
 
@@ -686,6 +673,48 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
         ...rows,
       ]),
     );
+
+    List<Widget> _buildGymCategorySections(BuildContext context, List<Map<String, dynamic>> sessions) {
+    // group by category
+    final Map<String, List<Map<String, dynamic>>> grouped = {};
+    for (final s in sessions) {
+      final cat = s['category'] as String? ?? 'Gym';
+      grouped.putIfAbsent(cat, () => []).add(s);
+    }
+
+    final categoryIcons = {
+      'Arms':      Icons.fitness_center_rounded,
+      'Back':      Icons.accessibility_new_rounded,
+      'Chest':     Icons.self_improvement_rounded,
+      'Shoulders': Icons.sports_gymnastics_rounded,
+      'Legs':      Icons.directions_run_rounded,
+      'Core':      Icons.rotate_right_rounded,
+    };
+
+    return grouped.entries.map((entry) {
+      final cat      = entry.key;
+      final exList   = entry.value;
+      final icon     = categoryIcons[cat] ?? Icons.fitness_center_rounded;
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: _detailSection(
+          context, icon, cat, _gymColor,
+          exList.map((session) {
+            final sets = (session['sets'] as List? ?? []);
+            return _GymExerciseBlock(
+              context: context,
+              title: session['title'] as String,
+              totalKcal: session['kcal'] as int,
+              totalSecs: session['secs'] as int,
+              sets: sets.cast<Map<String, dynamic>>(),
+              color: _gymColor,
+            );
+          }).toList(),
+        ),
+      );
+    }).toList();
+  }
 }
 
 // ── Round row ─────────────────────────────────────────────────────────────────

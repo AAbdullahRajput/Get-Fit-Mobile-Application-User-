@@ -43,9 +43,9 @@ class _RunnerPageState extends State<RunnerPage>
   bool get wantKeepAlive => true;
 
   // ── filter ─────────────────────────────────────────────────────────────────
-  static const _filters    = ['1D', '7D', '14D', '1M', '3M'];
+  static const _filters    = ['1D', '7D', '14D', '1M'];
   static const _filterDays = [1, 7, 14, 30, 90];
-  int _filterIdx = 1;
+  int _filterIdx = 1; // default 7D
 
   // ── state ──────────────────────────────────────────────────────────────────
   bool _isLoading = true;
@@ -78,11 +78,16 @@ class _RunnerPageState extends State<RunnerPage>
   int get _activeDays    => _stats.where((d) => d.totalKcal > 0).length;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    if (_filterIdx >= _filters.length) _filterIdx = 1;
+    _load();
+  }
 
   Future<void> _load() async {
+    final currentDays = _days;
     setState(() { _isLoading = true; _selectedIdx = null; });
-    final raw = await SupabaseService.getActivityStats(days: _days);
+    final raw = await SupabaseService.getActivityStats(days: currentDays);
     final stats = raw.map((m) => _DayStat(
       label:         m['label']         as String,
       date:          DateTime.parse(m['date'] as String),
@@ -95,7 +100,10 @@ class _RunnerPageState extends State<RunnerPage>
     if (mounted) setState(() { _stats = stats; _isLoading = false; });
   }
 
-  void _tapBar(int i) => setState(() => _selectedIdx = i);
+ void _tapBar(int i) {
+    if (_selectedIdx == i) return;
+    setState(() => _selectedIdx = i);
+  }
 
   void _goHistory() => Navigator.of(context).push(
     MaterialPageRoute(builder: (_) => const RunnerHistoryPage()),
@@ -176,7 +184,7 @@ class _RunnerPageState extends State<RunnerPage>
       children: List.generate(_filters.length, (i) {
         final sel = _filterIdx == i;
         return Expanded(child: GestureDetector(
-          onTap: () { if (_filterIdx != i) { setState(() => _filterIdx = i); _load(); } },
+          onTap: () async { if (_filterIdx != i) { setState(() { _filterIdx = i; _selectedIdx = null; }); await _load(); } },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             margin: const EdgeInsets.all(4),
@@ -537,7 +545,7 @@ class _RunnerPageState extends State<RunnerPage>
             : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('${_filters[_filterIdx]} Overview',
+        Text('${_filterIdx < _filters.length ? _filters[_filterIdx] : _filters.last} Overview',
           style: TextStyle(
             color: context.textColor, fontSize: 15, fontWeight: FontWeight.bold)),
         const SizedBox(height: 14),
