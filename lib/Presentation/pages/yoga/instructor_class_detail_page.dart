@@ -36,12 +36,6 @@ class _InstructorClassDetailPageState
   bool get _allStepsChecked =>
       _steps.isEmpty || _doneSteps.length == _steps.length;
 
-  bool get _canToggle {
-    if (!_isDone) return _allStepsChecked;
-    final logDate = _todayLog?['scheduled_date'] as String?;
-    return logDate == _todayDate;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -60,6 +54,10 @@ class _InstructorClassDetailPageState
         _steps = steps;
         _todayLog = log;
         _loading = false;
+        // If already done, pre-check all steps
+        if (log?['is_done'] == true) {
+          _doneSteps.addAll(List.generate(steps.length, (i) => i));
+        }
       });
     }
   }
@@ -67,7 +65,6 @@ class _InstructorClassDetailPageState
   Future<void> _toggleDone() async {
     if (_toggling) return;
 
-    // Validate all steps checked before marking done
     if (!_isDone && !_allStepsChecked) {
       _showStepsWarning();
       return;
@@ -76,14 +73,17 @@ class _InstructorClassDetailPageState
     setState(() => _toggling = true);
     try {
       if (_isDone) {
-        // Unmark — delete the row entirely
         await SupabaseService.deleteInstructorClassLog(
           classId: widget.classData['id'] as String,
           date: _todayDate,
         );
-        if (mounted) setState(() => _todayLog = null);
+        if (mounted) {
+          setState(() {
+            _todayLog = null;
+            _doneSteps.clear(); // unlock steps
+          });
+        }
       } else {
-        // Mark done — upsert
         await SupabaseService.upsertInstructorClassLog(
           classId: widget.classData['id'] as String,
           instructorId: widget.classData['instructor_id'] as String,
@@ -120,7 +120,8 @@ class _InstructorClassDetailPageState
         ),
         backgroundColor: Colors.orange.shade700,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -166,8 +167,8 @@ class _InstructorClassDetailPageState
                             ? Image.network(
                                 imageUrl,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
-                                    color: accent.withOpacity(0.2)),
+                                errorBuilder: (_, __, ___) =>
+                                    Container(color: accent.withOpacity(0.2)),
                               )
                             : Container(color: accent.withOpacity(0.2)),
                       ),
@@ -333,54 +334,84 @@ class _InstructorClassDetailPageState
                                       )),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '${_steps.length} steps — check each before marking done',
+                                    _isDone
+                                        ? 'Session completed — steps locked'
+                                        : '${_steps.length} steps — check each before marking done',
                                     style: TextStyle(
-                                      color: subColor,
+                                      color: _isDone
+                                          ? accent
+                                          : subColor,
                                       fontSize: 12,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            // Progress pill
                             if (_steps.isNotEmpty)
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: _allStepsChecked
+                                  color: _isDone
                                       ? accent.withOpacity(0.15)
-                                      : Colors.orange.withOpacity(0.12),
+                                      : _allStepsChecked
+                                          ? accent.withOpacity(0.15)
+                                          : Colors.orange.withOpacity(0.12),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: _allStepsChecked
+                                    color: _isDone
                                         ? accent.withOpacity(0.4)
-                                        : Colors.orange.withOpacity(0.4),
+                                        : _allStepsChecked
+                                            ? accent.withOpacity(0.4)
+                                            : Colors.orange.withOpacity(0.4),
                                   ),
                                 ),
-                                child: Text(
-                                  '${_doneSteps.length}/${_steps.length}',
-                                  style: TextStyle(
-                                    color: _allStepsChecked
-                                        ? accent
-                                        : Colors.orange,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _isDone
+                                          ? Icons.lock
+                                          : Icons.lock_open,
+                                      size: 11,
+                                      color: _isDone
+                                          ? accent
+                                          : _allStepsChecked
+                                              ? accent
+                                              : Colors.orange,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${_doneSteps.length}/${_steps.length}',
+                                      style: TextStyle(
+                                        color: _isDone
+                                            ? accent
+                                            : _allStepsChecked
+                                                ? accent
+                                                : Colors.orange,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                           ],
                         ),
                         const SizedBox(height: 16),
 
-                        ..._steps.asMap().entries.map((e) =>
-                            _stepCard(context, e.key, e.value, accent,
-                                cardColor, textColor, subColor)),
+                        ..._steps.asMap().entries.map((e) => _stepCard(
+                            context,
+                            e.key,
+                            e.value,
+                            accent,
+                            cardColor,
+                            textColor,
+                            subColor)),
 
                         const SizedBox(height: 32),
 
-                        // ── Mark done / undone button ──
-                        // Progress bar above button when not all done
+                        // ── Progress bar (only when not done) ──
                         if (!_isDone && _steps.isNotEmpty) ...[
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
@@ -411,6 +442,7 @@ class _InstructorClassDetailPageState
                           const SizedBox(height: 12),
                         ],
 
+                        // ── Mark done / undone button ──
                         SizedBox(
                           width: double.infinity,
                           height: 52,
@@ -475,7 +507,7 @@ class _InstructorClassDetailPageState
                                       color: accent, size: 14),
                                   const SizedBox(width: 6),
                                   Text(
-                                    'Session completed today',
+                                    'Session completed today — only your instructor can view this',
                                     style: TextStyle(
                                       color: accent,
                                       fontSize: 12,
@@ -498,7 +530,8 @@ class _InstructorClassDetailPageState
   }
 
   Widget _chip(String label, IconData icon) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(20),
@@ -510,8 +543,8 @@ class _InstructorClassDetailPageState
             Icon(icon, size: 11, color: Colors.white70),
             const SizedBox(width: 4),
             Text(label,
-                style:
-                    const TextStyle(color: Colors.white, fontSize: 11)),
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 11)),
           ],
         ),
       );
@@ -556,13 +589,15 @@ class _InstructorClassDetailPageState
     Color textColor,
     Color subColor,
   ) {
-    final stepNum = (step['step_number'] as num?)?.toInt() ?? idx + 1;
+    final stepNum =
+        (step['step_number'] as num?)?.toInt() ?? idx + 1;
     final instruction = step['instruction'] as String? ?? '';
     final tip = step['tip'] as String? ?? '';
     final doTip = step['do_tip'] as String? ?? '';
     final dontTip = step['dont_tip'] as String? ?? '';
     final imageUrl = step['image_url'] as String? ?? '';
     final isChecked = _doneSteps.contains(idx);
+    final isSessionDone = _isDone; // freeze when submitted
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -572,7 +607,9 @@ class _InstructorClassDetailPageState
         border: isChecked
             ? Border.all(color: accent, width: 1.5)
             : Border.all(
-                color: context.isDark ? Colors.white10 : Colors.black12),
+                color: context.isDark
+                    ? Colors.white10
+                    : Colors.black12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
@@ -586,14 +623,15 @@ class _InstructorClassDetailPageState
         children: [
           if (imageUrl.isNotEmpty)
             ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16)),
               child: Image.network(
                 imageUrl,
                 height: 160,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                errorBuilder: (_, __, ___) =>
+                    const SizedBox.shrink(),
               ),
             ),
 
@@ -604,19 +642,27 @@ class _InstructorClassDetailPageState
               children: [
                 Row(
                   children: [
+                    // Step number bubble
                     Container(
                       width: 28,
                       height: 28,
                       decoration: BoxDecoration(
-                        color: isChecked ? accent : accent.withOpacity(0.3),
+                        color: isChecked
+                            ? accent
+                            : accent.withOpacity(0.25),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
                         child: Text('$stepNum',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold)),
+                            style: TextStyle(
+                              color: isChecked
+                                  ? Colors.white
+                                  : context.isDark
+                                      ? Colors.white70
+                                      : Colors.black54,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            )),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -629,23 +675,36 @@ class _InstructorClassDetailPageState
                             height: 1.5,
                           )),
                     ),
+                    // Checkbox / lock icon
                     GestureDetector(
-                      onTap: () => setState(() {
-                        if (isChecked) {
-                          _doneSteps.remove(idx);
-                        } else {
-                          _doneSteps.add(idx);
-                        }
-                      }),
+                      onTap: isSessionDone
+                          ? null // locked after submit
+                          : () => setState(() {
+                                if (isChecked) {
+                                  _doneSteps.remove(idx);
+                                } else {
+                                  _doneSteps.add(idx);
+                                }
+                              }),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        child: Icon(
-                          isChecked
-                              ? Icons.check_circle
-                              : Icons.radio_button_unchecked,
-                          color: isChecked ? accent : Colors.grey.shade400,
-                          size: 24,
-                        ),
+                        child: isSessionDone
+                            ? Icon(
+                                Icons.lock,
+                                color: accent,
+                                size: 22,
+                              )
+                            : Icon(
+                                isChecked
+                                    ? Icons.check_circle
+                                    : Icons.radio_button_unchecked,
+                                color: isChecked
+                                    ? accent
+                                    : (context.isDark
+                                        ? Colors.white38
+                                        : Colors.black26),
+                                size: 24,
+                              ),
                       ),
                     ),
                   ],
@@ -653,8 +712,8 @@ class _InstructorClassDetailPageState
 
                 if (tip.isNotEmpty) ...[
                   const SizedBox(height: 10),
-                  _infoRow(tip, Icons.lightbulb_outline, Colors.amber,
-                      subColor),
+                  _infoRow(tip, Icons.lightbulb_outline,
+                      Colors.amber, subColor),
                 ],
                 if (doTip.isNotEmpty) ...[
                   const SizedBox(height: 6),
@@ -663,8 +722,8 @@ class _InstructorClassDetailPageState
                 ],
                 if (dontTip.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  _infoRow(
-                      dontTip, Icons.cancel_outlined, Colors.red, subColor),
+                  _infoRow(dontTip, Icons.cancel_outlined,
+                      Colors.red, subColor),
                 ],
               ],
             ),

@@ -188,11 +188,27 @@ class _OverviewTabState extends State<_OverviewTab> {
   List<Map<String, dynamic>> _appointments = [];
   bool _loadingAppointments = true;
 
+  // ── Yoga bookings ──
+  List<Map<String, dynamic>> _allYogaBookings = [];
+  int _yogaVisible = 3;
+  bool _loadingYoga = true;
+
   @override
   void initState() {
     super.initState();
     _fetchUsername();
     _fetchAppointments();
+    _fetchYogaBookings();
+  }
+
+  Future<void> _fetchYogaBookings() async {
+    setState(() => _loadingYoga = true);
+    try {
+      final res = await SupabaseService.getMyYogaBookings();
+      if (mounted) setState(() { _allYogaBookings = res; _loadingYoga = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loadingYoga = false);
+    }
   }
 
   Future<void> _fetchAppointments() async {
@@ -210,11 +226,10 @@ class _OverviewTabState extends State<_OverviewTab> {
   }
 
   Future<void> _onRefresh() async {
-    await _fetchUsername();
-    await _fetchAppointments();
+    setState(() => _yogaVisible = 3);
+    await Future.wait([_fetchUsername(), _fetchAppointments(), _fetchYogaBookings()]);
   }
 
-  // upcoming trainer appointments (future dates)
   List<Map<String, dynamic>> get _upcomingAppointments {
     final today = DateTime.now();
     return _appointments.where((a) {
@@ -225,10 +240,38 @@ class _OverviewTabState extends State<_OverviewTab> {
     }).toList();
   }
 
+  // ── Helpers ──
+  String _timeLeft(String? startDate) {
+    if (startDate == null) return '';
+    try {
+      final d = DateTime.parse(startDate);
+      final now = DateTime.now();
+      final diff = d.difference(DateTime(now.year, now.month, now.day));
+      if (diff.inDays == 0) return 'Today';
+      if (diff.inDays == 1) return 'Tomorrow';
+      if (diff.inDays < 0) return 'Started';
+      return 'In ${diff.inDays} days';
+    } catch (_) { return ''; }
+  }
+
+  Color _timeLeftColor(String? startDate) {
+    if (startDate == null) return Colors.grey;
+    try {
+      final d = DateTime.parse(startDate);
+      final now = DateTime.now();
+      final diff = d.difference(DateTime(now.year, now.month, now.day)).inDays;
+      if (diff <= 0) return Colors.green;
+      if (diff <= 2) return Colors.orange;
+      return Colors.blue;
+    } catch (_) { return Colors.grey; }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = _accent(context);
+    final visibleYoga = _allYogaBookings.take(_yogaVisible).toList();
+    final hasMoreYoga = _yogaVisible < _allYogaBookings.length;
 
     return RefreshIndicator(
       color: accent,
@@ -279,7 +322,6 @@ class _OverviewTabState extends State<_OverviewTab> {
                 ),
               ),
 
-              // ── Workout Today banner ── (themeColor bg + black text, fine as-is)
               const SizedBox(height: 20),
               Container(
                 height: 80,
@@ -308,7 +350,6 @@ class _OverviewTabState extends State<_OverviewTab> {
                 ),
               ),
 
-              // ── Activity Summary ──
               const SizedBox(height: 20),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -321,7 +362,6 @@ class _OverviewTabState extends State<_OverviewTab> {
               const SizedBox(height: 30),
               Row(
                 children: [
-                  // Steps card (dark inner card in both themes — unchanged, already readable)
                   Expanded(
                     child: Stack(
                       clipBehavior: Clip.none,
@@ -344,7 +384,7 @@ class _OverviewTabState extends State<_OverviewTab> {
                                       colorFilter: ColorFilter.mode(isDark ? Colors.black : Colors.white, BlendMode.srcIn)),
                                   const SizedBox(width: 6),
                                   Text("Steps",
-    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.black : Colors.white)),
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.black : Colors.white)),
                                 ],
                               ),
                               const SizedBox(height: 10),
@@ -361,7 +401,7 @@ class _OverviewTabState extends State<_OverviewTab> {
                                               fontWeight: FontWeight.bold,
                                               color: isDark ? const Color.fromARGB(255, 210, 231, 16) : themeColor)),
                                       Text("/10000",
-    style: TextStyle(fontSize: 15, color: isDark ? Colors.black : Colors.white)),
+                                          style: TextStyle(fontSize: 15, color: isDark ? Colors.black : Colors.white)),
                                     ],
                                   ),
                                   Column(
@@ -407,7 +447,6 @@ class _OverviewTabState extends State<_OverviewTab> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  // Calories card (same as steps — unchanged)
                   Expanded(
                     child: Stack(
                       clipBehavior: Clip.none,
@@ -493,55 +532,53 @@ class _OverviewTabState extends State<_OverviewTab> {
                 ],
               ),
 
-              // ── YOGA CLASS CARD ── (themeColor bg + black text, fine as-is)
               const SizedBox(height: 30),
               GestureDetector(
                 onTap: () => widget.onTabSwitch(2),
                 child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    height: 194,
-                    width: double.infinity,
-                    decoration: BoxDecoration(color: themeColor, borderRadius: BorderRadius.circular(16)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("Next Upcoming Class",
-                              style: TextStyle(color: Colors.black, fontSize: 25, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 5),
-                          const Text("Yoga",
-                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 25)),
-                          const Text("Time: 2h:20m", style: TextStyle(color: Colors.black, fontSize: 17)),
-                          const Spacer(),
-                          SizedBox(
-                            width: 100,
-                            height: 40,
-                            child: ElevatedButton(
-                              onPressed: () => widget.onTabSwitch(2),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.black,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      height: 194,
+                      width: double.infinity,
+                      decoration: BoxDecoration(color: themeColor, borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Next Upcoming Class",
+                                style: TextStyle(color: Colors.black, fontSize: 25, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 5),
+                            const Text("Yoga",
+                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 25)),
+                            const Text("Time: 2h:20m", style: TextStyle(color: Colors.black, fontSize: 17)),
+                            const Spacer(),
+                            SizedBox(
+                              width: 100,
+                              height: 40,
+                              child: ElevatedButton(
+                                onPressed: () => widget.onTabSwitch(2),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                ),
+                                child: const Text("Join Now", style: TextStyle(fontSize: 12)),
                               ),
-                              child: const Text("Join Now", style: TextStyle(fontSize: 12)),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    top: -23, left: 0, right: -75,
-                    child: Image.asset("assets/home/yoga-girl.png", height: 223, width: 150),
-                  ),
-                ],
+                    Positioned(
+                      top: -23, left: 0, right: -75,
+                      child: Image.asset("assets/home/yoga-girl.png", height: 223, width: 150),
+                    ),
+                  ],
                 ),
               ),
 
-              // ── FITNESS TRAINER CARD ── (dark/black bg in both themes — themeColor text on black is fine)
               const SizedBox(height: 20),
               GestureDetector(
                 onTap: () => widget.onTabSwitch(1),
@@ -584,24 +621,19 @@ class _OverviewTabState extends State<_OverviewTab> {
                           ],
                         ),
                       ),
-                      // Trainer icon on the right
                       Positioned(
-                      top: -48, right: -15, left: 0,
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: Image.asset(
-                          "assets/home/trainer-man.png",
-                          height: 240,
-                          width: 250,
+                        top: -48, right: -15, left: 0,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Image.asset("assets/home/trainer-man.png", height: 240, width: 250),
                         ),
                       ),
-                    ),
                     ],
                   ),
                 ),
               ),
 
-              // ── UPCOMING CLASSES & APPOINTMENTS ──
+              // ── Upcoming Classes & Appointments ──
               const SizedBox(height: 20),
               Text("Upcoming Classes & Appointments",
                   style: TextStyle(
@@ -609,53 +641,215 @@ class _OverviewTabState extends State<_OverviewTab> {
                       fontSize: 18,
                       fontWeight: FontWeight.bold)),
 
-              // ── YOGA CLASSES ── (section label on scaffold bg → use accent)
+              // ── YOGA CLASSES ──
               const SizedBox(height: 16),
               Row(
                 children: [
                   Icon(Icons.self_improvement_outlined, color: accent, size: 16),
                   const SizedBox(width: 6),
                   Text("Yoga Classes",
-                      style: TextStyle(
-                          color: accent,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold)),
+                      style: TextStyle(color: accent, fontSize: 14, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  Text('${_allYogaBookings.length} booked',
+                      style: TextStyle(color: accent.withOpacity(0.7), fontSize: 12)),
                 ],
               ),
               const SizedBox(height: 8),
-              GestureDetector(
-                onTap: () => widget.onTabSwitch(2),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.self_improvement_outlined, color: accent, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text("No upcoming yoga classes. Join one!",
-                            style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 13)),
-                      ),
-                      Icon(Icons.arrow_forward_ios, color: accent, size: 14),
-                    ],
-                  ),
-                ),
-              ),
 
-              // ── TRAINER APPOINTMENTS ── (section label + cards on cardColor → accent)
+              if (_loadingYoga)
+                _buildYogaSkeleton(context, accent)
+              else if (_allYogaBookings.isEmpty)
+                GestureDetector(
+                  onTap: () => widget.onTabSwitch(2),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.self_improvement_outlined, color: accent, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text("No upcoming yoga classes. Join one!",
+                              style: TextStyle(
+                                  color: Theme.of(context).textTheme.bodySmall?.color,
+                                  fontSize: 13)),
+                        ),
+                        Icon(Icons.arrow_forward_ios, color: accent, size: 14),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Column(
+                  children: [
+                    ...visibleYoga.map((booking) {
+                      final instructor = booking['yoga_instructors'] as Map<String, dynamic>?;
+                      final insName = instructor?['name'] ?? 'Instructor';
+                      final insImage = instructor?['image_url'] ?? '';
+                      final insSpecialty = instructor?['specialty'] ?? '';
+                      final startDate = booking['start_date'] as String?;
+                      final numSessions = booking['num_sessions'] ?? 0;
+                      final status = booking['status'] ?? 'pending';
+                      final timeLeft = _timeLeft(startDate);
+                      final timeColor = _timeLeftColor(startDate);
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: accent.withOpacity(0.15),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            // Instructor avatar
+                            CircleAvatar(
+                              radius: 26,
+                              backgroundColor: accent.withOpacity(0.2),
+                              backgroundImage: insImage.isNotEmpty ? NetworkImage(insImage) : null,
+                              child: insImage.isEmpty
+                                  ? Icon(Icons.person, color: accent, size: 22)
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
+                            // Info
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(insName,
+                                      style: TextStyle(
+                                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14)),
+                                  const SizedBox(height: 2),
+                                  Text(insSpecialty,
+                                      style: TextStyle(color: accent, fontSize: 12)),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.event_outlined, size: 11, color: Colors.grey),
+                                      const SizedBox(width: 3),
+                                      Text(startDate ?? '',
+                                          style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                                      const SizedBox(width: 10),
+                                      Icon(Icons.layers_outlined, size: 11, color: Colors.grey),
+                                      const SizedBox(width: 3),
+                                      Text('$numSessions sessions',
+                                          style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Right side: time left + status
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: timeColor.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(timeLeft,
+                                      style: TextStyle(
+                                          color: timeColor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: status == 'confirmed'
+                                        ? Colors.green.withOpacity(0.12)
+                                        : themeColor.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    status.toUpperCase(),
+                                    style: TextStyle(
+                                      color: status == 'confirmed' ? Colors.green : accent,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+
+                    // Load more / collapse
+                    if (hasMoreYoga)
+                      GestureDetector(
+                        onTap: () => setState(() => _yogaVisible += 3),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          margin: const EdgeInsets.only(bottom: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: accent.withOpacity(0.4)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.expand_more, color: accent, size: 18),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Load ${(_allYogaBookings.length - _yogaVisible).clamp(0, 3)} more',
+                                style: TextStyle(
+                                    color: accent,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else if (_allYogaBookings.length > 3)
+                      GestureDetector(
+                        onTap: () => setState(() => _yogaVisible = 3),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          margin: const EdgeInsets.only(bottom: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.expand_less, color: Colors.grey, size: 18),
+                              const SizedBox(width: 6),
+                              const Text('Show less',
+                                  style: TextStyle(color: Colors.grey, fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+
+              // ── TRAINER APPOINTMENTS ──
               const SizedBox(height: 16),
               Row(
                 children: [
                   Icon(Icons.directions_run, color: accent, size: 16),
                   const SizedBox(width: 6),
                   Text("Trainer Appointments",
-                      style: TextStyle(
-                          color: accent,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold)),
+                      style: TextStyle(color: accent, fontSize: 14, fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 8),
@@ -678,7 +872,9 @@ class _OverviewTabState extends State<_OverviewTab> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text("No upcoming appointments. Book a trainer!",
-                                      style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 13)),
+                                      style: TextStyle(
+                                          color: Theme.of(context).textTheme.bodySmall?.color,
+                                          fontSize: 13)),
                                 ),
                                 Icon(Icons.arrow_forward_ios, color: accent, size: 14),
                               ],
@@ -774,6 +970,21 @@ class _OverviewTabState extends State<_OverviewTab> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildYogaSkeleton(BuildContext context, Color accent) {
+    return Column(
+      children: List.generate(2, (_) => Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        height: 80,
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xff3a3a3a)
+              : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(14),
+        ),
+      )),
     );
   }
 }

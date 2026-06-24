@@ -21,7 +21,7 @@ const Color _yogaColor      = Color(0xFFFF8C42);
 class _HistoryDay {
   final DateTime date;
   final int challengeKcal, gymKcal, yogaKcal, totalSecs;
-  final List<Map<String, dynamic>> challengeRounds, gymSessions;
+  final List<Map<String, dynamic>> challengeRounds, gymSessions, yogaSessions;
 
   const _HistoryDay({
     required this.date,
@@ -31,6 +31,7 @@ class _HistoryDay {
     this.totalSecs     = 0,
     this.challengeRounds = const [],
     this.gymSessions     = const [],
+    this.yogaSessions    = const [],
   });
 
   int get totalKcal => challengeKcal + gymKcal + yogaKcal;
@@ -100,14 +101,15 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
 
     final raw = await SupabaseService.getFullActivityHistory(days: 90);
     final allDays = raw.map((m) => _HistoryDay(
-      date:             DateTime.parse(m['date'] as String),
-      challengeKcal:    m['challengeKcal'] as int,
-      gymKcal:          m['gymKcal'] as int,
-      yogaKcal:         m['yogaKcal'] as int,
-      totalSecs:        m['totalSecs'] as int,
-      challengeRounds:  List<Map<String,dynamic>>.from(m['challengeRounds'] as List),
-      gymSessions:      List<Map<String,dynamic>>.from(m['gymSessions'] as List),
-    )).toList();
+  date:             DateTime.parse(m['date'] as String),
+  challengeKcal:    m['challengeKcal'] as int,
+  gymKcal:          m['gymKcal'] as int,
+  yogaKcal:         m['yogaKcal'] as int,
+  totalSecs:        m['totalSecs'] as int,
+  challengeRounds:  List<Map<String,dynamic>>.from(m['challengeRounds'] as List),
+  gymSessions:      List<Map<String,dynamic>>.from(m['gymSessions'] as List),
+  yogaSessions:     List<Map<String,dynamic>>.from(m['yogaSessions'] as List),
+)).toList();
 
     final now           = DateTime.now();
     final todayMidnight = DateTime(now.year, now.month, now.day);

@@ -1029,106 +1029,126 @@ class SupabaseService {
   // ─────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getActivityStats({int days = 7}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: days - 1));
+
+    debugPrint('\x1B[33m[API] getActivityStats | days: $days | from: $start\x1B[0m');
+
+    final challengeRows = await client
+        .from('challenge_user_progress')
+        .select('calories_burned, time_spent_seconds, completed_at')
+        .eq('user_id', userId)
+        .eq('is_completed', true)
+        .gte('completed_at', start.toIso8601String());
+
+    List<dynamic> gymRows = [];
     try {
-      final userId = currentUser?.id;
-      if (userId == null) return [];
-
-      final now = DateTime.now();
-      final start = DateTime(now.year, now.month, now.day)
-          .subtract(Duration(days: days - 1));
-
-      debugPrint('\x1B[33m[API] getActivityStats | days: $days | from: $start\x1B[0m');
-
-      // 1. Challenge progress
-      final challengeRows = await client
-          .from('challenge_user_progress')
-          .select('calories_burned, time_spent_seconds, completed_at')
+      gymRows = await client
+          .from('gym_workout_logs')
+          .select('calories_burned, duration_seconds, completed_at')
           .eq('user_id', userId)
-          .eq('is_completed', true)
           .gte('completed_at', start.toIso8601String());
-
-      // 2. Gym workout sessions (graceful if table missing)
-      // 2. Gym workout logs (per-set)
-      List<dynamic> gymRows = [];
-      try {
-        gymRows = await client
-            .from('gym_workout_logs')
-            .select('calories_burned, duration_seconds, completed_at')
-            .eq('user_id', userId)
-            .gte('completed_at', start.toIso8601String());
-      } catch (_) {
-        debugPrint('\x1B[33m[API] gym_workout_logs not found — skipping\x1B[0m');
-      }
-
-      // Build day buckets
-      final Map<String, Map<String, int>> buckets = {};
-      for (int i = 0; i < days; i++) {
-        final d = start.add(Duration(days: i));
-        final key = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-        buckets[key] = {
-          'challengeKcal': 0,
-          'gymKcal': 0,
-          'yogaKcal': 0,
-          'challengeSec': 0,
-          'gymSec': 0,
-        };
-      }
-
-      for (final row in challengeRows) {
-        final dt = DateTime.tryParse(row['completed_at'] ?? '');
-        if (dt == null) continue;
-        final key = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-        if (buckets.containsKey(key)) {
-          buckets[key]!['challengeKcal'] =
-              buckets[key]!['challengeKcal']! + (row['calories_burned'] as num? ?? 0).toInt();
-          buckets[key]!['challengeSec'] =
-              buckets[key]!['challengeSec']! + (row['time_spent_seconds'] as num? ?? 0).toInt();
-        }
-      }
-
-      for (final row in gymRows) {
-        final dt = DateTime.tryParse(row['completed_at'] ?? '');
-        if (dt == null) continue;
-        final key = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-        if (buckets.containsKey(key)) {
-          buckets[key]!['gymKcal'] =
-              buckets[key]!['gymKcal']! + (row['calories_burned'] as num? ?? 0).toInt();
-          buckets[key]!['gymSec'] =
-              buckets[key]!['gymSec']! + (row['duration_seconds'] as num? ?? 0).toInt();
-        }
-      }
-
-      // Convert to list of maps
-      const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      final result = buckets.entries.map((e) {
-        final dt = DateTime.parse(e.key);
-        String label;
-        if (days <= 7) {
-          label = dayNames[dt.weekday - 1];
-        } else if (days <= 31) {
-          label = '${dt.day}/${dt.month}';
-        } else {
-          label = '${dt.month}/${dt.day}';
-        }
-        return <String, dynamic>{
-          'label': label,
-          'date': e.key,
-          'challengeKcal': e.value['challengeKcal']!,
-          'gymKcal': e.value['gymKcal']!,
-          'yogaKcal': e.value['yogaKcal']!,
-          'challengeSec': e.value['challengeSec']!,
-          'gymSec': e.value['gymSec']!,
-        };
-      }).toList()
-        ..sort((a, b) => (a['date'] as String).compareTo(b['date'] as String));
-
-      debugPrint('\x1B[32m[API] 200 OK | activityStats: ${result.length} days\x1B[0m');
-      return result;
-    } catch (e) {
-      debugPrint('\x1B[31m[API] ERROR | getActivityStats | $e\x1B[0m');
-      return [];
+    } catch (_) {
+      debugPrint('\x1B[33m[API] gym_workout_logs not found — skipping\x1B[0m');
     }
+
+    // ── Yoga: instructor_class_logs ──
+    List<dynamic> yogaRows = [];
+    try {
+      yogaRows = await client
+          .from('instructor_class_logs')
+          .select('session_duration_minutes, scheduled_date')
+          .eq('user_id', userId)
+          .eq('is_done', true)
+          .gte('scheduled_date', start.toIso8601String().substring(0, 10));
+    } catch (_) {
+      debugPrint('\x1B[33m[API] instructor_class_logs yoga fetch failed — skipping\x1B[0m');
+    }
+
+    final Map<String, Map<String, int>> buckets = {};
+    for (int i = 0; i < days; i++) {
+      final d = start.add(Duration(days: i));
+      final key = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      buckets[key] = {
+        'challengeKcal': 0,
+        'gymKcal': 0,
+        'yogaKcal': 0,
+        'challengeSec': 0,
+        'gymSec': 0,
+      };
+    }
+
+    for (final row in challengeRows) {
+      final dt = DateTime.tryParse(row['completed_at'] ?? '');
+      if (dt == null) continue;
+      final key = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+      if (buckets.containsKey(key)) {
+        buckets[key]!['challengeKcal'] =
+            buckets[key]!['challengeKcal']! + (row['calories_burned'] as num? ?? 0).toInt();
+        buckets[key]!['challengeSec'] =
+            buckets[key]!['challengeSec']! + (row['time_spent_seconds'] as num? ?? 0).toInt();
+      }
+    }
+
+    for (final row in gymRows) {
+      final dt = DateTime.tryParse(row['completed_at'] ?? '');
+      if (dt == null) continue;
+      final key = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+      if (buckets.containsKey(key)) {
+        buckets[key]!['gymKcal'] =
+            buckets[key]!['gymKcal']! + (row['calories_burned'] as num? ?? 0).toInt();
+        buckets[key]!['gymSec'] =
+            buckets[key]!['gymSec']! + (row['duration_seconds'] as num? ?? 0).toInt();
+      }
+    }
+
+    // yoga kcal estimate: 5 kcal per minute
+    for (final row in yogaRows) {
+      final dateStr = row['scheduled_date'] as String?;
+      if (dateStr == null) continue;
+      final key = dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
+      if (buckets.containsKey(key)) {
+        final mins = (row['session_duration_minutes'] as num? ?? 0).toInt();
+        buckets[key]!['yogaKcal'] =
+            buckets[key]!['yogaKcal']! + (mins * 5);
+      }
+    }
+
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final result = buckets.entries.map((e) {
+      final dt = DateTime.parse(e.key);
+      String label;
+      if (days <= 7) {
+        label = dayNames[dt.weekday - 1];
+      } else if (days <= 31) {
+        label = '${dt.day}/${dt.month}';
+      } else {
+        label = '${dt.month}/${dt.day}';
+      }
+      return <String, dynamic>{
+        'label': label,
+        'date': e.key,
+        'challengeKcal': e.value['challengeKcal']!,
+        'gymKcal': e.value['gymKcal']!,
+        'yogaKcal': e.value['yogaKcal']!,
+        'challengeSec': e.value['challengeSec']!,
+        'gymSec': e.value['gymSec']!,
+      };
+    }).toList()
+      ..sort((a, b) => (a['date'] as String).compareTo(b['date'] as String));
+
+    debugPrint('\x1B[32m[API] 200 OK | activityStats: ${result.length} days\x1B[0m');
+    return result;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getActivityStats | $e\x1B[0m');
+    return [];
   }
+}
 
   // ─────────────────────────────────────────────
   // GYM WORKOUT SESSIONS
@@ -1167,125 +1187,159 @@ class SupabaseService {
   /// Each entry: date, challengeKcal, gymKcal, yogaKcal,
   ///             totalSecs, challengeRounds (list), gymSessions (list)
   static Future<List<Map<String, dynamic>>> getFullActivityHistory({int days = 90}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+
+    final now   = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day).subtract(Duration(days: days - 1));
+
+    final challengeRows = await client
+        .from('challenge_user_progress')
+        .select('calories_burned, time_spent_seconds, completed_at, exercise_id, day_number')
+        .eq('user_id', userId)
+        .eq('is_completed', true)
+        .gte('completed_at', start.toIso8601String())
+        .order('completed_at', ascending: false);
+
+    List<dynamic> gymRows = [];
     try {
-      final userId = currentUser?.id;
-      if (userId == null) return [];
-
-      final now   = DateTime.now();
-      final start = DateTime(now.year, now.month, now.day).subtract(Duration(days: days - 1));
-
-      // challenge_user_progress joined with challenge_rounds
-      final challengeRows = await client
-          .from('challenge_user_progress')
-          .select('calories_burned, time_spent_seconds, completed_at, exercise_id, day_number')
+      gymRows = await client
+          .from('gym_workout_logs')
+          .select('calories_burned, duration_seconds, completed_at, exercise_title, exercise_id, set_number, reps_completed, category')
           .eq('user_id', userId)
-          .eq('is_completed', true)
           .gte('completed_at', start.toIso8601String())
-          .order('completed_at', ascending: false);
+          .order('completed_at', ascending: true);
+    } catch (_) {}
 
-      List<dynamic> gymRows = [];
-      try {
-        gymRows = await client
-            .from('gym_workout_logs')
-            .select('calories_burned, duration_seconds, completed_at, exercise_title, exercise_id, set_number, reps_completed, category')
-            .eq('user_id', userId)
-            .gte('completed_at', start.toIso8601String())
-            .order('completed_at', ascending: true);
-      } catch (_) {}
+    // ── Yoga: instructor_class_logs + class title ──
+    List<dynamic> yogaRows = [];
+    try {
+      yogaRows = await client
+          .from('instructor_class_logs')
+          .select('session_duration_minutes, scheduled_date, class_id, instructor_paid_classes(title, image_url)')
+          .eq('user_id', userId)
+          .eq('is_done', true)
+          .gte('scheduled_date', start.toIso8601String().substring(0, 10))
+          .order('scheduled_date', ascending: true);
+    } catch (_) {
+      debugPrint('\x1B[33m[API] yoga history fetch failed — skipping\x1B[0m');
+    }
 
-      // bucket by date
-      final Map<String, Map<String, dynamic>> buckets = {};
-      for (int i = 0; i < days; i++) {
-        final d   = start.add(Duration(days: i));
-        final key = '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
-        buckets[key] = {
-          'date': key,
-          'challengeKcal': 0,
-          'gymKcal': 0,
-          'yogaKcal': 0,
+    // Build buckets
+    final Map<String, Map<String, dynamic>> buckets = {};
+    for (int i = 0; i < days; i++) {
+      final d   = start.add(Duration(days: i));
+      final key = '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
+      buckets[key] = {
+        'date': key,
+        'challengeKcal': 0,
+        'gymKcal': 0,
+        'yogaKcal': 0,
+        'totalSecs': 0,
+        'challengeRounds': <Map<String,dynamic>>[],
+        'gymSessions': <Map<String,dynamic>>[],
+        'yogaSessions': <Map<String,dynamic>>[],
+      };
+    }
+
+    for (final row in challengeRows) {
+      final dt  = DateTime.tryParse(row['completed_at'] ?? ''); if (dt == null) continue;
+      final key = '${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}';
+      if (!buckets.containsKey(key)) continue;
+      final kcal = (row['calories_burned'] as num? ?? 0).toInt();
+      final secs = (row['time_spent_seconds'] as num? ?? 0).toInt();
+      buckets[key]!['challengeKcal'] = (buckets[key]!['challengeKcal'] as int) + kcal;
+      buckets[key]!['totalSecs']     = (buckets[key]!['totalSecs'] as int) + secs;
+      (buckets[key]!['challengeRounds'] as List).add({
+        'exerciseId': row['exercise_id'],
+        'dayNumber':  row['day_number'],
+        'kcal':       kcal,
+        'secs':       secs,
+      });
+    }
+
+    final Map<String, Map<String, Map<String, dynamic>>> gymGrouped = {};
+    for (final row in gymRows) {
+      final dt  = DateTime.tryParse(row['completed_at'] ?? ''); if (dt == null) continue;
+      final key = '${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}';
+      if (!buckets.containsKey(key)) continue;
+      final exId    = row['exercise_id'] as String? ?? 'unknown';
+      final exTitle = row['exercise_title'] as String? ?? 'Gym Exercise';
+      final kcal    = (row['calories_burned'] as num? ?? 0).toInt();
+      final secs    = (row['duration_seconds'] as num? ?? 0).toInt();
+      final setNum  = (row['set_number'] as num? ?? 0).toInt();
+      final reps    = (row['reps_completed'] as num? ?? 0).toInt();
+
+      gymGrouped.putIfAbsent(key, () => {});
+      if (!gymGrouped[key]!.containsKey(exId)) {
+        gymGrouped[key]![exId] = {
+          'title': exTitle,
+          'category': row['category'] as String? ?? 'Gym',
+          'totalKcal': 0,
           'totalSecs': 0,
-          'challengeRounds': <Map<String,dynamic>>[],
-          'gymSessions': <Map<String,dynamic>>[],
+          'sets': <Map<String, dynamic>>[],
         };
       }
-
-      for (final row in challengeRows) {
-        final dt  = DateTime.tryParse(row['completed_at'] ?? ''); if (dt == null) continue;
-        final key = '${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}';
-        if (!buckets.containsKey(key)) continue;
-        final kcal = (row['calories_burned'] as num? ?? 0).toInt();
-        final secs = (row['time_spent_seconds'] as num? ?? 0).toInt();
-        buckets[key]!['challengeKcal'] = (buckets[key]!['challengeKcal'] as int) + kcal;
-        buckets[key]!['totalSecs']     = (buckets[key]!['totalSecs'] as int) + secs;
-        (buckets[key]!['challengeRounds'] as List).add({
-          'exerciseId': row['exercise_id'],
-          'dayNumber':  row['day_number'],
-          'kcal':       kcal,
-          'secs':       secs,
-        });
-      }
-
-      // Group gym rows by date → exercise_id
-      final Map<String, Map<String, Map<String, dynamic>>> gymGrouped = {};
-      for (final row in gymRows) {
-        final dt  = DateTime.tryParse(row['completed_at'] ?? ''); if (dt == null) continue;
-        final key = '${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}';
-        if (!buckets.containsKey(key)) continue;
-        final exId    = row['exercise_id'] as String? ?? 'unknown';
-        final exTitle = row['exercise_title'] as String? ?? 'Gym Exercise';
-        final kcal    = (row['calories_burned'] as num? ?? 0).toInt();
-        final secs    = (row['duration_seconds'] as num? ?? 0).toInt();
-        final setNum  = (row['set_number'] as num? ?? 0).toInt();
-        final reps    = (row['reps_completed'] as num? ?? 0).toInt();
-
-        gymGrouped.putIfAbsent(key, () => {});
-        if (!gymGrouped[key]!.containsKey(exId)) {
-          gymGrouped[key]![exId] = {
-            'title': exTitle,
-            'category': row['category'] as String? ?? 'Gym',
-            'totalKcal': 0,
-            'totalSecs': 0,
-            'sets': <Map<String, dynamic>>[],
-          };
-        }
-        gymGrouped[key]![exId]!['totalKcal'] =
-            (gymGrouped[key]![exId]!['totalKcal'] as int) + kcal;
-        gymGrouped[key]![exId]!['totalSecs'] =
-            (gymGrouped[key]![exId]!['totalSecs'] as int) + secs;
-        (gymGrouped[key]![exId]!['sets'] as List).add({
-          'setNumber': setNum,
-          'reps': reps,
-          'kcal': kcal,
-          'secs': secs,
-        });
-      }
-
-      for (final key in gymGrouped.keys) {
-        if (!buckets.containsKey(key)) continue;
-        for (final ex in gymGrouped[key]!.values) {
-          final kcal = ex['totalKcal'] as int;
-          final secs = ex['totalSecs'] as int;
-          buckets[key]!['gymKcal']   = (buckets[key]!['gymKcal'] as int) + kcal;
-          buckets[key]!['totalSecs'] = (buckets[key]!['totalSecs'] as int) + secs;
-          (buckets[key]!['gymSessions'] as List).add({
-            'title':    ex['title'],
-            'category': ex['category'],
-            'kcal':     kcal,
-            'secs':     secs,
-            'sets':     ex['sets'],
-          });
-        }
-      }
-
-      final result = buckets.values.toList()
-        ..sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
-
-      return result;
-    } catch (e) {
-      debugPrint('\x1B[31m[API] ERROR | getFullActivityHistory | $e\x1B[0m');
-      return [];
+      gymGrouped[key]![exId]!['totalKcal'] = (gymGrouped[key]![exId]!['totalKcal'] as int) + kcal;
+      gymGrouped[key]![exId]!['totalSecs'] = (gymGrouped[key]![exId]!['totalSecs'] as int) + secs;
+      (gymGrouped[key]![exId]!['sets'] as List).add({
+        'setNumber': setNum,
+        'reps': reps,
+        'kcal': kcal,
+        'secs': secs,
+      });
     }
+
+    for (final key in gymGrouped.keys) {
+      if (!buckets.containsKey(key)) continue;
+      for (final ex in gymGrouped[key]!.values) {
+        final kcal = ex['totalKcal'] as int;
+        final secs = ex['totalSecs'] as int;
+        buckets[key]!['gymKcal']   = (buckets[key]!['gymKcal'] as int) + kcal;
+        buckets[key]!['totalSecs'] = (buckets[key]!['totalSecs'] as int) + secs;
+        (buckets[key]!['gymSessions'] as List).add({
+          'title':    ex['title'],
+          'category': ex['category'],
+          'kcal':     kcal,
+          'secs':     secs,
+          'sets':     ex['sets'],
+        });
+      }
+    }
+
+    // ── Yoga buckets ──
+    for (final row in yogaRows) {
+      final dateStr = row['scheduled_date'] as String?;
+      if (dateStr == null) continue;
+      final key = dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
+      if (!buckets.containsKey(key)) continue;
+      final mins  = (row['session_duration_minutes'] as num? ?? 0).toInt();
+      final kcal  = mins * 5;
+      final secs  = mins * 60;
+      final cls   = row['instructor_paid_classes'] as Map<String, dynamic>?;
+      final title = cls?['title'] as String? ?? 'Yoga Class';
+      final image = cls?['image_url'] as String? ?? '';
+      buckets[key]!['yogaKcal']  = (buckets[key]!['yogaKcal'] as int) + kcal;
+      buckets[key]!['totalSecs'] = (buckets[key]!['totalSecs'] as int) + secs;
+      (buckets[key]!['yogaSessions'] as List).add({
+        'title': title,
+        'image': image,
+        'kcal':  kcal,
+        'secs':  secs,
+        'mins':  mins,
+      });
+    }
+
+    final result = buckets.values.toList()
+      ..sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
+
+    return result;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getFullActivityHistory | $e\x1B[0m');
+    return [];
   }
+}
 
   // ─────────────────────────────────────────────
   // GYM WORKOUT LOGS (per-set tracking)
@@ -1696,5 +1750,5 @@ class SupabaseService {
       rethrow;
     }
   }
-  
+
 }
