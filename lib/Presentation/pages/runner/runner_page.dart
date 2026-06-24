@@ -45,7 +45,7 @@ class _RunnerPageState extends State<RunnerPage>
   // ── filter ─────────────────────────────────────────────────────────────────
   static const _filters    = ['1D', '7D', '14D', '1M'];
   static const _filterDays = [1, 7, 14, 30, 90];
-  int _filterIdx = 1; // default 7D
+  int _filterIdx = 1;
 
   // ── state ──────────────────────────────────────────────────────────────────
   bool _isLoading = true;
@@ -153,7 +153,7 @@ class _RunnerPageState extends State<RunnerPage>
     );
   }
 
-  // ── header — 3-dots replaces history icon button ───────────────────────────
+  // ── header ─────────────────────────────────────────────────────────────────
   Widget _buildHeader(BuildContext context) => Row(children: [
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('Activities',
@@ -220,7 +220,7 @@ class _RunnerPageState extends State<RunnerPage>
     ),
   );
 
-  // ── calories card — themeColor bg, striped unselected bars, solid black selected ──
+  // ── calories card ──────────────────────────────────────────────────────────
   Widget _buildCaloriesCard(BuildContext context) {
     final maxKcal = _stats.isEmpty ? 1 :
         _stats.map((d) => d.totalKcal.toDouble()).fold<double>(0, (a, b) => a > b ? a : b);
@@ -232,7 +232,6 @@ class _RunnerPageState extends State<RunnerPage>
       decoration: BoxDecoration(
         color: themeColor, borderRadius: BorderRadius.circular(24)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // title row — filled fire icon, 3-dots history button
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Row(children: [
             const Icon(Icons.local_fire_department_rounded, color: Colors.black, size: 22),
@@ -278,7 +277,6 @@ class _RunnerPageState extends State<RunnerPage>
           ),
         ),
         const SizedBox(height: 18),
-        // bars
         if (_stats.isEmpty)
           const SizedBox(height: 100,
             child: Center(child: Text('No data yet',
@@ -325,7 +323,7 @@ class _RunnerPageState extends State<RunnerPage>
     );
   }
 
-  // ── selected day card — solid bg, filled icon boxes, no glass ─────────────
+  // ── selected day card ──────────────────────────────────────────────────────
   Widget _buildSelectedDayCard(BuildContext context) {
     final stat  = _selectedStat;
     final mins  = _selSeconds ~/ 60;
@@ -344,7 +342,6 @@ class _RunnerPageState extends State<RunnerPage>
           : '${selD.day}/${selD.month}/${selD.year}';
     }
 
-    // solid card colors
     final cardBg  = context.isDark ? Colors.white       : const Color(0xFF1A1A1A);
     final textCol = context.isDark ? Colors.black        : Colors.white;
     final subCol  = context.isDark ? Colors.black54      : Colors.white60;
@@ -421,7 +418,7 @@ class _RunnerPageState extends State<RunnerPage>
       ]),
     ));
 
-  // ── duration card — solid bg, filled icon box ──────────────────────────────
+  // ── duration card — WHITE (dark) / dark (light), themed graph bars ─────────
   Widget _buildDurationCard(BuildContext context) {
     if (_stats.isEmpty) return const SizedBox.shrink();
     final selMins  = _selSeconds ~/ 60;
@@ -432,34 +429,35 @@ class _RunnerPageState extends State<RunnerPage>
     final showEvery = count <= 7 ? 1 : count <= 14 ? 2 : 5;
     final accent    = _accent(context);
 
-    final cardBg = context.isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    // WHITE in dark mode, dark in light mode — same pattern as today card
+    final cardBg  = context.isDark ? Colors.white       : const Color(0xFF1A1A1A);
+    final titleCol = context.isDark ? Colors.black       : Colors.white;
+    final subCol   = context.isDark ? Colors.black54     : Colors.white60;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
       decoration: BoxDecoration(
-        color: cardBg, borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: context.isDark ? Colors.white10 : Colors.grey.shade200),
+        color: cardBg,
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          // filled square icon box
           Container(
             width: 40, height: 40,
             decoration: BoxDecoration(
-              color: accent, borderRadius: BorderRadius.circular(11)),
+              color: themeColor, borderRadius: BorderRadius.circular(11)),
             child: const Icon(Icons.timer_rounded, color: Colors.black, size: 20),
           ),
           const SizedBox(width: 12),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Workout Duration',
               style: TextStyle(
-                color: context.textColor, fontSize: 15, fontWeight: FontWeight.bold)),
+                color: titleCol, fontSize: 15, fontWeight: FontWeight.bold)),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 180),
               child: Text('${selMins}m selected',
                 key: ValueKey(selMins),
-                style: TextStyle(color: context.subtextColor, fontSize: 11)),
+                style: TextStyle(color: subCol, fontSize: 11)),
             ),
           ]),
         ]),
@@ -483,14 +481,14 @@ class _RunnerPageState extends State<RunnerPage>
                       curve: Curves.easeOut,
                       height: (90 * frac).clamp(4.0, 90.0),
                       decoration: BoxDecoration(
-                        color: isSel ? accent : accent.withOpacity(0.35),
+                        color: isSel ? Colors.black : Colors.black.withOpacity(0.25),
                         borderRadius: BorderRadius.circular(6),
                       ),
                     ),
                     const SizedBox(height: 4),
                     if (i % showEvery == 0)
                       Text(d.label, style: TextStyle(
-                        color: isSel ? accent : context.subtextColor,
+                        color: isSel ? Colors.black : subCol,
                         fontSize: 9,
                         fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
                       ))
@@ -505,7 +503,7 @@ class _RunnerPageState extends State<RunnerPage>
     );
   }
 
-  // ── source card — solid bg, filled icon boxes, progress bars ──────────────
+  // ── source card — themeColor bg, white progress bars ──────────────────────
   Widget _buildSourceCard(BuildContext context) {
     final stat  = _selectedStat;
     final c = stat?.challengeKcal ?? 0;
@@ -513,31 +511,28 @@ class _RunnerPageState extends State<RunnerPage>
     final y = stat?.yogaKcal      ?? 0;
     final total = c + g + y;
 
-    final cardBg = context.isDark ? const Color(0xFF1E1E1E) : Colors.white;
-
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
       child: Container(
         key: ValueKey('src_$_effectiveIdx'),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: cardBg, borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: context.isDark ? Colors.white10 : Colors.grey.shade200),
+          color: themeColor,
+          borderRadius: BorderRadius.circular(22),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Calories by Source',
+          const Text('Calories by Source',
             style: TextStyle(
-              color: context.textColor, fontSize: 15, fontWeight: FontWeight.bold)),
+              color: Colors.black, fontSize: 15, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           _sourceRow(context, Icons.emoji_events_rounded,
-            'Weekly Challenge', c, total, _challengeColor),
+            'Weekly Challenge', c, total, const Color(0xFF1A1A1A)),
           const SizedBox(height: 14),
           _sourceRow(context, Icons.fitness_center_rounded,
-            'Gym Exercises', g, total, _gymColor),
+            'Gym Exercises', g, total, const Color(0xFF2A5FAC)),
           const SizedBox(height: 14),
           _sourceRow(context, Icons.self_improvement_rounded,
-            'Yoga', y, total, _yogaColor),
+            'Yoga', y, total, const Color(0xFFB85C00)),
         ]),
       ),
     );
@@ -547,18 +542,17 @@ class _RunnerPageState extends State<RunnerPage>
       int kcal, int total, Color color) {
     final pct = total > 0 ? kcal / total : 0.0;
     return Row(children: [
-      // filled square icon box
       Container(
         width: 40, height: 40,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.18), borderRadius: BorderRadius.circular(11)),
-        child: Icon(icon, color: color, size: 20),
+          color: Colors.black.withOpacity(0.15), borderRadius: BorderRadius.circular(11)),
+        child: Icon(icon, color: Colors.black, size: 20),
       ),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(label, style: TextStyle(
-            color: context.textColor, fontSize: 13, fontWeight: FontWeight.w600)),
+          Text(label, style: const TextStyle(
+            color: Colors.black, fontSize: 13, fontWeight: FontWeight.w600)),
           Text('$kcal kcal', style: TextStyle(
             color: color, fontSize: 13, fontWeight: FontWeight.bold)),
         ]),
@@ -567,24 +561,26 @@ class _RunnerPageState extends State<RunnerPage>
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: pct, minHeight: 6,
-            backgroundColor: context.isDark ? Colors.grey[800] : Colors.grey[200],
-            valueColor: AlwaysStoppedAnimation<Color>(color),
+            backgroundColor: Colors.black.withOpacity(0.15),
+            valueColor: const AlwaysStoppedAnimation<Color>(Colors.black),
           ),
         ),
       ])),
     ]);
   }
 
-  // ── range overview — solid bg, filled icons ────────────────────────────────
+  // ── range overview — WHITE (dark) / dark (light) ───────────────────────────
   Widget _buildRangeOverview(BuildContext context) {
     final mins  = _totalSeconds ~/ 60;
     final hrs   = mins ~/ 60;
     final remM  = mins % 60;
     final tStr  = hrs > 0 ? '${hrs}h ${remM}m' : '${mins}m';
 
-    final cardBg  = context.isDark ? const Color(0xFF222222) : Colors.grey.shade100;
-    final headCol = context.isDark ? Colors.white : Colors.black;
-    final subCol  = context.isDark ? Colors.white60 : Colors.grey.shade600;
+    // WHITE in dark mode, dark in light mode
+    final cardBg  = context.isDark ? Colors.white       : const Color(0xFF1A1A1A);
+    final headCol = context.isDark ? Colors.black        : Colors.white;
+    final subCol  = context.isDark ? Colors.black54      : Colors.white60;
+    final valCol  = context.isDark ? Colors.black        : Colors.white;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -598,35 +594,35 @@ class _RunnerPageState extends State<RunnerPage>
         const SizedBox(height: 16),
         Row(children: [
           _overviewStat(context, Icons.local_fire_department_rounded,
-            '$_totalKcal', 'Total kcal', Colors.orange),
+            '$_totalKcal', 'Total kcal', Colors.orange, valCol, subCol),
           _vSep(context),
-          _overviewStat(context, Icons.timer_rounded, tStr, 'Total time', _accent(context)),
+          _overviewStat(context, Icons.timer_rounded, tStr, 'Total time', themeColor, valCol, subCol),
           _vSep(context),
           _overviewStat(context, Icons.event_available_rounded,
-            '$_activeDays', 'Active days', _gymColor),
+            '$_activeDays', 'Active days', _gymColor, valCol, subCol),
         ]),
       ]),
     );
   }
 
   Widget _overviewStat(BuildContext context, IconData icon, String value,
-      String label, Color color) =>
+      String label, Color color, Color valCol, Color subCol) =>
     Expanded(child: Column(children: [
       Container(
         width: 36, height: 36,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+          color: color.withOpacity(0.18), borderRadius: BorderRadius.circular(10)),
         child: Icon(icon, color: color, size: 18),
       ),
       const SizedBox(height: 8),
       Text(value, style: TextStyle(
-        color: context.textColor, fontSize: 17, fontWeight: FontWeight.bold)),
-      Text(label, style: TextStyle(color: context.subtextColor, fontSize: 10)),
+        color: valCol, fontSize: 17, fontWeight: FontWeight.bold)),
+      Text(label, style: TextStyle(color: subCol, fontSize: 10)),
     ]));
 
   Widget _vSep(BuildContext context) => Container(
     width: 1, height: 50,
-    color: context.isDark ? Colors.grey[800] : Colors.grey[300]);
+    color: context.isDark ? Colors.black12 : Colors.white24);
 
   Widget _buildDivider(BuildContext context, String label) => Row(children: [
     Expanded(child: Divider(
@@ -657,7 +653,7 @@ class _RunnerPageState extends State<RunnerPage>
   ));
 }
 
-// ─── Stripe painter (diagonal hatching for unselected bars) ────────────────────
+// ─── Stripe painter ────────────────────────────────────────────────────────────
 class _StripePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -746,7 +742,6 @@ class _StopwatchCardState extends State<_StopwatchCard>
             : [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 3))],
       ),
       child: Column(children: [
-        // dial
         SizedBox(width: 200, height: 200,
           child: Stack(alignment: Alignment.center, children: [
             SizedBox(width: 200, height: 200,
@@ -777,7 +772,6 @@ class _StopwatchCardState extends State<_StopwatchCard>
             ]),
           ])),
         const SizedBox(height: 28),
-        // controls
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           _swBtn(context, Icons.refresh_rounded,
             context.isDark ? Colors.grey[800]! : Colors.grey[200]!,

@@ -84,8 +84,8 @@ class RunnerHistoryPage extends StatefulWidget {
 class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
 
   bool _isLoading = true;
-  List<_HistoryDay>  _recent   = []; // days within current incomplete week
-  List<_WeekGroup>   _weeks    = []; // past complete weeks, newest first
+  List<_HistoryDay>  _recent   = [];
+  List<_WeekGroup>   _weeks    = [];
   bool _pdfGenerating = false;
 
   @override
@@ -96,7 +96,6 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
 
   Future<void> _load() async {
     setState(() => _isLoading = true);
-    // trigger 2-month auto-clear (fire-and-forget)
     SupabaseService.clearOldActivityHistory();
 
     final raw = await SupabaseService.getFullActivityHistory(days: 90);
@@ -110,15 +109,13 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
       gymSessions:      List<Map<String,dynamic>>.from(m['gymSessions'] as List),
     )).toList();
 
-    // Split: current partial week (from last Monday) vs complete past weeks
-    final now          = DateTime.now();
+    final now           = DateTime.now();
     final todayMidnight = DateTime(now.year, now.month, now.day);
     final thisWeekStart = todayMidnight.subtract(Duration(days: todayMidnight.weekday - 1));
 
     final recent = allDays.where((d) => !d.date.isBefore(thisWeekStart)).toList()
       ..sort((a, b) => b.date.compareTo(a.date));
 
-    // Past complete weeks
     final past = allDays.where((d) => d.date.isBefore(thisWeekStart)).toList()
       ..sort((a, b) => b.date.compareTo(a.date));
 
@@ -175,7 +172,6 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
         build: (ctx) {
           final items = <pw.Widget>[];
 
-          // Summary header
           items.add(pw.Container(
             padding: const pw.EdgeInsets.all(16),
             decoration: pw.BoxDecoration(
@@ -193,7 +189,6 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
           ));
           items.add(pw.SizedBox(height: 24));
 
-          // Day cards
           for (final day in week.days) {
             if (!day.hasActivity) continue;
             items.add(_buildPdfDayCard(day));
@@ -242,7 +237,6 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
     ));
     rows.add(pw.SizedBox(height: 8));
 
-    // Source breakdown
     if (day.challengeKcal > 0)
       rows.add(_pdfSourceRow('Weekly Challenge', day.challengeKcal, day.challengeRounds.length));
     if (day.gymKcal > 0)
@@ -250,7 +244,6 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
     if (day.yogaKcal > 0)
       rows.add(_pdfSourceRow('Yoga', day.yogaKcal, 0));
 
-    // Rounds detail
     if (day.challengeRounds.isNotEmpty) {
       rows.add(pw.SizedBox(height: 8));
       rows.add(pw.Text('Challenge Rounds',
@@ -305,7 +298,7 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: context.bgColor,
+      backgroundColor: context.isDark ? const Color(0xFF121212) : const Color(0xFFF2F2F7),
       body: Stack(
         children: [
           CustomScrollView(
@@ -314,7 +307,6 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
               if (_isLoading)
                 SliverToBoxAdapter(child: _buildSkeleton(context))
               else ...[
-                // ── This Week ───────────────────────────────────────────────
                 if (_recent.any((d) => d.hasActivity)) ...[
                   _sectionHeader(context, 'This Week'),
                   SliverPadding(
@@ -335,7 +327,6 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
                   ),
                 ],
 
-                // ── Past Weeks ───────────────────────────────────────────────
                 if (_weeks.isNotEmpty) ...[
                   _sectionHeader(context, 'Past Weeks'),
                   SliverPadding(
@@ -367,7 +358,6 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
             ],
           ),
 
-          // PDF generating overlay
           if (_pdfGenerating)
             Container(
               color: Colors.black54,
@@ -447,7 +437,7 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  DAY CARD  (used for "this week" section)
+//  DAY CARD
 // ═════════════════════════════════════════════════════════════════════════════
 class _DayCard extends StatefulWidget {
   final _HistoryDay day;
@@ -481,19 +471,25 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
   @override
   Widget build(BuildContext context) {
     final day    = widget.day;
-    final accent = widget.accent;
     final today  = DateTime.now();
     final isToday = day.date.year == today.year &&
         day.date.month == today.month && day.date.day == today.day;
 
+    // Card: themeColor in dark, #1A1A1A in light
+    final cardBg = context.isDark ? const Color(0xFF2A2A2A) : Colors.white;
+
+
     return Container(
       decoration: BoxDecoration(
-        color: context.cardBgColor,
+        color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isToday ? themeColor.withOpacity(0.5) : Colors.transparent, width: 1.5),
-        boxShadow: context.isDark ? null
-            : [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+            color: context.isDark
+                ? Colors.black.withOpacity(0.4)
+                : Colors.black.withOpacity(0.07),
+            blurRadius: 12, offset: const Offset(0, 4)),
+        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -505,21 +501,23 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(children: [
-                // Date column
+                // Date box — black in dark (themeColor card), themeColor in light (dark card)
                 Container(
                   width: 46, height: 52,
                   decoration: BoxDecoration(
-                    color: isToday ? themeColor : themeColor.withOpacity(0.12),
+                    color: context.isDark ? Colors.black : themeColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Text('${day.date.day}',
                       style: TextStyle(
-                        color: isToday ? Colors.black : accent,
+                        color: context.isDark ? themeColor : Colors.black,
                         fontSize: 20, fontWeight: FontWeight.bold)),
                     Text(_monthAbbr(day.date.month),
                       style: TextStyle(
-                        color: isToday ? Colors.black87 : context.subtextColor,
+                        color: context.isDark
+                            ? themeColor.withOpacity(0.7)
+                            : Colors.black87,
                         fontSize: 10, fontWeight: FontWeight.w600)),
                   ]),
                 ),
@@ -528,32 +526,43 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
                   Row(children: [
                     Text(_weekdayName(day.date.weekday),
                       style: TextStyle(
-                        color: context.textColor, fontSize: 15,
-                        fontWeight: FontWeight.bold)),
+                        color: context.textColor,
+                        fontSize: 15, fontWeight: FontWeight.bold)),
                     if (isToday) ...[
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(color: themeColor, borderRadius: BorderRadius.circular(20)),
-                        child: const Text('Today',
-                          style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(20)),
+                        child: Text('Today',
+                          style: TextStyle(
+                            color: context.isDark ? themeColor : Colors.white,
+                            fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ]),
                   const SizedBox(height: 4),
                   Row(children: [
                     _miniChip(Icons.local_fire_department_rounded,
-                      '${day.totalKcal} kcal', Colors.orange),
-                    const SizedBox(width: 6),
+                      '${day.totalKcal} kcal', context.textColor),
+                    const SizedBox(width: 8),
                     _miniChip(Icons.timer_rounded,
-                      _fmtDuration(day.totalSecs), accent),
+                      _fmtDuration(day.totalSecs), context.textColor),
                   ]),
                 ])),
                 AnimatedRotation(
                   turns: _expanded ? 0.5 : 0,
                   duration: const Duration(milliseconds: 280),
-                  child: Icon(Icons.keyboard_arrow_down_rounded,
-                    color: context.subtextColor, size: 22),
+                  child: Container(
+                    width: 30, height: 30,
+                    decoration: BoxDecoration(
+                      color: context.textColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.keyboard_arrow_down_rounded,
+                      color: context.textColor, size: 18),
+                  ),
                 ),
               ]),
             ),
@@ -566,66 +575,65 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
               spacing: 8, runSpacing: 6,
               children: [
                 if (day.challengeKcal > 0)
-                  _sourcePill(context, Icons.emoji_events_rounded,
-                    'Challenge', day.challengeKcal, _challengeColor),
+                  _sourcePill(Icons.emoji_events_rounded,
+                    'Challenge', day.challengeKcal),
                 if (day.gymKcal > 0)
-                  _sourcePill(context, Icons.fitness_center_rounded,
-                    'Gym', day.gymKcal, _gymColor),
+                  _sourcePill(Icons.fitness_center_rounded,
+                    'Gym', day.gymKcal),
                 if (day.yogaKcal > 0)
-                  _sourcePill(context, Icons.self_improvement_rounded,
-                    'Yoga', day.yogaKcal, _yogaColor),
+                  _sourcePill(Icons.self_improvement_rounded,
+                    'Yoga', day.yogaKcal),
               ],
             ),
           ),
 
-          // ── Expanded detail ──────────────────────────────────────────────
+          // ── Expanded detail — WHITE section, black text ──────────────────
           SizeTransition(
             sizeFactor: _anim,
-            child: Column(children: [
-              Divider(height: 1, color: context.isDark ? Colors.grey[800] : Colors.grey[200]),
-              const SizedBox(height: 12),
+            child: Container(
+              color: context.isDark ? const Color(0xFF1A1A1A) : Colors.white,
+              child: Column(children: [
+                const SizedBox(height: 14),
 
-              if (day.challengeRounds.isNotEmpty) ...[
-                _detailSection(context, Icons.emoji_events_rounded,
-                  'Challenge Rounds', _challengeColor,
-                  day.challengeRounds.asMap().entries.map((e) =>
-                    _RoundRow(
-                      context: context,
-                      index: e.key + 1,
-                      kcal: e.value['kcal'] as int,
-                      secs: e.value['secs'] as int,
-                      color: _challengeColor,
-                    )
-                  ).toList()
-                ),
-                const SizedBox(height: 12),
-              ],
+                if (day.challengeRounds.isNotEmpty) ...[
+                  _detailSection(context, Icons.emoji_events_rounded,
+                    'Challenge Rounds', _challengeColor,
+                    day.challengeRounds.asMap().entries.map((e) =>
+                      _RoundRow(
+                        index: e.key + 1,
+                        kcal: e.value['kcal'] as int,
+                        secs: e.value['secs'] as int,
+                        color: _challengeColor,
+                      )
+                    ).toList()
+                  ),
+                  const SizedBox(height: 12),
+                ],
 
-              if (day.gymSessions.isNotEmpty) ...[
-                ..._buildGymCategorySections(context, day.gymSessions),
-                const SizedBox(height: 12),
-              ],
+                if (day.gymSessions.isNotEmpty) ...[
+                  ..._buildGymCategorySections(context, day.gymSessions),
+                  const SizedBox(height: 12),
+                ],
 
-              // Yoga — show total summary (no per-session breakdown stored)
-              if (day.yogaKcal > 0) ...[
-                _detailSection(context, Icons.self_improvement_rounded,
-                  'Yoga', _yogaColor,
-                  [
-                    _RoundRow(
-                      context: context,
-                      index: 1,
-                      label: 'Yoga Session',
-                      kcal: day.yogaKcal,
-                      secs: 0,
-                      color: _yogaColor,
-                    ),
-                  ]
-                ),
-                const SizedBox(height: 12),
-              ],
+                if (day.yogaKcal > 0) ...[
+                  _detailSection(context, Icons.self_improvement_rounded,
+                    'Yoga', _yogaColor,
+                    [
+                      _RoundRow(
+                        index: 1,
+                        label: 'Yoga Session',
+                        kcal: day.yogaKcal,
+                        secs: 0,
+                        color: _yogaColor,
+                      ),
+                    ]
+                  ),
+                  const SizedBox(height: 12),
+                ],
 
-              const SizedBox(height: 4),
-            ]),
+                const SizedBox(height: 4),
+              ]),
+            ),
           ),
         ]),
       ),
@@ -633,49 +641,52 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
   }
 
   Widget _miniChip(IconData icon, String label, Color color) => Row(children: [
-    Icon(icon, color: color, size: 12),
+    Icon(icon, color: color, size: 13),
     const SizedBox(width: 3),
-    Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+    Text(label, style: TextStyle(
+      color: color, fontSize: 11, fontWeight: FontWeight.w700)),
   ]);
 
-  Widget _sourcePill(BuildContext context, IconData icon, String label, int kcal, Color color) =>
+  Widget _sourcePill(IconData icon, String label, int kcal) =>
     Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(context.isDark ? 0.12 : 0.10),
+        color: context.textColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.25)),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, color: color, size: 13),
+        Icon(icon, color: context.textColor, size: 13),
         const SizedBox(width: 5),
         Text('$label  $kcal kcal',
-          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+          style: TextStyle(
+            color: context.textColor, fontSize: 11, fontWeight: FontWeight.bold)),
       ]),
     );
 
-  Widget _detailSection(BuildContext context, IconData icon, String title, Color color,
-      List<Widget> rows) =>
+  Widget _detailSection(BuildContext context, IconData icon, String title,
+      Color color, List<Widget> rows) =>
     Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, color: color, size: 14),
+            width: 28, height: 28,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8)),
+            child: Icon(icon, color: color, size: 15),
           ),
           const SizedBox(width: 8),
-          Text(title, style: TextStyle(
-            color: context.textColor, fontSize: 13, fontWeight: FontWeight.bold)),
+          Text(title, style: const TextStyle(
+            color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold)),
         ]),
         const SizedBox(height: 8),
         ...rows,
       ]),
     );
 
-    List<Widget> _buildGymCategorySections(BuildContext context, List<Map<String, dynamic>> sessions) {
-    // group by category
+  List<Widget> _buildGymCategorySections(BuildContext context,
+      List<Map<String, dynamic>> sessions) {
     final Map<String, List<Map<String, dynamic>>> grouped = {};
     for (final s in sessions) {
       final cat = s['category'] as String? ?? 'Gym';
@@ -692,9 +703,9 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
     };
 
     return grouped.entries.map((entry) {
-      final cat      = entry.key;
-      final exList   = entry.value;
-      final icon     = categoryIcons[cat] ?? Icons.fitness_center_rounded;
+      final cat    = entry.key;
+      final exList = entry.value;
+      final icon   = categoryIcons[cat] ?? Icons.fitness_center_rounded;
 
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -703,7 +714,6 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
           exList.map((session) {
             final sets = (session['sets'] as List? ?? []);
             return _GymExerciseBlock(
-              context: context,
               title: session['title'] as String,
               totalKcal: session['kcal'] as int,
               totalSecs: session['secs'] as int,
@@ -719,13 +729,11 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
 
 // ── Round row ─────────────────────────────────────────────────────────────────
 class _RoundRow extends StatelessWidget {
-  final BuildContext context;
   final int index, kcal, secs;
   final Color color;
   final String? label;
 
   const _RoundRow({
-    required this.context,
     required this.index,
     required this.kcal,
     required this.secs,
@@ -734,31 +742,36 @@ class _RoundRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext _) => Padding(
+  Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: context.isDark ? Colors.white.withOpacity(0.04) : Colors.grey.shade50,
+        color: Colors.grey.shade100,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.15)),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(children: [
         Container(
           width: 26, height: 26,
-          decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(7)),
           child: Center(child: Text('$index',
-            style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold))),
+            style: TextStyle(
+              color: color, fontSize: 11, fontWeight: FontWeight.bold))),
         ),
         const SizedBox(width: 10),
         Expanded(child: Text(label ?? 'Round $index',
-          style: TextStyle(color: context.textColor, fontSize: 12, fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            color: Colors.black, fontSize: 12, fontWeight: FontWeight.w600),
           overflow: TextOverflow.ellipsis)),
         Row(children: [
-          Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 13),
+          const Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 13),
           const SizedBox(width: 3),
           Text('$kcal kcal',
-            style: TextStyle(color: context.textColor, fontSize: 12, fontWeight: FontWeight.bold)),
+            style: const TextStyle(
+              color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(width: 12),
           Icon(Icons.timer_rounded, color: color, size: 13),
           const SizedBox(width: 3),
@@ -771,7 +784,7 @@ class _RoundRow extends StatelessWidget {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  WEEK BAR  (collapsible past-week row)
+//  WEEK BAR
 // ═════════════════════════════════════════════════════════════════════════════
 class _WeekBar extends StatelessWidget {
   final _WeekGroup week;
@@ -790,12 +803,21 @@ class _WeekBar extends StatelessWidget {
     final maxKcal = week.days.isEmpty ? 1 :
         week.days.map((d) => d.totalKcal).fold(0, (a, b) => a > b ? a : b);
 
+    // Card: themeColor in dark, #1A1A1A in light
+    final cardBg = context.isDark ? const Color(0xFF2A2A2A) : Colors.white;
+
+
     return Container(
       decoration: BoxDecoration(
-        color: context.cardBgColor,
+        color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: context.isDark ? null
-            : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+            color: context.isDark
+                ? Colors.black.withOpacity(0.4)
+                : Colors.black.withOpacity(0.07),
+            blurRadius: 12, offset: const Offset(0, 4)),
+        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -819,7 +841,9 @@ class _WeekBar extends StatelessWidget {
                         child: Container(
                           height: (30 * frac).clamp(2.0, 30.0),
                           decoration: BoxDecoration(
-                            color: d.hasActivity ? themeColor : themeColor.withOpacity(0.2),
+                            color: d.hasActivity
+                                ? themeColor
+                                : context.textColor.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(3),
                           ),
                         ),
@@ -831,11 +855,12 @@ class _WeekBar extends StatelessWidget {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(week.label,
                     style: TextStyle(
-                      color: context.textColor, fontSize: 14,
-                      fontWeight: FontWeight.bold)),
+                      color: context.textColor,
+                      fontSize: 14, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 3),
                   Text('${week.activeDays} active days  •  ${week.totalKcal} kcal',
-                    style: TextStyle(color: context.subtextColor, fontSize: 11)),
+                    style: TextStyle(
+                      color: context.subtextColor, fontSize: 11)),
                 ])),
                 // PDF button
                 GestureDetector(
@@ -843,18 +868,26 @@ class _WeekBar extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: themeColor.withOpacity(0.12),
+                      color: context.textColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(Icons.picture_as_pdf_rounded, color: accent, size: 18),
+                    child: Icon(Icons.picture_as_pdf_rounded,
+                      color: context.textColor, size: 18),
                   ),
                 ),
                 const SizedBox(width: 8),
                 AnimatedRotation(
                   turns: week.isExpanded ? 0.5 : 0,
                   duration: const Duration(milliseconds: 260),
-                  child: Icon(Icons.keyboard_arrow_down_rounded,
-                    color: context.subtextColor, size: 22),
+                  child: Container(
+                    width: 28, height: 28,
+                    decoration: BoxDecoration(
+                      color: context.textColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.keyboard_arrow_down_rounded,
+                      color: context.textColor, size: 18),
+                  ),
                 ),
               ]),
             ),
@@ -865,33 +898,35 @@ class _WeekBar extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
             child: Row(children: [
               _statChip(context, Icons.local_fire_department_rounded,
-                '${week.totalKcal}', 'kcal', Colors.orange),
+                '${week.totalKcal}', 'kcal'),
               const SizedBox(width: 8),
               _statChip(context, Icons.timer_rounded,
-                _fmtDuration(week.totalSecs), 'time', accent),
+                _fmtDuration(week.totalSecs), 'time'),
               const SizedBox(width: 8),
               _statChip(context, Icons.calendar_today_rounded,
-                '${week.activeDays}/7', 'days', _gymColor),
+                '${week.activeDays}/7', 'days'),
             ]),
           ),
 
-          // ── Expanded day list ────────────────────────────────────────────
+          // ── Expanded day list — WHITE section ────────────────────────────
           AnimatedCrossFade(
             firstChild: const SizedBox.shrink(),
-            secondChild: Column(children: [
-              Divider(height: 1, color: context.isDark ? Colors.grey[800] : Colors.grey[200]),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-                child: Column(
-                  children: week.days.where((d) => d.hasActivity).map((day) =>
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _DayCard(day: day, accent: accent),
-                    )
-                  ).toList(),
+            secondChild: Container(
+              color: context.isDark ? const Color(0xFF1A1A1A) : Colors.white,
+              child: Column(children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+                  child: Column(
+                    children: week.days.where((d) => d.hasActivity).map((day) =>
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _DayCard(day: day, accent: accent),
+                      )
+                    ).toList(),
+                  ),
                 ),
-              ),
-            ]),
+              ]),
+            ),
             crossFadeState: week.isExpanded
                 ? CrossFadeState.showSecond
                 : CrossFadeState.showFirst,
@@ -902,35 +937,35 @@ class _WeekBar extends StatelessWidget {
     );
   }
 
-  Widget _statChip(BuildContext context, IconData icon, String value, String unit, Color color) =>
+    Widget _statChip(BuildContext context, IconData icon, String value, String unit) =>
+
     Expanded(child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(context.isDark ? 0.08 : 0.07),
+        color: context.textColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.15)),
       ),
       child: Row(children: [
-        Icon(icon, color: color, size: 13),
+        Icon(icon, color: context.textColor, size: 13),
         const SizedBox(width: 5),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(value, style: TextStyle(
             color: context.textColor, fontSize: 12, fontWeight: FontWeight.bold)),
-          Text(unit, style: TextStyle(color: context.subtextColor, fontSize: 9)),
+          Text(unit, style: TextStyle(
+            color: context.subtextColor, fontSize: 9)),
         ]),
       ]),
     ));
 }
 
+// ─── Gym exercise block ───────────────────────────────────────────────────────
 class _GymExerciseBlock extends StatelessWidget {
-  final BuildContext context;
   final String title;
   final int totalKcal, totalSecs;
   final List<Map<String, dynamic>> sets;
   final Color color;
 
   const _GymExerciseBlock({
-    required this.context,
     required this.title,
     required this.totalKcal,
     required this.totalSecs,
@@ -939,30 +974,33 @@ class _GymExerciseBlock extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext _) => Container(
+  Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(bottom: 10),
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: context.isDark ? Colors.white.withOpacity(0.04) : Colors.grey.shade50,
+      color: Colors.grey.shade100,
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: color.withOpacity(0.2)),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // Exercise header
       Row(children: [
         Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
-          child: Icon(Icons.fitness_center_rounded, color: color, size: 13),
+          width: 28, height: 28,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(8)),
+          child: Icon(Icons.fitness_center_rounded, color: color, size: 14),
         ),
         const SizedBox(width: 8),
         Expanded(child: Text(title,
-          style: TextStyle(color: context.textColor, fontSize: 13, fontWeight: FontWeight.bold))),
+          style: const TextStyle(
+            color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold))),
         Row(children: [
-          Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 13),
+          const Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 13),
           const SizedBox(width: 3),
           Text('$totalKcal kcal',
-            style: TextStyle(color: context.textColor, fontSize: 12, fontWeight: FontWeight.bold)),
+            style: const TextStyle(
+              color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(width: 10),
           Icon(Icons.timer_rounded, color: color, size: 13),
           const SizedBox(width: 3),
@@ -972,6 +1010,8 @@ class _GymExerciseBlock extends StatelessWidget {
       ]),
       if (sets.isNotEmpty) ...[
         const SizedBox(height: 8),
+        Container(height: 1, color: color.withOpacity(0.12),
+          margin: const EdgeInsets.only(bottom: 6)),
         ...sets.map((s) {
           final setNum = s['setNumber'] as int? ?? 0;
           final reps   = s['reps'] as int? ?? 0;
@@ -982,16 +1022,20 @@ class _GymExerciseBlock extends StatelessWidget {
             child: Row(children: [
               Container(
                 width: 22, height: 22,
-                decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(6)),
                 child: Center(child: Text('$setNum',
-                  style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold))),
+                  style: TextStyle(
+                    color: color, fontSize: 10, fontWeight: FontWeight.bold))),
               ),
               const SizedBox(width: 8),
               Text('Set $setNum  •  $reps reps',
-                style: TextStyle(color: context.subtextColor, fontSize: 11)),
+                style: const TextStyle(color: Colors.black54, fontSize: 11)),
               const Spacer(),
               Text('$kcal kcal',
-                style: TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.w600)),
+                style: const TextStyle(
+                  color: Colors.orange, fontSize: 11, fontWeight: FontWeight.w600)),
               const SizedBox(width: 10),
               Text(_fmtDuration(secs),
                 style: TextStyle(color: color, fontSize: 11)),
