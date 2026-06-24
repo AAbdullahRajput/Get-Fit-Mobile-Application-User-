@@ -1544,5 +1544,136 @@ class SupabaseService {
       return [];
     }
   }
+
+  // ─────────────────────────────────────────────
+  // INSTRUCTOR CLASS STEPS & LOGS
+  // ─────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getInstructorClassSteps(String classId) async {
+    try {
+      debugPrint('\x1B[33m[API] GET instructor_class_steps | class: $classId\x1B[0m');
+      final data = await client
+          .from('instructor_class_steps')
+          .select()
+          .eq('class_id', classId)
+          .order('step_number', ascending: true);
+      debugPrint('\x1B[32m[API] 200 OK | Steps: ${data.length}\x1B[0m');
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getInstructorClassSteps | $e\x1B[0m');
+      return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getInstructorClassLog({
+    required String classId,
+    required String date, // 'YYYY-MM-DD'
+  }) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return null;
+      final data = await client
+          .from('instructor_class_logs')
+          .select()
+          .eq('user_id', userId)
+          .eq('class_id', classId)
+          .eq('scheduled_date', date)
+          .maybeSingle();
+      return data;
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getInstructorClassLog | $e\x1B[0m');
+      return null;
+    }
+  }
+
+  static Future<void> upsertInstructorClassLog({
+    required String classId,
+    required String instructorId,
+    required String date, // 'YYYY-MM-DD'
+    required bool isDone,
+    required int sessionDurationMinutes,
+  }) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return;
+      debugPrint('\x1B[33m[API] UPSERT instructor_class_logs | class: $classId | done: $isDone\x1B[0m');
+      await client.from('instructor_class_logs').upsert({
+        'user_id': userId,
+        'class_id': classId,
+        'instructor_id': instructorId,
+        'scheduled_date': date,
+        'is_done': isDone,
+        'completed_at': isDone ? DateTime.now().toIso8601String() : null,
+        'session_duration_minutes': sessionDurationMinutes,
+      }, onConflict: 'user_id,class_id,scheduled_date');
+      debugPrint('\x1B[32m[API] 200 OK | Class log upserted\x1B[0m');
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | upsertInstructorClassLog | $e\x1B[0m');
+      rethrow;
+    }
+  }
+
+  /// Returns all logs for the current user across all instructor classes.
+  /// Used for history page and stats.
+  static Future<List<Map<String, dynamic>>> getInstructorClassLogs({int days = 90}) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return [];
+      final start = DateTime.now()
+          .subtract(Duration(days: days))
+          .toIso8601String()
+          .substring(0, 10);
+      final data = await client
+          .from('instructor_class_logs')
+          .select('*, instructor_paid_classes(title, duration_minutes, image_url, instructor_id), yoga_instructors(name)')
+          .eq('user_id', userId)
+          .eq('is_done', true)
+          .gte('scheduled_date', start)
+          .order('scheduled_date', ascending: false);
+      debugPrint('\x1B[32m[API] 200 OK | InstructorClassLogs: ${data.length}\x1B[0m');
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getInstructorClassLogs | $e\x1B[0m');
+      return [];
+    }
+  }
+
+  /// Returns the next upcoming class for a given instructor
+  /// based on scheduled_date ordering from today.
+  static Future<Map<String, dynamic>?> getNextInstructorClass(String instructorId) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return null;
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      // Get all paid classes for instructor
+      final classes = await client
+          .from('instructor_paid_classes')
+          .select('id, title, duration_minutes, scheduled_time')
+          .eq('instructor_id', instructorId)
+          .eq('is_active', true);
+      if (classes.isEmpty) return null;
+      final classIds = (classes as List).map((c) => c['id'] as String).toList();
+      // Find first not done today or upcoming
+      for (final cls in classes) {
+        final log = await client
+            .from('instructor_class_logs')
+            .select()
+            .eq('user_id', userId)
+            .eq('class_id', cls['id'])
+            .eq('scheduled_date', today)
+            .maybeSingle();
+        if (log == null || log['is_done'] == false) {
+          return {
+            ...cls,
+            'scheduled_date': today,
+          };
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getNextInstructorClass | $e\x1B[0m');
+      return null;
+    }
+  }
   
 }
