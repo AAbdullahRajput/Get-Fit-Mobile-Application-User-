@@ -240,11 +240,11 @@ side: BorderSide(color: _accent(context)),
                             const SizedBox(height: 8),
                             Row(
                               children: [
+                                _chip(exercise['duration'] ?? ''),
+                                const SizedBox(width: 8),
+                                _chip(exercise['kcal'] ?? ''),
+                                const SizedBox(width: 8),
                                 _chip(exercise['sets'] ?? ''),
-                                const SizedBox(width: 8),
-                                _chip(exercise['reps'] ?? ''),
-                                const SizedBox(width: 8),
-                                _chip(exercise['rest'] ?? ''),
                                 const Spacer(),
                                 Container(
                                   width: 32, height: 32,
