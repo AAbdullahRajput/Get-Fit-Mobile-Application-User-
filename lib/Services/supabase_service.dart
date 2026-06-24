@@ -1157,4 +1157,214 @@ class SupabaseService {
       rethrow;
     }
   }
+
+  // ─────────────────────────────────────────────
+// Add these methods to SupabaseService
+// ─────────────────────────────────────────────
+
+  /// Returns full daily detail for the history page.
+  /// Each entry: date, challengeKcal, gymKcal, yogaKcal,
+  ///             totalSecs, challengeRounds (list), gymSessions (list)
+  static Future<List<Map<String, dynamic>>> getFullActivityHistory({int days = 90}) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return [];
+
+      final now   = DateTime.now();
+      final start = DateTime(now.year, now.month, now.day).subtract(Duration(days: days - 1));
+
+      // challenge_user_progress joined with challenge_rounds
+      final challengeRows = await client
+          .from('challenge_user_progress')
+          .select('calories_burned, time_spent_seconds, completed_at, exercise_id, day_number')
+          .eq('user_id', userId)
+          .eq('is_completed', true)
+          .gte('completed_at', start.toIso8601String())
+          .order('completed_at', ascending: false);
+
+      List<dynamic> gymRows = [];
+      try {
+        gymRows = await client
+            .from('workout_sessions')
+            .select('calories_burned, duration_seconds, completed_at, exercise_title')
+            .eq('user_id', userId)
+            .gte('completed_at', start.toIso8601String())
+            .order('completed_at', ascending: false);
+      } catch (_) {}
+
+      // bucket by date
+      final Map<String, Map<String, dynamic>> buckets = {};
+      for (int i = 0; i < days; i++) {
+        final d   = start.add(Duration(days: i));
+        final key = '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
+        buckets[key] = {
+          'date': key,
+          'challengeKcal': 0,
+          'gymKcal': 0,
+          'yogaKcal': 0,
+          'totalSecs': 0,
+          'challengeRounds': <Map<String,dynamic>>[],
+          'gymSessions': <Map<String,dynamic>>[],
+        };
+      }
+
+      for (final row in challengeRows) {
+        final dt  = DateTime.tryParse(row['completed_at'] ?? ''); if (dt == null) continue;
+        final key = '${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}';
+        if (!buckets.containsKey(key)) continue;
+        final kcal = (row['calories_burned'] as num? ?? 0).toInt();
+        final secs = (row['time_spent_seconds'] as num? ?? 0).toInt();
+        buckets[key]!['challengeKcal'] = (buckets[key]!['challengeKcal'] as int) + kcal;
+        buckets[key]!['totalSecs']     = (buckets[key]!['totalSecs'] as int) + secs;
+        (buckets[key]!['challengeRounds'] as List).add({
+          'exerciseId': row['exercise_id'],
+          'dayNumber':  row['day_number'],
+          'kcal':       kcal,
+          'secs':       secs,
+        });
+      }
+
+      for (final row in gymRows) {
+        final dt  = DateTime.tryParse(row['completed_at'] ?? ''); if (dt == null) continue;
+        final key = '${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}';
+        if (!buckets.containsKey(key)) continue;
+        final kcal = (row['calories_burned'] as num? ?? 0).toInt();
+        final secs = (row['duration_seconds'] as num? ?? 0).toInt();
+        buckets[key]!['gymKcal']   = (buckets[key]!['gymKcal'] as int) + kcal;
+        buckets[key]!['totalSecs'] = (buckets[key]!['totalSecs'] as int) + secs;
+        (buckets[key]!['gymSessions'] as List).add({
+          'title': row['exercise_title'] ?? 'Gym Exercise',
+          'kcal':  kcal,
+          'secs':  secs,
+        });
+      }
+
+      final result = buckets.values.toList()
+        ..sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
+
+      return result;
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getFullActivityHistory | $e\x1B[0m');
+      return [];
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // GYM WORKOUT LOGS (per-set tracking)
+  // ─────────────────────────────────────────────
+
+  static Future<bool> isGymExerciseDoneToday(String exerciseId) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return false;
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final start = '${today}T00:00:00.000Z';
+      final end   = '${today}T23:59:59.999Z';
+      final data  = await client
+          .from('gym_workout_logs')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('exercise_id', exerciseId)
+          .gte('completed_at', start)
+          .lte('completed_at', end)
+          .limit(1)
+          .maybeSingle();
+      return data != null;
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | isGymExerciseDoneToday | $e\x1B[0m');
+      return false;
+    }
+  }
+
+  static Future<void> logGymSet({
+    required String exerciseId,
+    required String exerciseTitle,
+    required String category,
+    required int setNumber,
+    required int repsCompleted,
+    required int durationSeconds,
+    required int caloriesBurned,
+  }) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return;
+      debugPrint('\x1B[33m[API] POST /rest/v1/gym_workout_logs | $exerciseTitle set $setNumber\x1B[0m');
+      await client.from('gym_workout_logs').insert({
+        'user_id': userId,
+        'exercise_id': exerciseId,
+        'exercise_title': exerciseTitle,
+        'category': category,
+        'set_number': setNumber,
+        'reps_completed': repsCompleted,
+        'duration_seconds': durationSeconds,
+        'calories_burned': caloriesBurned,
+        'completed_at': DateTime.now().toIso8601String(),
+      });
+      debugPrint('\x1B[32m[API] 200 OK | Set logged\x1B[0m');
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | logGymSet | $e\x1B[0m');
+      rethrow;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getGymExerciseSteps(String exerciseId) async {
+    try {
+      debugPrint('\x1B[33m[API] GET /rest/v1/gym_exercise_steps | exercise: $exerciseId\x1B[0m');
+      final data = await client
+          .from('gym_exercise_steps')
+          .select()
+          .eq('exercise_id', exerciseId)
+          .order('step_number', ascending: true);
+      debugPrint('\x1B[32m[API] 200 OK | Steps: ${data.length}\x1B[0m');
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getGymExerciseSteps | $e\x1B[0m');
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getGymLogsForDate(String date) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return [];
+      final start = '${date}T00:00:00.000Z';
+      final end   = '${date}T23:59:59.999Z';
+      final data  = await client
+          .from('gym_workout_logs')
+          .select()
+          .eq('user_id', userId)
+          .gte('completed_at', start)
+          .lte('completed_at', end)
+          .order('completed_at', ascending: true);
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getGymLogsForDate | $e\x1B[0m');
+      return [];
+    }
+  }
+
+  /// Delete activity history older than 2 months
+  static Future<void> clearOldActivityHistory() async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return;
+      final cutoff = DateTime.now().subtract(const Duration(days: 60)).toIso8601String();
+      await client
+          .from('challenge_user_progress')
+          .delete()
+          .eq('user_id', userId)
+          .lt('completed_at', cutoff);
+      try {
+        await client
+            .from('workout_sessions')
+            .delete()
+            .eq('user_id', userId)
+            .lt('completed_at', cutoff);
+      } catch (_) {}
+      debugPrint('\x1B[32m[API] clearOldActivityHistory done\x1B[0m');
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | clearOldActivityHistory | $e\x1B[0m');
+    }
+  }
+
 }

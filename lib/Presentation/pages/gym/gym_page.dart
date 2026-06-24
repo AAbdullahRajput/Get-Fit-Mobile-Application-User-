@@ -109,7 +109,7 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
       case 'Legs':
         Navigator.push(context, MaterialPageRoute(builder: (context) => const LegsExercisesScreen()));
         break;
-      case 'Arm':
+      case 'Arms':
         Navigator.push(context, MaterialPageRoute(builder: (context) => const ArmsExercisesScreen()));
         break;
       case 'Core':
