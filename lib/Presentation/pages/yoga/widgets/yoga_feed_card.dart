@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/newsfeed/newsfeed_page.dart';
+import 'package:get_fit/Presentation/pages/yoga/instructor_class_detail_page.dart';
 
 class YogaFeedCard extends StatefulWidget {
   const YogaFeedCard({super.key});
@@ -143,162 +144,181 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
             final instructorSpecialty = instructor?['specialty'] ?? '';
             final instructorImage = instructor?['image_url'] ?? '';
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: 14),
-              decoration: BoxDecoration(
-                color: context.cardBgColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: themeColor.withOpacity(0.15)),
-              ),
-              child: Stack(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Image
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(16)),
-                        child: imageUrl.isNotEmpty
-                            ? Image.network(
-                                imageUrl,
-                                height: 160,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    _imageFallback(context),
-                              )
-                            : _imageFallback(context),
-                      ),
-
-                      // Badges row over image bottom
-                      Padding(
-                        padding:
-                            const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                        child: Row(
-                          children: [
-                            _badge(level, themeColor),
-                            const SizedBox(width: 6),
-                            _badge(classType, Colors.white24,
-                                textColor: context.subtextColor),
-                            const Spacer(),
-                            Icon(Icons.timer_outlined,
-                                color: context.subtextColor, size: 13),
-                            const SizedBox(width: 3),
-                            Text('$duration min',
-                                style: TextStyle(
-                                    color: context.subtextColor,
-                                    fontSize: 11)),
-                          ],
-                        ),
-                      ),
-
-                      // Title + description
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 8, 44, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: TextStyle(
-                                color: context.textColor,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            if (description.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                description,
-                                style: TextStyle(
-                                  color: context.subtextColor,
-                                  fontSize: 12,
-                                  height: 1.4,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-
-                      // Instructor row
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor: themeColor,
-                              backgroundImage: instructorImage.isNotEmpty
-                                  ? NetworkImage(instructorImage)
-                                  : null,
-                              child: instructorImage.isEmpty
-                                  ? const Icon(Icons.person,
-                                      color: Colors.black, size: 14)
-                                  : null,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    instructorName,
-                                    style: TextStyle(
-                                      color: context.textColor,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    instructorSpecialty,
-                                    style: TextStyle(
-                                      color: context.subtextColor,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: themeColor.withOpacity(0.15),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: themeColor,
-                                  size: 18),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Remove button
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: GestureDetector(
-                      onTap: () => _removeItem(classId),
-                      child: Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.55),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.close,
-                            color: Colors.white, size: 15),
-                      ),
+            return GestureDetector(
+              onTap: () {
+                if (cls == null) return;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => InstructorClassDetailPage(
+                      classData: {
+                        ...cls,
+                        'id': classId,
+                        'instructor_id':
+                            cls['instructor_id'] ?? instructor?['id'] ?? '',
+                      },
+                      instructorData: instructor ?? {},
                     ),
                   ),
-                ],
+                );
+              },
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: context.cardBgColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: themeColor.withOpacity(0.15)),
+                ),
+                child: Stack(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Image
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(16)),
+                          child: imageUrl.isNotEmpty
+                              ? Image.network(
+                                  imageUrl,
+                                  height: 160,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      _imageFallback(context),
+                                )
+                              : _imageFallback(context),
+                        ),
+
+                        // Badges row
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                          child: Row(
+                            children: [
+                              _badge(level, themeColor),
+                              const SizedBox(width: 6),
+                              _badge(classType, Colors.white24,
+                                  textColor: context.subtextColor),
+                              const Spacer(),
+                              Icon(Icons.timer_outlined,
+                                  color: context.subtextColor, size: 13),
+                              const SizedBox(width: 3),
+                              Text('$duration min',
+                                  style: TextStyle(
+                                      color: context.subtextColor,
+                                      fontSize: 11)),
+                            ],
+                          ),
+                        ),
+
+                        // Title + description
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 44, 0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: TextStyle(
+                                  color: context.textColor,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (description.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  description,
+                                  style: TextStyle(
+                                    color: context.subtextColor,
+                                    fontSize: 12,
+                                    height: 1.4,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+
+                        // Instructor row
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 16,
+                                backgroundColor: themeColor,
+                                backgroundImage: instructorImage.isNotEmpty
+                                    ? NetworkImage(instructorImage)
+                                    : null,
+                                child: instructorImage.isEmpty
+                                    ? const Icon(Icons.person,
+                                        color: Colors.black, size: 14)
+                                    : null,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      instructorName,
+                                      style: TextStyle(
+                                        color: context.textColor,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      instructorSpecialty,
+                                      style: TextStyle(
+                                        color: context.subtextColor,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: themeColor.withOpacity(0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                    Icons.play_arrow_rounded,
+                                    color: themeColor,
+                                    size: 18),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Remove button — stops tap propagation via its own GestureDetector
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: () => _removeItem(classId),
+                        behavior: HitTestBehavior.opaque,
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.55),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close,
+                              color: Colors.white, size: 15),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           }).toList(),
@@ -309,8 +329,7 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
   Widget _imageFallback(BuildContext context) {
     return Container(
       height: 160,
-      color:
-          context.isDark ? const Color(0xff3a3a3a) : Colors.grey[200],
+      color: context.isDark ? const Color(0xff3a3a3a) : Colors.grey[200],
       child: Icon(Icons.play_circle_outline,
           color: context.subtextColor, size: 48),
     );
@@ -319,8 +338,7 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
   Widget _badge(String label, Color bgColor,
       {Color textColor = Colors.black}) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(8),
@@ -328,9 +346,7 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
       child: Text(
         label,
         style: TextStyle(
-            color: textColor,
-            fontSize: 10,
-            fontWeight: FontWeight.bold),
+            color: textColor, fontSize: 10, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -371,12 +387,10 @@ class _ShimmerWidgetState extends State<_ShimmerWidget>
   void initState() {
     super.initState();
     _controller = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 1200))
+        vsync: this, duration: const Duration(milliseconds: 1200))
       ..repeat(reverse: true);
     _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
-        CurvedAnimation(
-            parent: _controller, curve: Curves.easeInOut));
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
   @override
   void dispose() {
