@@ -112,7 +112,6 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
       case 'Arms':
         Navigator.push(context, MaterialPageRoute(builder: (context) => const ArmsExercisesScreen()));
         break;
-      case 'Core':
         case 'Core':
         Navigator.push(context,MaterialPageRoute(builder: (context) => const CoreExercisesScreen(),),);
         break;
@@ -279,15 +278,11 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
             Expanded(
               child: RefreshIndicator(
                 color: _accent(context),
-backgroundColor: context.cardBgColor,
+                backgroundColor: context.cardBgColor,
                 onRefresh: _onRefresh,
                 child: _isLoading
                     ? _buildSkeleton(context)
-                    : RefreshIndicator(
-                        color: _accent(context),
-backgroundColor: context.cardBgColor,
-                        onRefresh: _onRefresh,
-                        child: ListView.builder(
+                    : ListView.builder(
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           itemCount: _exercises.length + 1,
@@ -358,7 +353,6 @@ side: BorderSide(color: _accent(context)),
                             return _exerciseCard(context, e);
                           },
                         ),
-                      ),
               ),
             ),
           ],
@@ -438,7 +432,7 @@ side: BorderSide(color: _accent(context)),
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black.withOpacity(0.85)],
+                      colors: [Colors.black.withOpacity(0.4), Colors.black],
                     ),
                   ),
                 ),
