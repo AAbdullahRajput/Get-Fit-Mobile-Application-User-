@@ -203,7 +203,8 @@ side: BorderSide(color: _accent(context)),
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [Colors.transparent, Colors.black.withOpacity(0.85)],
+                            colors: [Colors.black.withOpacity(0.4), Colors.black],
+
                           ),
                         ),
                       ),
@@ -234,9 +235,12 @@ side: BorderSide(color: _accent(context)),
                               ],
                             ),
                             const SizedBox(height: 6),
-                            Text(exercise['title'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                            Text(exercise['title'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold,
+    shadows: [Shadow(color: Colors.black, blurRadius: 10, offset: Offset(0, 2))])),
                             const SizedBox(height: 4),
-                            Text(exercise['description'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            Text(exercise['description'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 12,
+    shadows: [Shadow(color: Colors.black, blurRadius: 10)]), maxLines: 1, overflow: TextOverflow.ellipsis),
+
                             const SizedBox(height: 8),
                             Row(
                               children: [
