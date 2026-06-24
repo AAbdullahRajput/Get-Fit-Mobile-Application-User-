@@ -1405,4 +1405,144 @@ class SupabaseService {
     }
   }
 
+// ─────────────────────────────────────────────
+  // INSTRUCTOR PAID CLASSES
+  // ─────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getInstructorPaidClasses(
+      String instructorId) async {
+    try {
+      debugPrint(
+          '\x1B[33m[API] GET /rest/v1/instructor_paid_classes | instructor: $instructorId\x1B[0m');
+      final data = await client
+          .from('instructor_paid_classes')
+          .select()
+          .eq('instructor_id', instructorId)
+          .eq('is_active', true)
+          .order('created_at', ascending: true);
+      debugPrint(
+          '\x1B[32m[API] 200 OK | PaidClasses: ${data.length}\x1B[0m');
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint(
+          '\x1B[31m[API] ERROR | getInstructorPaidClasses | $e\x1B[0m');
+      return [];
+    }
+  }
+
+  static Future<bool> hasActiveBookingWithInstructor(
+      String instructorId) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return false;
+      final data = await client
+          .from('yoga_session_bookings')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('instructor_id', instructorId)
+          .maybeSingle();
+      return data != null;
+    } catch (e) {
+      debugPrint(
+          '\x1B[31m[API] ERROR | hasActiveBookingWithInstructor | $e\x1B[0m');
+      return false;
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // USER FEED CLASSES
+  // ─────────────────────────────────────────────
+
+  static Future<void> addClassToFeed({
+    required String classId,
+    required String instructorId,
+  }) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return;
+      debugPrint('\x1B[33m[API] POST /rest/v1/user_feed_classes\x1B[0m');
+      await client.from('user_feed_classes').insert({
+        'user_id': userId,
+        'class_id': classId,
+        'instructor_id': instructorId,
+      });
+      debugPrint('\x1B[32m[API] 200 OK | Class added to feed\x1B[0m');
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | addClassToFeed | $e\x1B[0m');
+      rethrow;
+    }
+  }
+
+  static Future<void> removeClassFromFeed(String classId) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return;
+      debugPrint('\x1B[33m[API] DELETE /rest/v1/user_feed_classes\x1B[0m');
+      await client
+          .from('user_feed_classes')
+          .delete()
+          .eq('user_id', userId)
+          .eq('class_id', classId);
+      debugPrint('\x1B[32m[API] 200 OK | Class removed from feed\x1B[0m');
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | removeClassFromFeed | $e\x1B[0m');
+      rethrow;
+    }
+  }
+
+  static Future<bool> isClassInFeed(String classId) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return false;
+      final data = await client
+          .from('user_feed_classes')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('class_id', classId)
+          .maybeSingle();
+      return data != null;
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | isClassInFeed | $e\x1B[0m');
+      return false;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getUserFeedClasses() async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return [];
+      debugPrint('\x1B[33m[API] GET /rest/v1/user_feed_classes\x1B[0m');
+      final data = await client
+          .from('user_feed_classes')
+          .select('''
+            id,
+            class_id,
+            added_at,
+            instructor_paid_classes (
+              id,
+              title,
+              description,
+              image_url,
+              duration_minutes,
+              level,
+              class_type,
+              instructor_id
+            ),
+            yoga_instructors (
+              name,
+              specialty,
+              image_url
+            )
+          ''')
+          .eq('user_id', userId)
+          .order('added_at', ascending: false);
+      debugPrint(
+          '\x1B[32m[API] 200 OK | UserFeedClasses: ${data.length}\x1B[0m');
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getUserFeedClasses | $e\x1B[0m');
+      return [];
+    }
+  }
+  
 }
