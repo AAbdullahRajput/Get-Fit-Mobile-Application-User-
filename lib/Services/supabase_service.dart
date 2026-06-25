@@ -1464,25 +1464,26 @@ class SupabaseService {
   // ─────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getInstructorPaidClasses(
-      String instructorId) async {
-    try {
-      debugPrint(
-          '\x1B[33m[API] GET /rest/v1/instructor_paid_classes | instructor: $instructorId\x1B[0m');
-      final data = await client
-          .from('instructor_paid_classes')
-          .select()
-          .eq('instructor_id', instructorId)
-          .eq('is_active', true)
-          .order('created_at', ascending: true);
-      debugPrint(
-          '\x1B[32m[API] 200 OK | PaidClasses: ${data.length}\x1B[0m');
-      return List<Map<String, dynamic>>.from(data);
-    } catch (e) {
-      debugPrint(
-          '\x1B[31m[API] ERROR | getInstructorPaidClasses | $e\x1B[0m');
-      return [];
-    }
+    String instructorId, {int? limit}) async {
+  try {
+    debugPrint(
+        '\x1B[33m[API] GET /rest/v1/instructor_paid_classes | instructor: $instructorId | limit: $limit\x1B[0m');
+    var query = client
+        .from('instructor_paid_classes')
+        .select()
+        .eq('instructor_id', instructorId)
+        .eq('is_active', true)
+        .order('created_at', ascending: true);
+    final data = limit != null ? await query.limit(limit) : await query;
+    debugPrint(
+        '\x1B[32m[API] 200 OK | PaidClasses: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint(
+        '\x1B[31m[API] ERROR | getInstructorPaidClasses | $e\x1B[0m');
+    return [];
   }
+}
 
   static Future<bool> hasActiveBookingWithInstructor(
       String instructorId) async {
@@ -1750,5 +1751,217 @@ class SupabaseService {
       rethrow;
     }
   }
+
+// ─────────────────────────────────────────────
+// INSTRUCTOR SESSIONS (new system)
+// ─────────────────────────────────────────────
+
+/// Get all sessions for an instructor
+static Future<List<Map<String, dynamic>>> getInstructorSessions(
+    String instructorId) async {
+  try {
+    debugPrint('\x1B[33m[API] GET instructor_sessions | instructor: $instructorId\x1B[0m');
+    final data = await client
+        .from('instructor_sessions')
+        .select()
+        .eq('instructor_id', instructorId)
+        .eq('is_active', true)
+        .order('session_start', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | Sessions: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getInstructorSessions | $e\x1B[0m');
+    return [];
+  }
+}
+
+/// Get classes for a specific session
+static Future<List<Map<String, dynamic>>> getSessionClasses(
+    String sessionId) async {
+  try {
+    debugPrint('\x1B[33m[API] GET instructor_session_classes | session: $sessionId\x1B[0m');
+    final data = await client
+        .from('instructor_session_classes')
+        .select()
+        .eq('session_id', sessionId)
+        .order('order_number', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | SessionClasses: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getSessionClasses | $e\x1B[0m');
+    return [];
+  }
+}
+
+/// Get time slots for a class
+static Future<List<Map<String, dynamic>>> getClassSlots(
+    String classId) async {
+  try {
+    debugPrint('\x1B[33m[API] GET instructor_class_slots | class: $classId\x1B[0m');
+    final data = await client
+        .from('instructor_class_slots')
+        .select()
+        .eq('class_id', classId)
+        .order('start_time', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | Slots: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getClassSlots | $e\x1B[0m');
+    return [];
+  }
+}
+
+/// Book sessions — replaces old bookYogaSession for new flow
+static Future<void> bookInstructorSessions({
+  required String instructorId,
+  required List<String> sessionIds, // sessions user selected
+  required int sessionCount,
+  required double totalPrice,
+  String notes = '',
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    debugPrint('\x1B[33m[API] POST yoga_session_bookings (new) | sessions: $sessionCount\x1B[0m');
+
+    // Calculate expires_at from the last session's end date
+    final lastSession = await client
+        .from('instructor_sessions')
+        .select('session_end')
+        .eq('id', sessionIds.last)
+        .single();
+    final expiresAt = lastSession['session_end'] as String;
+
+    for (final sessionId in sessionIds) {
+      await client.from('yoga_session_bookings').insert({
+        'user_id': userId,
+        'instructor_id': instructorId,
+        'session_id': sessionId,
+        'start_date': (await client
+                .from('instructor_sessions')
+                .select('session_start')
+                .eq('id', sessionId)
+                .single())['session_start'],
+        'num_sessions': 1,
+        'total_price': totalPrice / sessionIds.length,
+        'notes': notes,
+        'status': 'active',
+        'expires_at': expiresAt,
+        'payment_status': 'paid',
+      });
+    }
+    debugPrint('\x1B[32m[API] 200 OK | Sessions booked: ${sessionIds.length}\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | bookInstructorSessions | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+/// Get user's booked sessions for an instructor (active only, not expired)
+static Future<List<Map<String, dynamic>>> getUserBookedSessions(
+    String instructorId) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final data = await client
+        .from('yoga_session_bookings')
+        .select('*, instructor_sessions(*)')
+        .eq('user_id', userId)
+        .eq('instructor_id', instructorId)
+        .eq('status', 'active')
+        .gte('expires_at', today)
+        .order('start_date', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | UserBookedSessions: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getUserBookedSessions | $e\x1B[0m');
+    return [];
+  }
+}
+
+/// Get ALL booked sessions across all instructors for home/overview
+static Future<List<Map<String, dynamic>>> getAllUserBookedSessions() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final data = await client
+        .from('yoga_session_bookings')
+        .select('*, instructor_sessions(*), yoga_instructors(name, image_url, specialty)')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .gte('expires_at', today)
+        .order('start_date', ascending: true);
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getAllUserBookedSessions | $e\x1B[0m');
+    return [];
+  }
+}
+
+/// Mark attendance for a class slot
+static Future<void> markClassAttendance({
+  required String bookingId,
+  required String sessionId,
+  required String classId,
+  required String slotId,
+  required bool isDone,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    debugPrint('\x1B[33m[API] UPSERT user_class_attendance | class: $classId | done: $isDone\x1B[0m');
+    await client.from('user_class_attendance').upsert({
+      'user_id': userId,
+      'booking_id': bookingId,
+      'session_id': sessionId,
+      'class_id': classId,
+      'slot_id': slotId,
+      'status': isDone ? 'done' : 'joined',
+      'marked_done_at': isDone ? DateTime.now().toIso8601String() : null,
+      'is_expired': false,
+    }, onConflict: 'user_id,class_id,slot_id');
+    debugPrint('\x1B[32m[API] 200 OK | Attendance marked\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | markClassAttendance | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+/// Get attendance records for a session
+static Future<List<Map<String, dynamic>>> getSessionAttendance(
+    String sessionId) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+    final data = await client
+        .from('user_class_attendance')
+        .select()
+        .eq('user_id', userId)
+        .eq('session_id', sessionId);
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getSessionAttendance | $e\x1B[0m');
+    return [];
+  }
+}
+
+/// Check if user already booked a specific session
+static Future<bool> hasBookedSession(String sessionId) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return false;
+    final data = await client
+        .from('yoga_session_bookings')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('session_id', sessionId)
+        .maybeSingle();
+    return data != null;
+  } catch (e) {
+    return false;
+  }
+}
 
 }

@@ -19,10 +19,11 @@ class YogaInstructorDetailPage extends StatefulWidget {
 class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _reviews = [];
-  Map<String, dynamic>? _myReview;
-  List<Map<String, dynamic>> _paidClasses = [];
-  bool _hasActiveBooking = false;
-  Set<String> _feedClassIds = {};
+Map<String, dynamic>? _myReview;
+List<Map<String, dynamic>> _paidClasses = [];
+bool _hasActiveBooking = false;
+Set<String> _feedClassIds = {};
+int? _bookedSessions; // how many sessions user paid for
 
   @override
   void initState() {
@@ -36,9 +37,24 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
 
   final reviews = await SupabaseService.getYogaInstructorReviews(instructorId);
   final myReview = await SupabaseService.getMyYogaReview(instructorId);
-  final paidClasses = await SupabaseService.getInstructorPaidClasses(instructorId);
   final hasBooking = await SupabaseService.hasActiveBookingWithInstructor(instructorId);
   final feedClasses = await SupabaseService.getUserFeedClasses();
+
+  // Get user's booking to know how many sessions they paid for
+  int? bookedSessions;
+  if (hasBooking) {
+    final bookings = await SupabaseService.getMyYogaBookingsForInstructor(instructorId);
+    if (bookings.isNotEmpty) {
+      // sum all bookings for this instructor (in case of multiple bookings)
+      bookedSessions = bookings.fold<int>(
+        0, (sum, b) => sum + ((b['num_sessions'] as num?)?.toInt() ?? 0));
+    }
+  }
+
+  final paidClasses = await SupabaseService.getInstructorPaidClasses(
+    instructorId,
+    limit: hasBooking ? bookedSessions : null,
+  );
 
   if (mounted) {
     setState(() {
@@ -46,6 +62,7 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
       _myReview = myReview;
       _paidClasses = paidClasses;
       _hasActiveBooking = hasBooking;
+      _bookedSessions = bookedSessions;
       _feedClassIds = feedClasses
           .map((f) => f['class_id'] as String)
           .toSet();
@@ -537,9 +554,9 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
           ),
           const SizedBox(height: 6),
           Text(
-            _hasActiveBooking
-                ? 'Add classes to your yoga feed'
-                : 'Book a session to access these classes',
+            _hasActiveBooking && _bookedSessions != null
+    ? 'You unlocked $_bookedSessions class${_bookedSessions == 1 ? '' : 'es'} from your booking'
+    : 'Book a session to access these classes',
             style:
                 TextStyle(color: context.subtextColor, fontSize: 13),
           ),
