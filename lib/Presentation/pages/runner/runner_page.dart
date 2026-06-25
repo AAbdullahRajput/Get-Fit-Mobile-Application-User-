@@ -61,11 +61,12 @@ int get _todayAutoIdx {
   final t = DateTime.now();
   final todayIdx = _stats.indexWhere(
       (d) => d.date.year == t.year && d.date.month == t.month && d.date.day == t.day);
-  // For Today filter OR if today has data — select today
-  if (_filterIdx == 0 || (todayIdx >= 0 && _stats[todayIdx].totalKcal > 0)) {
+  // Today filter — always pin to today regardless of data
+  if (_filterIdx == 0) {
     return todayIdx >= 0 ? todayIdx : _stats.length - 1;
   }
-  // For 7D/14D/1M — fall back to most recent day with data
+  // 7D/14D/1M — if today has data show today, else most recent active day
+  if (todayIdx >= 0 && _stats[todayIdx].totalKcal > 0) return todayIdx;
   for (int i = _stats.length - 1; i >= 0; i--) {
     if (_stats[i].totalKcal > 0) return i;
   }
@@ -87,11 +88,10 @@ int get _todayAutoIdx {
   int get _activeDays    => _stats.where((d) => d.totalKcal > 0).length;
 
   @override
-  void initState() {
-    super.initState();
-    if (_filterIdx >= _filters.length) _filterIdx = 1;
-    _load();
-  }
+void initState() {
+  super.initState();
+  _load();
+}
 
   Future<void> _load() async {
     final currentDays = _days;
