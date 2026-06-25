@@ -142,28 +142,6 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
     setState(() => _isBooking = true);
 
     try {
-      // Final duplicate check before writing
-      final alreadyBooked = await SupabaseService.hasExistingYogaBooking(
-        instructorId: widget.instructor['id'],
-        startDate: widget.startDate,
-      );
-
-      if (!mounted) return;
-
-      if (alreadyBooked) {
-        setState(() => _isBooking = false);
-        _showDialog(
-          icon: Icons.event_busy,
-          iconColor: Colors.orangeAccent,
-          title: 'Already Booked',
-          message:
-              'You already have a session booked on ${widget.displayDate} with this instructor.',
-          buttonText: 'Go Back',
-          onPressed: () => Navigator.pop(context),
-        );
-        return;
-      }
-
       await SupabaseService.bookInstructorSessions(
   instructorId: widget.instructor['id'],
   sessionIds: widget.selectedSessionIds,

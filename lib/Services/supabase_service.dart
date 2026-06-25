@@ -1863,14 +1863,12 @@ static Future<List<Map<String, dynamic>>> getUserBookedSessions(
   try {
     final userId = currentUser?.id;
     if (userId == null) return [];
-    final today = DateTime.now().toIso8601String().substring(0, 10);
     final data = await client
         .from('yoga_session_bookings')
         .select('*, instructor_sessions(*)')
         .eq('user_id', userId)
         .eq('instructor_id', instructorId)
-        .eq('status', 'active')
-        .gte('expires_at', today)
+        .not('session_id', 'is', null)
         .order('start_date', ascending: true);
     debugPrint('\x1B[32m[API] 200 OK | UserBookedSessions: ${data.length}\x1B[0m');
     return List<Map<String, dynamic>>.from(data);
