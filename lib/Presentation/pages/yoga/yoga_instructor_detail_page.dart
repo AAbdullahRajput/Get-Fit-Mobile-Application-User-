@@ -5,6 +5,7 @@ import 'package:get_fit/Presentation/widgets/reuseable_button.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/yoga/instructor_class_detail_page.dart';
+import 'package:get_fit/Presentation/pages/yoga/session_detail_page.dart';
 
 class YogaInstructorDetailPage extends StatefulWidget {
   final Map<String, dynamic> instructor;
@@ -21,9 +22,10 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
   List<Map<String, dynamic>> _reviews = [];
 Map<String, dynamic>? _myReview;
 List<Map<String, dynamic>> _paidClasses = [];
+List<Map<String, dynamic>> _bookedSessions = [];
 bool _hasActiveBooking = false;
 Set<String> _feedClassIds = {};
-int? _bookedSessions; // how many sessions user paid for
+int? _bookedSessionCount;
 
   @override
   void initState() {
@@ -31,39 +33,38 @@ int? _bookedSessions; // how many sessions user paid for
     _loadData();
   }
 
-  Future<void> _loadData() async {
+  // REPLACE the entire _loadData method:
+Future<void> _loadData() async {
   setState(() => _isLoading = true);
   final instructorId = widget.instructor['id'] as String;
 
-  final reviews = await SupabaseService.getYogaInstructorReviews(instructorId);
-  final myReview = await SupabaseService.getMyYogaReview(instructorId);
+  final reviews    = await SupabaseService.getYogaInstructorReviews(instructorId);
+  final myReview   = await SupabaseService.getMyYogaReview(instructorId);
   final hasBooking = await SupabaseService.hasActiveBookingWithInstructor(instructorId);
   final feedClasses = await SupabaseService.getUserFeedClasses();
 
-  // Get user's booking to know how many sessions they paid for
-  int? bookedSessions;
+  int? bookedSessionCount;
+  List<Map<String, dynamic>> bookedSessions = [];
+
   if (hasBooking) {
-    final bookings = await SupabaseService.getMyYogaBookingsForInstructor(instructorId);
-    if (bookings.isNotEmpty) {
-      // sum all bookings for this instructor (in case of multiple bookings)
-      bookedSessions = bookings.fold<int>(
-        0, (sum, b) => sum + ((b['num_sessions'] as num?)?.toInt() ?? 0));
-    }
+    bookedSessions = await SupabaseService.getUserBookedSessions(instructorId);
+    bookedSessionCount = bookedSessions.length;
   }
 
   final paidClasses = await SupabaseService.getInstructorPaidClasses(
     instructorId,
-    limit: hasBooking ? bookedSessions : null,
+    limit: hasBooking ? bookedSessionCount : null,
   );
 
   if (mounted) {
     setState(() {
-      _reviews = reviews;
-      _myReview = myReview;
-      _paidClasses = paidClasses;
-      _hasActiveBooking = hasBooking;
-      _bookedSessions = bookedSessions;
-      _feedClassIds = feedClasses
+      _reviews           = reviews;
+      _myReview          = myReview;
+      _paidClasses       = paidClasses;
+      _bookedSessions    = bookedSessions;
+      _hasActiveBooking  = hasBooking;
+      _bookedSessionCount = bookedSessionCount;
+      _feedClassIds      = feedClasses
           .map((f) => f['class_id'] as String)
           .toSet();
       _isLoading = false;
@@ -500,14 +501,16 @@ int? _bookedSessions; // how many sessions user paid for
 
         // Book button
         ReuseableButton(
-          title: 'Book a Session',
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => YogaBookingPage(instructor: instructor),
-            ),
-          ),
-        ),
+  title: 'Book a Session',
+  onPressed: () => Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => YogaBookingPage(instructor: instructor),
+    ),
+  ).then((_) => _loadData()),
+),
+
+_buildBookedSessionsSection(context),
 
         // ── Paid Classes Section ──
         if (_paidClasses.isNotEmpty) ...[
@@ -554,8 +557,8 @@ int? _bookedSessions; // how many sessions user paid for
           ),
           const SizedBox(height: 6),
           Text(
-            _hasActiveBooking && _bookedSessions != null
-    ? 'You unlocked $_bookedSessions class${_bookedSessions == 1 ? '' : 'es'} from your booking'
+            _hasActiveBooking && _bookedSessionCount != null
+    ? 'You have $_bookedSessionCount active session${_bookedSessionCount == 1 ? '' : 's'} — ${_paidClasses.length} class${_paidClasses.length == 1 ? '' : 'es'} unlocked'
     : 'Book a session to access these classes',
             style:
                 TextStyle(color: context.subtextColor, fontSize: 13),
@@ -569,6 +572,135 @@ int? _bookedSessions; // how many sessions user paid for
       ],
     );
   }
+
+Widget _buildBookedSessionsSection(BuildContext context) {
+  if (_bookedSessions.isEmpty) return const SizedBox.shrink();
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const SizedBox(height: 28),
+      Row(children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: Colors.green.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.event_available, color: Colors.green, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Text('Your Booked Sessions',
+            style: TextStyle(
+                color: context.textColor,
+                fontSize: 18,
+                fontWeight: FontWeight.bold)),
+      ]),
+      const SizedBox(height: 6),
+      Text('Tap a session to view classes and time slots',
+          style: TextStyle(color: context.subtextColor, fontSize: 13)),
+      const SizedBox(height: 14),
+      ..._bookedSessions.map((booking) {
+        final session = booking['instructor_sessions'] as Map<String, dynamic>?;
+        final title      = session?['title'] as String? ?? 'Session';
+        final startDate  = session?['session_start'] as String? ?? '';
+        final endDate    = session?['session_end'] as String? ?? '';
+        final totalCls   = session?['total_classes'] as int? ?? 0;
+        final isExpired  = _isSessionExpired(endDate);
+
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SessionDetailPage(
+                booking: booking,
+                instructor: widget.instructor,
+              ),
+            ),
+          ).then((_) => _loadData()),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: context.cardBgColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isExpired
+                    ? Colors.grey.withOpacity(0.3)
+                    : Colors.green.withOpacity(0.4),
+              ),
+            ),
+            child: Row(children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: isExpired ? Colors.grey : Colors.green,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  isExpired ? Icons.lock_clock : Icons.event_available,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: TextStyle(
+                            color: context.textColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text('${_formatDate(startDate)}  →  ${_formatDate(endDate)}',
+                        style: TextStyle(
+                            color: context.subtextColor, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Row(children: [
+                      Icon(Icons.class_outlined,
+                          size: 12, color: context.subtextColor),
+                      const SizedBox(width: 4),
+                      Text('$totalCls classes',
+                          style: TextStyle(
+                              color: context.subtextColor, fontSize: 11)),
+                    ]),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isExpired
+                      ? Colors.grey.withOpacity(0.15)
+                      : Colors.green.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  isExpired ? 'Expired' : 'Active',
+                  style: TextStyle(
+                    color: isExpired ? Colors.grey : Colors.green,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ]),
+          ),
+        );
+      }).toList(),
+    ],
+  );
+}
+
+bool _isSessionExpired(String endDate) {
+  if (endDate.isEmpty) return false;
+  final end = DateTime.tryParse(endDate);
+  if (end == null) return false;
+  return DateTime.now().isAfter(end.add(const Duration(days: 1)));
+}
 
   // ── Paid class card ──
   Widget _buildPaidClassCard(
