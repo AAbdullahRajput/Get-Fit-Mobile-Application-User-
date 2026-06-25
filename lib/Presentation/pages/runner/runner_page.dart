@@ -55,13 +55,22 @@ class _RunnerPageState extends State<RunnerPage>
   // ── derived ────────────────────────────────────────────────────────────────
   int get _days => _filterDays[_filterIdx];
 
-  int get _todayAutoIdx {
-    if (_stats.isEmpty) return -1;
-    final t = DateTime.now();
-    final i = _stats.indexWhere(
-        (d) => d.date.year == t.year && d.date.month == t.month && d.date.day == t.day);
-    return i >= 0 ? i : _stats.length - 1;
+  // REPLACE the whole _todayAutoIdx getter:
+int get _todayAutoIdx {
+  if (_stats.isEmpty) return -1;
+  final t = DateTime.now();
+  final todayIdx = _stats.indexWhere(
+      (d) => d.date.year == t.year && d.date.month == t.month && d.date.day == t.day);
+  // For Today filter OR if today has data — select today
+  if (_filterIdx == 0 || (todayIdx >= 0 && _stats[todayIdx].totalKcal > 0)) {
+    return todayIdx >= 0 ? todayIdx : _stats.length - 1;
   }
+  // For 7D/14D/1M — fall back to most recent day with data
+  for (int i = _stats.length - 1; i >= 0; i--) {
+    if (_stats[i].totalKcal > 0) return i;
+  }
+  return todayIdx >= 0 ? todayIdx : _stats.length - 1;
+}
 
   _DayStat? get _selectedStat {
     if (_stats.isEmpty) return null;
