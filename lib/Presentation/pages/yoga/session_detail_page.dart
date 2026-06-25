@@ -28,6 +28,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   Map<String, List<Map<String, dynamic>>> _slotsByClass = {};
   Map<String, Map<String, dynamic>> _attendanceByClass = {};
   bool _isLoading = true;
+  bool _isRefreshing = false;
   Timer? _ticker;
   Set<String> _feedClassIds = {};
 
@@ -53,45 +54,51 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   }
 
   Future<void> _load() async {
-  setState(() => _isLoading = true);
+    // First load: show full loader. Subsequent loads: background refresh (keep content visible)
+    if (_classes.isEmpty) {
+      setState(() => _isLoading = true);
+    } else {
+      setState(() => _isRefreshing = true);
+    }
 
-  final classes = await SupabaseService.getSessionClasses(_sessionId);
+    final classes = await SupabaseService.getSessionClasses(_sessionId);
 
-  // load slots for each class
-  final Map<String, List<Map<String, dynamic>>> slotsByClass = {};
-  for (final cls in classes) {
-    final slots = await SupabaseService.getClassSlots(cls['id'] as String);
-    slotsByClass[cls['id'] as String] = slots;
-  }
+    // load slots for each class
+    final Map<String, List<Map<String, dynamic>>> slotsByClass = {};
+    for (final cls in classes) {
+      final slots = await SupabaseService.getClassSlots(cls['id'] as String);
+      slotsByClass[cls['id'] as String] = slots;
+    }
 
-  // Check instructor_class_logs (what InstructorClassDetailPage writes)
-  final today = DateTime.now().toIso8601String().substring(0, 10);
-  final Map<String, Map<String, dynamic>> attendanceByClass = {};
-  for (final cls in classes) {
-    final paidClass = cls['instructor_paid_classes'] as Map<String, dynamic>?;
-    if (paidClass == null) continue;
-    final paidClassId = paidClass['id'] as String;
-    final log = await SupabaseService.getInstructorClassLog(
-      classId: paidClassId,
-      date: today,
-    );
-    if (log != null && log['is_done'] == true) {
-      attendanceByClass[cls['id'] as String] = {'status': 'done'};
+    // Check instructor_class_logs (what InstructorClassDetailPage writes)
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final Map<String, Map<String, dynamic>> attendanceByClass = {};
+    for (final cls in classes) {
+      final paidClass = cls['instructor_paid_classes'] as Map<String, dynamic>?;
+      if (paidClass == null) continue;
+      final paidClassId = paidClass['id'] as String;
+      final log = await SupabaseService.getInstructorClassLog(
+        classId: paidClassId,
+        date: today,
+      );
+      if (log != null && log['is_done'] == true) {
+        attendanceByClass[cls['id'] as String] = {'status': 'done'};
+      }
+    }
+
+    final feedClasses = await SupabaseService.getUserFeedClasses();
+
+    if (mounted) {
+      setState(() {
+        _classes = classes;
+        _slotsByClass = slotsByClass;
+        _attendanceByClass = attendanceByClass;
+        _feedClassIds = feedClasses.map((f) => f['class_id'] as String).toSet();
+        _isLoading = false;
+        _isRefreshing = false;
+      });
     }
   }
-
-  final feedClasses = await SupabaseService.getUserFeedClasses();
-
-  if (mounted) {
-    setState(() {
-      _classes = classes;
-      _slotsByClass = slotsByClass;
-      _attendanceByClass = attendanceByClass;
-      _feedClassIds = feedClasses.map((f) => f['class_id'] as String).toSet();
-      _isLoading = false;
-    });
-  }
-}
 
   bool _isSlotActive(Map<String, dynamic> slot) {
     final now = DateTime.now();
@@ -230,6 +237,19 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
               ),
+              // Background refresh indicator
+              if (_isRefreshing)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: accent,
+                    ),
+                  ),
+                ),
               if (isExpired)
                 Container(
                   padding: const EdgeInsets.symmetric(

@@ -22,6 +22,7 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
   List<Map<String, dynamic>> _reviews = [];
 Map<String, dynamic>? _myReview;
 List<Map<String, dynamic>> _allSessions = [];
+List<Map<String, dynamic>> _classes = [];          
 List<Map<String, dynamic>> _bookedSessions = [];
 bool _hasActiveBooking = false;
 Set<String> _feedClassIds = {};
@@ -54,11 +55,16 @@ Future<void> _loadData() async {
   // fetch ALL instructor sessions (for showing locked cards to unbooked users)
   final allSessions = await SupabaseService.getInstructorSessions(instructorId);
 
+  // fetch instructor's offered classes (shown locked until a session is booked)
+  final classes = await SupabaseService.getInstructorPaidClasses(instructorId);
+
+
   if (mounted) {
     setState(() {
       _reviews            = reviews;
       _myReview           = myReview;
       _allSessions        = allSessions;
+      _classes            = classes;                 
       _bookedSessions     = bookedSessions;
       _hasActiveBooking   = hasBooking;
       _bookedSessionCount = bookedSessionCount;
@@ -505,10 +511,12 @@ Future<void> _loadData() async {
     ),
   ).then((_) => _loadData()),
 ),
+const SizedBox(height: 24),
+_buildClassesSection(context),
 
 _buildBookedSessionsSection(context),
 
-        const SizedBox(height: 24),
+const SizedBox(height: 24),
       ],
     );
   }
@@ -755,6 +763,49 @@ bool _isSessionExpired(String endDate) {
   return DateTime.now().isAfter(end.add(const Duration(days: 1)));
 }
 
+
+Widget _buildClassesSection(BuildContext context) {
+  if (_classes.isEmpty) return const SizedBox.shrink();
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: themeColor.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.self_improvement, color: themeColor, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Text('Classes',
+            style: TextStyle(
+                color: context.textColor,
+                fontSize: 18,
+                fontWeight: FontWeight.bold)),
+        const Spacer(),
+        if (!_hasActiveBooking)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.withOpacity(0.4)),
+            ),
+            child: const Text('Book to unlock',
+                style: TextStyle(
+                    color: Colors.orange,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold)),
+          ),
+      ]),
+      const SizedBox(height: 14),
+      ..._classes.map((cls) => _buildPaidClassCard(context, cls)),
+    ],
+  );
+}
   // ── Paid class card ──
   Widget _buildPaidClassCard(
       BuildContext context, Map<String, dynamic> cls) {
@@ -772,16 +823,23 @@ bool _isSessionExpired(String endDate) {
             : Border.all(color: Colors.white12),
       ),
       child: GestureDetector(
-        onTap: isUnlocked ? () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => InstructorClassDetailPage(
-              classData: cls,
-              instructorData: widget.instructor,
+  onTap: isUnlocked
+      ? () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => InstructorClassDetailPage(
+                classData: cls,
+                instructorData: widget.instructor,
+              ),
             ),
-          ),
-        ) : null,
-        child: Column(
+          )
+      : () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => YogaBookingPage(instructor: widget.instructor),
+            ),
+          ).then((_) => _loadData()),
+  child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Image with lock overlay

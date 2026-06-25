@@ -1486,23 +1486,23 @@ class SupabaseService {
 }
 
   static Future<bool> hasActiveBookingWithInstructor(
-      String instructorId) async {
-    try {
-      final userId = currentUser?.id;
-      if (userId == null) return false;
-      final data = await client
-          .from('yoga_session_bookings')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('instructor_id', instructorId)
-          .maybeSingle();
-      return data != null;
-    } catch (e) {
-      debugPrint(
-          '\x1B[31m[API] ERROR | hasActiveBookingWithInstructor | $e\x1B[0m');
-      return false;
-    }
+    String instructorId) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return false;
+    final data = await client
+        .from('yoga_session_bookings')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('instructor_id', instructorId)
+        .limit(1);
+    return (data as List).isNotEmpty;
+  } catch (e) {
+    debugPrint(
+        '\x1B[31m[API] ERROR | hasActiveBookingWithInstructor | $e\x1B[0m');
+    return false;
   }
+}
 
   // ─────────────────────────────────────────────
   // USER FEED CLASSES
