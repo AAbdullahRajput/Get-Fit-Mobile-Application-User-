@@ -43,9 +43,9 @@ class _RunnerPageState extends State<RunnerPage>
   bool get wantKeepAlive => true;
 
   // ── filter ─────────────────────────────────────────────────────────────────
-  static const _filters    = ['1D', '7D', '14D', '1M'];
+  static const _filters    = ['Today', '7D', '14D', '1M'];
   static const _filterDays = [1, 7, 14, 30, 90];
-  int _filterIdx = 1;
+  int _filterIdx = 0;
 
   // ── state ──────────────────────────────────────────────────────────────────
   bool _isLoading = true;
