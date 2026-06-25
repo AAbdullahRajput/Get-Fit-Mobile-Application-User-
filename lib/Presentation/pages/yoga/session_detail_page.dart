@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Presentation/pages/yoga/instructor_class_detail_page.dart';
+
 
 Color _accent(BuildContext context) =>
     context.isDark ? themeColor : const Color(0xFF6B7A00);
@@ -9,6 +11,7 @@ Color _accent(BuildContext context) =>
 class SessionDetailPage extends StatefulWidget {
   final Map<String, dynamic> booking;
   final Map<String, dynamic> instructor;
+  
 
   const SessionDetailPage({
     super.key,
@@ -26,6 +29,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   Map<String, Map<String, dynamic>> _attendanceByClass = {};
   bool _isLoading = true;
   Timer? _ticker;
+  Set<String> _feedClassIds = {};
 
   String get _sessionId =>
       widget.booking['session_id'] as String? ?? '';
@@ -62,6 +66,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
 
     // load attendance
     final attendance = await SupabaseService.getSessionAttendance(_sessionId);
+    final feedClasses = await SupabaseService.getUserFeedClasses();
     final Map<String, Map<String, dynamic>> attendanceByClass = {};
     for (final a in attendance) {
       attendanceByClass[a['class_id'] as String] = a;
@@ -72,6 +77,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
         _classes = classes;
         _slotsByClass = slotsByClass;
         _attendanceByClass = attendanceByClass;
+        _feedClassIds = feedClasses.map((f) => f['class_id'] as String).toSet();
         _isLoading = false;
       });
     }
@@ -353,120 +359,217 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     );
   }
 
-  Widget _buildClassCard(BuildContext context, Map<String, dynamic> cls,
-      Color accent, bool sessionExpired) {
-    final classId = cls['id'] as String;
-    final slots = _slotsByClass[classId] ?? [];
-    final attendance = _attendanceByClass[classId];
-    final isDone = attendance?['status'] == 'done';
-    final imageUrl = cls['image_url'] as String? ?? '';
+Widget _buildClassCard(BuildContext context, Map<String, dynamic> cls,
+    Color accent, bool sessionExpired) {
+  final classId   = cls['id'] as String;
+  final slots     = _slotsByClass[classId] ?? [];
+  final attendance = _attendanceByClass[classId];
+  final isDone    = attendance?['status'] == 'done';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: context.cardBgColor,
-        borderRadius: BorderRadius.circular(18),
-        border: isDone
-            ? Border.all(color: accent, width: 1.5)
-            : Border.all(
-                color: context.isDark ? Colors.white10 : Colors.black12),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Image
-        if (imageUrl.isNotEmpty)
+  // linked paid class data
+  final paidClass = cls['instructor_paid_classes'] as Map<String, dynamic>?;
+  final imageUrl  = paidClass?['image_url'] as String? ?? cls['image_url'] as String? ?? '';
+  final level     = paidClass?['level'] as String? ?? '';
+  final classType = paidClass?['class_type'] as String? ?? '';
+
+  // find active slot
+  final activeSlot = slots.firstWhere(
+    (s) => _isSlotActive(s),
+    orElse: () => {},
+  );
+  final hasActiveSlot = activeSlot.isNotEmpty;
+  final isInFeed = _feedClassIds.contains(paidClass?['id'] as String? ?? '');
+
+  return Container(
+    margin: const EdgeInsets.only(bottom: 16),
+    decoration: BoxDecoration(
+      color: context.cardBgColor,
+      borderRadius: BorderRadius.circular(18),
+      border: isDone
+          ? Border.all(color: accent, width: 1.5)
+          : hasActiveSlot
+              ? Border.all(color: Colors.green, width: 1.5)
+              : Border.all(color: context.isDark ? Colors.white10 : Colors.black12),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // Image
+      if (imageUrl.isNotEmpty)
+        Stack(children: [
           ClipRRect(
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(18)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
             child: Image.network(imageUrl,
                 height: 150,
                 width: double.infinity,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => const SizedBox.shrink()),
           ),
-
-        Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // Title + done badge
-            Row(children: [
-              Expanded(
-                child: Text(cls['title'] as String? ?? '',
-                    style: TextStyle(
-                        color: context.textColor,
-                        fontSize: 15,
+          if (level.isNotEmpty)
+            Positioned(
+              top: 10,
+              left: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(level,
+                    style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold)),
               ),
-              if (isDone)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: accent.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: accent.withOpacity(0.4)),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.check_circle, color: accent, size: 13),
-                    const SizedBox(width: 4),
-                    Text('Done',
-                        style: TextStyle(
-                            color: accent,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold)),
-                  ]),
+            ),
+          if (classType.isNotEmpty)
+            Positioned(
+              top: 10,
+              right: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-            ]),
+                child: Text(classType,
+                    style: const TextStyle(color: Colors.white, fontSize: 10)),
+              ),
+            ),
+          if (isDone)
+            Positioned(
+              bottom: 10,
+              right: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.check_circle, color: Colors.black, size: 12),
+                  const SizedBox(width: 4),
+                  const Text('Done',
+                      style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold)),
+                ]),
+              ),
+            ),
+        ]),
 
-            if ((cls['description'] as String? ?? '').isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(cls['description'] as String,
-                  style: TextStyle(
-                      color: context.subtextColor,
-                      fontSize: 12,
-                      height: 1.4)),
-            ],
+      Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Title
+          Text(cls['title'] as String? ?? '',
+              style: TextStyle(
+                  color: context.textColor,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold)),
 
-            const SizedBox(height: 14),
-
-            // Date + duration
-            Row(children: [
-              Icon(Icons.calendar_today_rounded,
-                  color: accent, size: 13),
-              const SizedBox(width: 6),
-              Text(_fmtDate(cls['class_date'] as String? ?? ''),
-                  style: TextStyle(
-                      color: context.subtextColor, fontSize: 12)),
-              const SizedBox(width: 14),
-              Icon(Icons.timer_outlined, color: accent, size: 13),
-              const SizedBox(width: 6),
-              Text('${cls['duration_minutes']} min',
-                  style: TextStyle(
-                      color: context.subtextColor, fontSize: 12)),
-            ]),
-
-            const SizedBox(height: 14),
-
-            // Time slots
-            Text('Available Time Slots',
+          if ((cls['description'] as String? ?? '').isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(cls['description'] as String,
                 style: TextStyle(
-                    color: context.textColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 10),
+                    color: context.subtextColor, fontSize: 12, height: 1.4)),
+          ],
 
-            if (slots.isEmpty)
-              Text('No time slots defined',
-                  style: TextStyle(
-                      color: context.subtextColor, fontSize: 12))
-            else
-              ...slots.map((slot) =>
-                  _buildSlotRow(context, cls, slot, accent,
-                      isDone, sessionExpired)),
+          const SizedBox(height: 10),
+          Row(children: [
+            Icon(Icons.calendar_today_rounded, color: accent, size: 13),
+            const SizedBox(width: 6),
+            Text(_fmtDate(cls['class_date'] as String? ?? ''),
+                style: TextStyle(color: context.subtextColor, fontSize: 12)),
+            const SizedBox(width: 14),
+            Icon(Icons.timer_outlined, color: accent, size: 13),
+            const SizedBox(width: 6),
+            Text('${cls['duration_minutes']} min',
+                style: TextStyle(color: context.subtextColor, fontSize: 12)),
           ]),
-        ),
-      ]),
-    );
-  }
+
+          const SizedBox(height: 14),
+          Text('Time Slots',
+              style: TextStyle(
+                  color: context.textColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 10),
+
+          if (slots.isEmpty)
+            Text('No time slots defined',
+                style: TextStyle(color: context.subtextColor, fontSize: 12))
+          else
+            ...slots.map((slot) => _buildSlotRow(
+                context, cls, slot, accent, isDone, sessionExpired)),
+
+          // Add to Feed + Join buttons — only if has active slot and paid class linked
+          if (hasActiveSlot && paidClass != null && !sessionExpired) ...[
+            const SizedBox(height: 14),
+            const Divider(),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final pid = paidClass['id'] as String;
+                    try {
+                      if (isInFeed) {
+                        await SupabaseService.removeClassFromFeed(pid);
+                        setState(() => _feedClassIds.remove(pid));
+                      } else {
+                        await SupabaseService.addClassToFeed(
+                          classId: pid,
+                          instructorId: paidClass['instructor_id'] as String,
+                        );
+                        setState(() => _feedClassIds.add(pid));
+                      }
+                    } catch (_) {}
+                  },
+                  icon: Icon(
+                    isInFeed ? Icons.remove_circle_outline : Icons.add_circle_outline,
+                    size: 16,
+                  ),
+                  label: Text(isInFeed ? 'Remove' : 'Add to Feed'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: isInFeed ? Colors.red : accent,
+                    side: BorderSide(
+                        color: isInFeed
+                            ? Colors.red.withOpacity(0.5)
+                            : accent.withOpacity(0.5)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => InstructorClassDetailPage(
+                        classData: paidClass,
+                        instructorData: widget.instructor,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.play_arrow, size: 16),
+                  label: const Text('Join'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ]),
+          ],
+        ]),
+      ),
+    ]),
+  );
+}
 
   Widget _buildSlotRow(BuildContext context, Map<String, dynamic> cls,
       Map<String, dynamic> slot, Color accent,

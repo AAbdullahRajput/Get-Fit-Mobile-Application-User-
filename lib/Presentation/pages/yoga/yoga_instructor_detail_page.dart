@@ -21,7 +21,7 @@ class _YogaInstructorDetailPageState extends State<YogaInstructorDetailPage> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _reviews = [];
 Map<String, dynamic>? _myReview;
-List<Map<String, dynamic>> _paidClasses = [];
+List<Map<String, dynamic>> _allSessions = [];
 List<Map<String, dynamic>> _bookedSessions = [];
 bool _hasActiveBooking = false;
 Set<String> _feedClassIds = {};
@@ -38,36 +38,32 @@ Future<void> _loadData() async {
   setState(() => _isLoading = true);
   final instructorId = widget.instructor['id'] as String;
 
-  final reviews    = await SupabaseService.getYogaInstructorReviews(instructorId);
-  final myReview   = await SupabaseService.getMyYogaReview(instructorId);
-  final hasBooking = await SupabaseService.hasActiveBookingWithInstructor(instructorId);
+  final reviews     = await SupabaseService.getYogaInstructorReviews(instructorId);
+  final myReview    = await SupabaseService.getMyYogaReview(instructorId);
+  final hasBooking  = await SupabaseService.hasActiveBookingWithInstructor(instructorId);
   final feedClasses = await SupabaseService.getUserFeedClasses();
 
-  int? bookedSessionCount;
   List<Map<String, dynamic>> bookedSessions = [];
+  int? bookedSessionCount;
 
   if (hasBooking) {
-    bookedSessions = await SupabaseService.getUserBookedSessions(instructorId);
+    bookedSessions     = await SupabaseService.getUserBookedSessions(instructorId);
     bookedSessionCount = bookedSessions.length;
   }
 
-  final paidClasses = await SupabaseService.getInstructorPaidClasses(
-    instructorId,
-    limit: hasBooking ? bookedSessionCount : null,
-  );
+  // fetch ALL instructor sessions (for showing locked cards to unbooked users)
+  final allSessions = await SupabaseService.getInstructorSessions(instructorId);
 
   if (mounted) {
     setState(() {
-      _reviews           = reviews;
-      _myReview          = myReview;
-      _paidClasses       = paidClasses;
-      _bookedSessions    = bookedSessions;
-      _hasActiveBooking  = hasBooking;
+      _reviews            = reviews;
+      _myReview           = myReview;
+      _allSessions        = allSessions;
+      _bookedSessions     = bookedSessions;
+      _hasActiveBooking   = hasBooking;
       _bookedSessionCount = bookedSessionCount;
-      _feedClassIds      = feedClasses
-          .map((f) => f['class_id'] as String)
-          .toSet();
-      _isLoading = false;
+      _feedClassIds       = feedClasses.map((f) => f['class_id'] as String).toSet();
+      _isLoading          = false;
     });
   }
 }
@@ -512,69 +508,17 @@ Future<void> _loadData() async {
 
 _buildBookedSessionsSection(context),
 
-        // ── Paid Classes Section ──
-        if (_paidClasses.isNotEmpty) ...[
-          const SizedBox(height: 28),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.play_lesson_outlined,
-                    color: themeColor, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Instructor Classes',
-                style: TextStyle(
-                    color: context.textColor,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              if (!_hasActiveBooking)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                        color: Colors.orange.withOpacity(0.4)),
-                  ),
-                  child: const Text(
-                    'Book to unlock',
-                    style: TextStyle(
-                        color: Colors.orange,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _hasActiveBooking && _bookedSessionCount != null
-    ? 'You have $_bookedSessionCount active session${_bookedSessionCount == 1 ? '' : 's'} — ${_paidClasses.length} class${_paidClasses.length == 1 ? '' : 'es'} unlocked'
-    : 'Book a session to access these classes',
-            style:
-                TextStyle(color: context.subtextColor, fontSize: 13),
-          ),
-          const SizedBox(height: 14),
-          ..._paidClasses
-              .map((cls) => _buildPaidClassCard(context, cls)),
-        ],
-
         const SizedBox(height: 24),
       ],
     );
   }
 
 Widget _buildBookedSessionsSection(BuildContext context) {
-  if (_bookedSessions.isEmpty) return const SizedBox.shrink();
+  if (_allSessions.isEmpty) return const SizedBox.shrink();
+
+  final bookedIds = _bookedSessions
+      .map((b) => b['session_id'] as String? ?? '')
+      .toSet();
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -584,115 +528,224 @@ Widget _buildBookedSessionsSection(BuildContext context) {
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.12),
+            color: themeColor.withOpacity(0.12),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: const Icon(Icons.event_available, color: Colors.green, size: 18),
+          child: const Icon(Icons.event_note, color: themeColor, size: 18),
         ),
         const SizedBox(width: 10),
-        Text('Your Booked Sessions',
+        Text('Sessions',
             style: TextStyle(
                 color: context.textColor,
                 fontSize: 18,
                 fontWeight: FontWeight.bold)),
+        const Spacer(),
+        if (!_hasActiveBooking)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.withOpacity(0.4)),
+            ),
+            child: const Text('Book to unlock',
+                style: TextStyle(
+                    color: Colors.orange,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold)),
+          ),
       ]),
       const SizedBox(height: 6),
-      Text('Tap a session to view classes and time slots',
-          style: TextStyle(color: context.subtextColor, fontSize: 13)),
+      Text(
+        _hasActiveBooking
+            ? 'You have $_bookedSessionCount active session${_bookedSessionCount == 1 ? '' : 's'}'
+            : 'Book a session to unlock classes',
+        style: TextStyle(color: context.subtextColor, fontSize: 13),
+      ),
       const SizedBox(height: 14),
-      ..._bookedSessions.map((booking) {
-        final session = booking['instructor_sessions'] as Map<String, dynamic>?;
-        final title      = session?['title'] as String? ?? 'Session';
-        final startDate  = session?['session_start'] as String? ?? '';
-        final endDate    = session?['session_end'] as String? ?? '';
-        final totalCls   = session?['total_classes'] as int? ?? 0;
-        final isExpired  = _isSessionExpired(endDate);
+
+      ..._allSessions.map((session) {
+        final sessionId = session['id'] as String;
+        final isBooked  = bookedIds.contains(sessionId);
+        final isExpired = _isSessionExpired(session['session_end'] as String? ?? '');
+        final booking   = _bookedSessions.firstWhere(
+          (b) => b['session_id'] == sessionId,
+          orElse: () => {},
+        );
 
         return GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SessionDetailPage(
-                booking: booking,
-                instructor: widget.instructor,
-              ),
-            ),
-          ).then((_) => _loadData()),
+          onTap: isBooked && !isExpired
+              ? () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SessionDetailPage(
+                        booking: booking,
+                        instructor: widget.instructor,
+                      ),
+                    ),
+                  ).then((_) => _loadData())
+              : null,
           child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 14),
             decoration: BoxDecoration(
               color: context.cardBgColor,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: isExpired
-                    ? Colors.grey.withOpacity(0.3)
-                    : Colors.green.withOpacity(0.4),
+                color: isBooked && !isExpired
+                    ? themeColor.withOpacity(0.4)
+                    : Colors.white12,
               ),
             ),
-            child: Row(children: [
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Top color band
               Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: isExpired ? Colors.grey : Colors.green,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  isExpired ? Icons.lock_clock : Icons.event_available,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text('${_formatDate(startDate)}  →  ${_formatDate(endDate)}',
-                        style: TextStyle(
-                            color: context.subtextColor, fontSize: 12)),
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      Icon(Icons.class_outlined,
-                          size: 12, color: context.subtextColor),
-                      const SizedBox(width: 4),
-                      Text('$totalCls classes',
-                          style: TextStyle(
-                              color: context.subtextColor, fontSize: 11)),
-                    ]),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                height: 6,
                 decoration: BoxDecoration(
                   color: isExpired
-                      ? Colors.grey.withOpacity(0.15)
-                      : Colors.green.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  isExpired ? 'Expired' : 'Active',
-                  style: TextStyle(
-                    color: isExpired ? Colors.grey : Colors.green,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
+                      ? Colors.grey
+                      : isBooked
+                          ? themeColor
+                          : Colors.white12,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(children: [
+                  // Date badge
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: isBooked && !isExpired
+                          ? themeColor
+                          : context.isDark
+                              ? Colors.white12
+                              : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Text(
+                        _dayName(session['session_start'] as String),
+                        style: TextStyle(
+                          color: isBooked && !isExpired ? Colors.black : context.subtextColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        DateTime.parse(session['session_start'] as String).day.toString(),
+                        style: TextStyle(
+                          color: isBooked && !isExpired ? Colors.black : context.textColor,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(width: 14),
+
+                  // Info
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(session['title'] as String? ?? '',
+                          style: TextStyle(
+                              color: context.textColor,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_formatDate(session['session_start'] as String)}  →  ${_formatDate(session['session_end'] as String)}',
+                        style: TextStyle(color: context.subtextColor, fontSize: 11),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(children: [
+                        Icon(Icons.class_outlined, size: 12, color: context.subtextColor),
+                        const SizedBox(width: 4),
+                        Text('${session['total_classes']} classes',
+                            style: TextStyle(color: context.subtextColor, fontSize: 11)),
+                      ]),
+                    ]),
+                  ),
+
+                  // Status
+                  if (isExpired)
+                    _statusChip('Expired', Colors.grey)
+                  else if (isBooked)
+                    _statusChip('Booked', themeColor)
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.black45,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.lock_outline,
+                          color: Colors.white54, size: 18),
+                    ),
+                ]),
+              ),
+
+              // Lock overlay hint for unbooked
+              if (!isBooked)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.3),
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(18)),
+                  ),
+                  child: const Center(
+                    child: Text('Book a session to unlock',
+                        style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  ),
+                ),
+
+              // Booked → tap hint
+              if (isBooked && !isExpired)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: themeColor.withOpacity(0.08),
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(18)),
+                  ),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.touch_app, color: themeColor, size: 14),
+                    const SizedBox(width: 6),
+                    Text('Tap to view classes & time slots',
+                        style: TextStyle(
+                            color: themeColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500)),
+                  ]),
+                ),
             ]),
           ),
         );
       }).toList(),
     ],
   );
+}
+
+Widget _statusChip(String label, Color color) => Container(
+  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+  decoration: BoxDecoration(
+    color: color.withOpacity(0.15),
+    borderRadius: BorderRadius.circular(10),
+    border: Border.all(color: color.withOpacity(0.4)),
+  ),
+  child: Text(label,
+      style: TextStyle(
+          color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+);
+
+String _dayName(String dateStr) {
+  final dt = DateTime.parse(dateStr);
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  return days[dt.weekday - 1];
 }
 
 bool _isSessionExpired(String endDate) {

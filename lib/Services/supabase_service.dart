@@ -1782,7 +1782,7 @@ static Future<List<Map<String, dynamic>>> getSessionClasses(
     debugPrint('\x1B[33m[API] GET instructor_session_classes | session: $sessionId\x1B[0m');
     final data = await client
         .from('instructor_session_classes')
-        .select()
+        .select('*, instructor_paid_classes(*)')
         .eq('session_id', sessionId)
         .order('order_number', ascending: true);
     debugPrint('\x1B[32m[API] 200 OK | SessionClasses: ${data.length}\x1B[0m');
