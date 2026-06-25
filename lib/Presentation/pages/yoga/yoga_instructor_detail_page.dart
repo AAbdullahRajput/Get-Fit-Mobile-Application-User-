@@ -512,9 +512,10 @@ Future<void> _loadData() async {
   ).then((_) => _loadData()),
 ),
 const SizedBox(height: 24),
-_buildClassesSection(context),
-
-_buildBookedSessionsSection(context),
+if (!_hasActiveBooking)
+  _buildClassesSection(context)
+else
+  _buildBookedSessionsSection(context),
 
 const SizedBox(height: 24),
       ],

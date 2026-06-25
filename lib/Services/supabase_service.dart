@@ -646,71 +646,47 @@ class SupabaseService {
   }
 
   static Future<void> submitYogaReview({
-    required String instructorId,
-    required double rating,
-    required String reviewText,
-  }) async {
-    try {
-      final userId = currentUser?.id;
-      if (userId == null) return;
-      final profile = await getUserProfile();
-      debugPrint('\x1B[33m[API] POST /rest/v1/yoga_instructor_reviews\x1B[0m');
-      await client.from('yoga_instructor_reviews').upsert({
-        'instructor_id': instructorId,
-        'user_id': userId,
-        'username': profile?['username'] ?? 'User',
-        'avatar_url': profile?['avatar_url'] ?? '',
-        'rating': rating,
-        'review_text': reviewText,
-        'updated_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'instructor_id,user_id');
-      final reviews = await getYogaInstructorReviews(instructorId);
-      if (reviews.isNotEmpty) {
-        final avg = reviews
-                .map((r) => (r['rating'] as num).toDouble())
-                .reduce((a, b) => a + b) /
-            reviews.length;
-        await client
-            .from('yoga_instructors')
-            .update({'rating': double.parse(avg.toStringAsFixed(1))})
-            .eq('id', instructorId);
-      }
-      debugPrint('\x1B[32m[API] 200 OK | Yoga review submitted\x1B[0m');
-    } catch (e) {
-      debugPrint('\x1B[31m[API] ERROR | submitYogaReview | $e\x1B[0m');
-      rethrow;
-    }
+  required String instructorId,
+  required double rating,
+  required String reviewText,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    final profile = await getUserProfile();
+    debugPrint('\x1B[33m[API] POST /rest/v1/yoga_instructor_reviews\x1B[0m');
+    await client.from('yoga_instructor_reviews').upsert({
+      'instructor_id': instructorId,
+      'user_id': userId,
+      'username': profile?['username'] ?? 'User',
+      'avatar_url': profile?['avatar_url'] ?? '',
+      'rating': rating,
+      'review_text': reviewText,
+      'updated_at': DateTime.now().toIso8601String(),
+    }, onConflict: 'instructor_id,user_id');
+    debugPrint('\x1B[32m[API] 200 OK | Yoga review submitted\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | submitYogaReview | $e\x1B[0m');
+    rethrow;
   }
+}
 
   static Future<void> deleteYogaReview({required String instructorId}) async {
-    try {
-      final userId = currentUser?.id;
-      if (userId == null) return;
-      debugPrint('\x1B[33m[API] DELETE /rest/v1/yoga_instructor_reviews\x1B[0m');
-      await client
-          .from('yoga_instructor_reviews')
-          .delete()
-          .eq('instructor_id', instructorId)
-          .eq('user_id', userId);
-      final reviews = await getYogaInstructorReviews(instructorId);
-      if (reviews.isEmpty) {
-        await client.from('yoga_instructors').update({'rating': 0.0}).eq('id', instructorId);
-      } else {
-        final avg = reviews
-                .map((r) => (r['rating'] as num).toDouble())
-                .reduce((a, b) => a + b) /
-            reviews.length;
-        await client
-            .from('yoga_instructors')
-            .update({'rating': double.parse(avg.toStringAsFixed(1))})
-            .eq('id', instructorId);
-      }
-      debugPrint('\x1B[32m[API] 200 OK | Yoga review deleted\x1B[0m');
-    } catch (e) {
-      debugPrint('\x1B[31m[API] ERROR | deleteYogaReview | $e\x1B[0m');
-      rethrow;
-    }
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    debugPrint('\x1B[33m[API] DELETE /rest/v1/yoga_instructor_reviews\x1B[0m');
+    await client
+        .from('yoga_instructor_reviews')
+        .delete()
+        .eq('instructor_id', instructorId)
+        .eq('user_id', userId);
+    debugPrint('\x1B[32m[API] 200 OK | Yoga review deleted\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | deleteYogaReview | $e\x1B[0m');
+    rethrow;
   }
+}
 
   // YOGA SESSION BOOKINGS
 
