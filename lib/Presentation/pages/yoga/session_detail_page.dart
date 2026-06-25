@@ -53,35 +53,45 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   }
 
   Future<void> _load() async {
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    final classes = await SupabaseService.getSessionClasses(_sessionId);
+  final classes = await SupabaseService.getSessionClasses(_sessionId);
 
-    // load slots for each class
-    final Map<String, List<Map<String, dynamic>>> slotsByClass = {};
-    for (final cls in classes) {
-      final slots = await SupabaseService.getClassSlots(cls['id'] as String);
-      slotsByClass[cls['id'] as String] = slots;
-    }
+  // load slots for each class
+  final Map<String, List<Map<String, dynamic>>> slotsByClass = {};
+  for (final cls in classes) {
+    final slots = await SupabaseService.getClassSlots(cls['id'] as String);
+    slotsByClass[cls['id'] as String] = slots;
+  }
 
-    // load attendance
-    final attendance = await SupabaseService.getSessionAttendance(_sessionId);
-    final feedClasses = await SupabaseService.getUserFeedClasses();
-    final Map<String, Map<String, dynamic>> attendanceByClass = {};
-    for (final a in attendance) {
-      attendanceByClass[a['class_id'] as String] = a;
-    }
-
-    if (mounted) {
-      setState(() {
-        _classes = classes;
-        _slotsByClass = slotsByClass;
-        _attendanceByClass = attendanceByClass;
-        _feedClassIds = feedClasses.map((f) => f['class_id'] as String).toSet();
-        _isLoading = false;
-      });
+  // Check instructor_class_logs (what InstructorClassDetailPage writes)
+  final today = DateTime.now().toIso8601String().substring(0, 10);
+  final Map<String, Map<String, dynamic>> attendanceByClass = {};
+  for (final cls in classes) {
+    final paidClass = cls['instructor_paid_classes'] as Map<String, dynamic>?;
+    if (paidClass == null) continue;
+    final paidClassId = paidClass['id'] as String;
+    final log = await SupabaseService.getInstructorClassLog(
+      classId: paidClassId,
+      date: today,
+    );
+    if (log != null && log['is_done'] == true) {
+      attendanceByClass[cls['id'] as String] = {'status': 'done'};
     }
   }
+
+  final feedClasses = await SupabaseService.getUserFeedClasses();
+
+  if (mounted) {
+    setState(() {
+      _classes = classes;
+      _slotsByClass = slotsByClass;
+      _attendanceByClass = attendanceByClass;
+      _feedClassIds = feedClasses.map((f) => f['class_id'] as String).toSet();
+      _isLoading = false;
+    });
+  }
+}
 
   bool _isSlotActive(Map<String, dynamic> slot) {
     final now = DateTime.now();
@@ -135,35 +145,44 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   }
 
   Future<void> _toggleDone(
-      Map<String, dynamic> cls, Map<String, dynamic> slot) async {
-    final classId = cls['id'] as String;
-    final slotId = slot['id'] as String;
-    final existing = _attendanceByClass[classId];
-    final isDone = existing?['status'] == 'done';
+    Map<String, dynamic> cls, Map<String, dynamic> slot) async {
+  final classId = cls['id'] as String;
+  final existing = _attendanceByClass[classId];
+  final isDone = existing?['status'] == 'done';
+  final paidClass = cls['instructor_paid_classes'] as Map<String, dynamic>?;
+  if (paidClass == null) return;
+  final today = DateTime.now().toIso8601String().substring(0, 10);
 
-    try {
-      await SupabaseService.markClassAttendance(
-        bookingId: _bookingId,
-        sessionId: _sessionId,
-        classId: classId,
-        slotId: slotId,
-        isDone: !isDone,
+  try {
+    if (isDone) {
+      await SupabaseService.deleteInstructorClassLog(
+        classId: paidClass['id'] as String,
+        date: today,
       );
-      await _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Failed to update. Try again.'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
+    } else {
+      await SupabaseService.upsertInstructorClassLog(
+        classId: paidClass['id'] as String,
+        instructorId: paidClass['instructor_id'] as String,
+        date: today,
+        isDone: true,
+        sessionDurationMinutes:
+            (cls['duration_minutes'] as num?)?.toInt() ?? 60,
+      );
+    }
+    await _load();
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Failed to update. Try again.'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
     }
   }
+}
 
   bool _isSessionExpired() {
     final session = widget.booking['instructor_sessions'] as Map<String, dynamic>?;
