@@ -12,16 +12,18 @@ class YogaPaymentPage extends StatefulWidget {
   final int numSessions;
   final double totalPrice;
   final String notes;
+final List<String> selectedSessionIds;
 
   const YogaPaymentPage({
-    super.key,
-    required this.instructor,
-    required this.startDate,
-    required this.displayDate,
-    required this.numSessions,
-    required this.totalPrice,
-    required this.notes,
-  });
+  super.key,
+  required this.instructor,
+  required this.startDate,
+  required this.displayDate,
+  required this.numSessions,
+  required this.totalPrice,
+  required this.notes,
+  required this.selectedSessionIds,
+});
 
   @override
   State<YogaPaymentPage> createState() => _YogaPaymentPageState();
@@ -162,13 +164,13 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
         return;
       }
 
-      await SupabaseService.bookYogaSession(
-        instructorId: widget.instructor['id'],
-        startDate: widget.startDate,
-        numSessions: widget.numSessions,
-        totalPrice: widget.totalPrice,
-        notes: widget.notes,
-      );
+      await SupabaseService.bookInstructorSessions(
+  instructorId: widget.instructor['id'],
+  sessionIds: widget.selectedSessionIds,
+  sessionCount: widget.numSessions,
+  totalPrice: widget.totalPrice,
+  notes: widget.notes,
+);
 
       if (!mounted) return;
       Navigator.pushReplacement(
