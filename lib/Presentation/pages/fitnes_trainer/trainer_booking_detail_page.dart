@@ -22,25 +22,30 @@ class TrainerBookingDetailPage extends StatefulWidget {
       _TrainerBookingDetailPageState();
 }
 
-class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
+class _TrainerBookingDetailPageState
+    extends State<TrainerBookingDetailPage> {
   Map<String, dynamic>? _attendance;
   bool _isLoading = true;
   Timer? _ticker;
 
   String get _bookingId => widget.booking['id'] as String;
-  String get _bookingDate => widget.booking['booking_date'] as String;
+  String get _bookingDate =>
+      widget.booking['booking_date'] as String;
   String get _startTime => widget.booking['start_time'] as String;
   String get _endTime => widget.booking['end_time'] as String;
-  String get _weeklySlotId => widget.booking['weekly_slot_id'] as String;
+  String get _weeklySlotId =>
+      widget.booking['weekly_slot_id'] as String;
   String get _trainerId => widget.booking['trainer_id'] as String;
-  String get _status => widget.booking['status'] as String? ?? 'confirmed';
+  String get _status =>
+      widget.booking['status'] as String? ?? 'confirmed';
+
+  bool get isDone => _attendance?['status'] == 'done';
 
   @override
   void initState() {
     super.initState();
     _load();
-    _ticker =
-        Timer.periodic(const Duration(seconds: 1), (_) {
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
   }
@@ -85,7 +90,6 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
   }
 
   bool get _isExpired => DateTime.now().isAfter(_slotEnd());
-
   bool get _isUpcoming => DateTime.now().isBefore(_slotStart());
 
   Duration get _timeUntilStart {
@@ -120,17 +124,18 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
   String _fmtDate(String dateStr) {
     final dt = DateTime.parse(dateStr);
     const months = [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec'
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
-    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const days = [
+      'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'
+    ];
     return '${days[dt.weekday - 1]}, ${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 
   // ── Actions ───────────────────────────────────
 
   Future<void> _toggleDone() async {
-    final isDone = _attendance?['status'] == 'done';
     try {
       await SupabaseService.markTrainerSlotAttendance(
         bookingId: _bookingId,
@@ -146,141 +151,160 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
           content: const Text('Failed to update. Try again.'),
           backgroundColor: Colors.red.shade700,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
         ));
       }
     }
   }
 
   Future<void> _cancelBooking() async {
-  final price = (widget.booking['price'] as num?)?.toDouble() ?? 0.0;
-  final last4 = widget.booking['payment_card_last4'] as String? ?? '';
+    final price =
+        (widget.booking['price'] as num?)?.toDouble() ?? 0.0;
+    final last4 =
+        widget.booking['payment_card_last4'] as String? ?? '';
 
-  final confirm = await showDialog<bool>(
-    context: context,
-    builder: (_) => AlertDialog(
-      backgroundColor: const Color(0xFF2C2C2C),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Column(children: [
-        Icon(Icons.cancel_outlined, color: Colors.redAccent, size: 48),
-        SizedBox(height: 12),
-        Text('Cancel Booking',
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C2C),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Column(children: [
+          Icon(Icons.cancel_outlined,
+              color: Colors.redAccent, size: 48),
+          SizedBox(height: 12),
+          Text('Cancel Booking',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold)),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text(
+            'Are you sure you want to cancel this session?',
             textAlign: TextAlign.center,
             style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold)),
-      ]),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text(
-          'Are you sure you want to cancel this session?',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.green.withOpacity(0.3)),
+                color: Colors.white70, fontSize: 14, height: 1.5),
           ),
-          child: Row(children: [
-            const Icon(Icons.replay_circle_filled, color: Colors.green, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                '\$${price.toStringAsFixed(2)} will be refunded to your card${last4.isNotEmpty ? ' ending in ••••$last4' : ''} within 5–7 business days.',
-                style: const TextStyle(color: Colors.green, fontSize: 12, height: 1.4),
-              ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: Colors.green.withOpacity(0.3)),
             ),
-          ]),
-        ),
-      ]),
-      actionsAlignment: MainAxisAlignment.center,
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Keep It',
-              style: TextStyle(color: Colors.white54)),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, true),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.redAccent,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              const Icon(Icons.replay_circle_filled,
+                  color: Colors.green, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '\$${price.toStringAsFixed(2)} will be refunded to your card${last4.isNotEmpty ? ' ending in ••••$last4' : ''} within 5–7 business days.',
+                  style: const TextStyle(
+                      color: Colors.green,
+                      fontSize: 12,
+                      height: 1.4),
+                ),
+              ),
+            ]),
           ),
-          child: const Text('Yes, Cancel',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        ),
-      ],
-    ),
-  );
-
-  if (confirm != true) return;
-
-  try {
-    await SupabaseService.cancelTrainerSlotBooking(_bookingId);
-    if (mounted) {
-      // Show refund success
-      await showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          backgroundColor: const Color(0xFF2C2C2C),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Column(children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 48),
-            SizedBox(height: 12),
-            Text('Booking Cancelled',
-                textAlign: TextAlign.center,
+        ]),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep It',
+                style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Yes, Cancel',
                 style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
                     fontWeight: FontWeight.bold)),
-          ]),
-          content: Text(
-            'Your booking has been cancelled. \$${price.toStringAsFixed(2)} will be refunded to your card${last4.isNotEmpty ? ' ending in ••••$last4' : ''} within 5–7 business days.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
           ),
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('OK',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await SupabaseService.cancelTrainerSlotBooking(_bookingId);
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            backgroundColor: const Color(0xFF2C2C2C),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            title: const Column(children: [
+              Icon(Icons.check_circle,
+                  color: Colors.green, size: 48),
+              SizedBox(height: 12),
+              Text('Booking Cancelled',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold)),
+            ]),
+            content: Text(
+              'Your booking has been cancelled. \$${price.toStringAsFixed(2)} will be refunded to your card${last4.isNotEmpty ? ' ending in ••••$last4' : ''} within 5–7 business days.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  height: 1.5),
             ),
-          ],
-        ),
-      );
-      Navigator.pop(context, true);
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Failed to cancel. Try again.'),
-        backgroundColor: Colors.red.shade700,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+            actionsAlignment: MainAxisAlignment.center,
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 32, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('OK',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Failed to cancel. Try again.'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ));
+      }
     }
   }
-}
 
   // ── Build ─────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final accent = _accent(context);
-    final isDone = _attendance?['status'] == 'done';
     final isCancelled = _status == 'cancelled';
 
     return Scaffold(
@@ -299,8 +323,8 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
                   backgroundColor: Colors.black54,
                   elevation: 0,
                 ),
-                child:
-                    const Icon(Icons.arrow_back, color: Colors.white),
+                child: const Icon(Icons.arrow_back,
+                    color: Colors.white),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -331,33 +355,30 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
           Expanded(
             child: _isLoading
                 ? Center(
-                    child: CircularProgressIndicator(color: accent))
+                    child:
+                        CircularProgressIndicator(color: accent))
                 : RefreshIndicator(
                     color: themeColor,
                     backgroundColor: context.cardBgColor,
                     onRefresh: _load,
                     child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
+                      physics:
+                          const AlwaysScrollableScrollPhysics(),
                       padding:
                           const EdgeInsets.fromLTRB(16, 0, 16, 40),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
                         children: [
-                          // Status banner
-                          _buildStatusBanner(context, accent,
-                              isDone, isCancelled),
+                          _buildStatusBanner(
+                              context, accent, isCancelled),
                           const SizedBox(height: 20),
-
-                          // Session info card
                           _buildInfoCard(context, accent),
                           const SizedBox(height: 20),
-
-                          // Live / countdown / expired block
                           if (!isCancelled)
-                            _buildTimingBlock(context, accent, isDone),
+                            _buildTimingBlock(
+                                context, accent),
                           const SizedBox(height: 20),
-
-                          // Trainer details
                           _buildTrainerCard(context, accent),
                         ],
                       ),
@@ -370,7 +391,7 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
   }
 
   Widget _buildStatusBanner(BuildContext context, Color accent,
-      bool isDone, bool isCancelled) {
+      bool isCancelled) {
     Color color;
     IconData icon;
     String label;
@@ -399,7 +420,8 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(14),
@@ -456,29 +478,37 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
                 fontSize: 16,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 16),
-
         _infoRow(context, accent, Icons.calendar_today_rounded,
             'Date', _fmtDate(_bookingDate)),
         const SizedBox(height: 12),
-        _infoRow(context, accent, Icons.access_time_rounded, 'Time',
+        _infoRow(context, accent, Icons.access_time_rounded,
+            'Time',
             '${_fmtTime(_startTime)} → ${_fmtTime(_endTime)}'),
         const SizedBox(height: 12),
-        _infoRow(context, accent, Icons.timer_outlined, 'Duration',
+        _infoRow(
+            context,
+            accent,
+            Icons.timer_outlined,
+            'Duration',
             '${widget.booking['trainer_weekly_slots']?['duration_minutes'] ?? 60} min'),
         const SizedBox(height: 12),
-        _infoRow(context, accent, Icons.attach_money, 'Paid',
+        _infoRow(
+            context,
+            accent,
+            Icons.attach_money,
+            'Paid',
             '\$${price.toStringAsFixed(2)}${last4.isNotEmpty ? '  •  ••••$last4' : ''}'),
-
         if (notes.isNotEmpty) ...[
           const SizedBox(height: 12),
-          _infoRow(context, accent, Icons.note_outlined, 'Notes', notes),
+          _infoRow(context, accent, Icons.note_outlined,
+              'Notes', notes),
         ],
       ]),
     );
   }
 
-  Widget _buildTimingBlock(
-      BuildContext context, Color accent, bool isDone) {
+  Widget _buildTimingBlock(BuildContext context, Color accent) {
+    // ── EXPIRED ──
     if (_isExpired) {
       return Container(
         width: double.infinity,
@@ -489,7 +519,8 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
           border: Border.all(color: Colors.grey.withOpacity(0.3)),
         ),
         child: Column(children: [
-          const Icon(Icons.lock_clock, color: Colors.grey, size: 36),
+          const Icon(Icons.lock_clock,
+              color: Colors.grey, size: 36),
           const SizedBox(height: 10),
           const Text('Session Ended',
               style: TextStyle(
@@ -501,115 +532,181 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
             isDone
                 ? 'You marked this session as done.'
                 : 'You did not mark this session as done.',
-            style:
-                TextStyle(color: context.subtextColor, fontSize: 13),
+            style: TextStyle(
+                color: context.subtextColor, fontSize: 13),
             textAlign: TextAlign.center,
           ),
         ]),
       );
     }
 
+    // ── LIVE ──
     if (_isLive) {
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: Colors.green.withOpacity(0.08),
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: Colors.green.withOpacity(0.4)),
-    ),
-    child: Column(children: [
-      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: Colors.green,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.green.withOpacity(0.5),
-                  blurRadius: 8,
-                  spreadRadius: 2)
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        const Text('Session is Live!',
-            style: TextStyle(
-                color: Colors.green,
-                fontSize: 16,
-                fontWeight: FontWeight.bold)),
-      ]),
-      const SizedBox(height: 8),
-      Text(
-        'Ends in  ${_fmtDuration(_timeRemaining)}',
-        style: const TextStyle(color: Colors.green, fontSize: 13),
-      ),
-      const SizedBox(height: 16),
-
-      // JOIN SESSION button
-      SizedBox(
+      return Container(
         width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TrainerContentPage(
-                trainer: widget.trainer,
-                activeBooking: widget.booking,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.green.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(18),
+          border:
+              Border.all(color: Colors.green.withOpacity(0.4)),
+        ),
+        child: Column(children: [
+          Row(mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: Colors.green,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.green.withOpacity(0.5),
+                      blurRadius: 8,
+                      spreadRadius: 2)
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text('Session is Live!',
+                style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold)),
+          ]),
+          const SizedBox(height: 8),
+          Text(
+            'Ends in  ${_fmtDuration(_timeRemaining)}',
+            style: const TextStyle(
+                color: Colors.green, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+
+          // JOIN SESSION — locked if already marked done
+          if (isDone)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: Colors.grey.withOpacity(0.3)),
+              ),
+              child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                const Icon(Icons.lock,
+                    color: Colors.grey, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Session Joined & Completed',
+                  style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold),
+                ),
+              ]),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TrainerContentPage(
+                      trainer: widget.trainer,
+                      activeBooking: widget.booking,
+                    ),
+                  ),
+                ).then((_) => _load()),
+                icon: const Icon(Icons.play_circle_fill,
+                    color: Colors.black, size: 20),
+                label: const Text('Join Session',
+                    style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeColor,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 10),
+
+          // Mark Attendance (always visible when live)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _toggleDone,
+              icon: Icon(
+                  isDone
+                      ? Icons.remove_circle_outline
+                      : Icons.check_circle_outline,
+                  size: 16,
+                  color:
+                      isDone ? Colors.orange : Colors.green),
+              label: Text(
+                  isDone
+                      ? 'Unmark Attendance'
+                      : 'Mark Attendance',
+                  style: TextStyle(
+                      color: isDone
+                          ? Colors.orange
+                          : Colors.green,
+                      fontSize: 13)),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                    color: isDone
+                        ? Colors.orange.withOpacity(0.5)
+                        : Colors.green.withOpacity(0.5)),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),
-          icon: const Icon(Icons.play_circle_fill,
-              color: Colors.black, size: 20),
-          label: const Text('Join Session',
-              style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: themeColor,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-      ),
-      const SizedBox(height: 10),
 
-      // Mark as Done (secondary)
-      SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: _toggleDone,
-          icon: Icon(
-              isDone
-                  ? Icons.remove_circle_outline
-                  : Icons.check_circle_outline,
-              size: 16,
-              color: isDone ? Colors.orange : Colors.green),
-          label: Text(
-              isDone ? 'Unmark Attendance' : 'Mark Attendance',
-              style: TextStyle(
-                  color: isDone ? Colors.orange : Colors.green,
-                  fontSize: 13)),
-          style: OutlinedButton.styleFrom(
-            side: BorderSide(
-                color: isDone
-                    ? Colors.orange.withOpacity(0.5)
-                    : Colors.green.withOpacity(0.5)),
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-      ),
-    ]),
-  );
-}
+          // Completion note when done
+          if (isDone) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: Colors.green.withOpacity(0.3)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.check_circle,
+                    color: Colors.green, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'You\'ve marked attendance. Join Session is locked until you unmark.',
+                    style: TextStyle(
+                        color: Colors.green.shade300,
+                        fontSize: 11,
+                        height: 1.4),
+                  ),
+                ),
+              ]),
+            ),
+          ],
+        ]),
+      );
+    }
 
-    // Upcoming — show countdown
+    // ── UPCOMING — show countdown ──
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -622,8 +719,8 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
         Icon(Icons.schedule, color: accent, size: 36),
         const SizedBox(height: 10),
         Text('Starts in',
-            style:
-                TextStyle(color: context.subtextColor, fontSize: 13)),
+            style: TextStyle(
+                color: context.subtextColor, fontSize: 13)),
         const SizedBox(height: 6),
         Text(
           _fmtDuration(_timeUntilStart),
@@ -636,8 +733,8 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
         const SizedBox(height: 6),
         Text(
           '${_fmtDate(_bookingDate)}  •  ${_fmtTime(_startTime)} → ${_fmtTime(_endTime)}',
-          style:
-              TextStyle(color: context.subtextColor, fontSize: 12),
+          style: TextStyle(
+              color: context.subtextColor, fontSize: 12),
           textAlign: TextAlign.center,
         ),
       ]),
@@ -660,14 +757,17 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
               (trainer['image_url'] ?? '').toString().isNotEmpty
                   ? NetworkImage(trainer['image_url'])
                   : null,
-          child: (trainer['image_url'] ?? '').toString().isEmpty
-              ? const Icon(Icons.person, color: Colors.black, size: 28)
-              : null,
+          child:
+              (trainer['image_url'] ?? '').toString().isEmpty
+                  ? const Icon(Icons.person,
+                      color: Colors.black, size: 28)
+                  : null,
         ),
         const SizedBox(width: 14),
         Expanded(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             Text(trainer['name'] ?? '',
                 style: TextStyle(
                     color: context.textColor,
@@ -682,16 +782,16 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
               const SizedBox(width: 4),
               Text(
                 trainer['rating']?.toString() ?? '',
-                style:
-                    TextStyle(color: context.subtextColor, fontSize: 12),
+                style: TextStyle(
+                    color: context.subtextColor, fontSize: 12),
               ),
               const SizedBox(width: 12),
               Icon(Icons.work_outline, color: accent, size: 13),
               const SizedBox(width: 4),
               Text(
                 '${trainer['experience']} exp',
-                style:
-                    TextStyle(color: context.subtextColor, fontSize: 12),
+                style: TextStyle(
+                    color: context.subtextColor, fontSize: 12),
               ),
             ]),
           ]),
@@ -700,15 +800,18 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
           CircleAvatar(
             radius: 20,
             backgroundColor: themeColor,
-            child: const Icon(Icons.phone, color: Colors.black, size: 18),
+            child: const Icon(Icons.phone,
+                color: Colors.black, size: 18),
           ),
       ]),
     );
   }
 
-  Widget _infoRow(BuildContext context, Color accent, IconData icon,
-      String label, String value) {
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  Widget _infoRow(BuildContext context, Color accent,
+      IconData icon, String label, String value) {
+    return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
       Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
@@ -719,7 +822,9 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
       ),
       const SizedBox(width: 12),
       Expanded(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Text(label,
               style: TextStyle(
                   color: context.subtextColor, fontSize: 11)),

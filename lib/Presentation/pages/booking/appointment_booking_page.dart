@@ -1,3 +1,5 @@
+// appointment_booking_page.dart — full replacement
+
 import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
@@ -40,6 +42,8 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
 
   // slotId -> booking count for selected date
   Map<String, int> _slotCounts = {};
+  // slotIds that the current user has already booked on selected date
+  Set<String> _userBookedSlotIds = {};
   bool _loadingCounts = false;
 
   final TextEditingController _notesController = TextEditingController();
@@ -62,23 +66,61 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
 
   Future<void> _load() async {
     setState(() => _isLoading = true);
-    final slots =
-        await SupabaseService.getTrainerWeeklySlots(widget.trainerId);
-    if (mounted) setState(() { _weeklySlots = slots; _isLoading = false; });
+    final slots = await SupabaseService.getTrainerWeeklySlots(widget.trainerId);
+    if (!mounted) return;
+    setState(() {
+      _weeklySlots = slots;
+      _isLoading = false;
+    });
+    // Auto-select today if today has available slots
+    _tryAutoSelectToday();
+  }
+
+  void _tryAutoSelectToday() {
+    final today = DateTime.now();
+    final todayClean = DateTime(today.year, today.month, today.day);
+    if (_activeDays.contains(today.weekday)) {
+      setState(() {
+        _selectedDate = todayClean;
+        _focusedMonth = todayClean;
+      });
+      _loadSlotCounts(todayClean);
+    }
   }
 
   Future<void> _loadSlotCounts(DateTime date) async {
-    setState(() { _loadingCounts = true; _selectedSlot = null; });
+    setState(() {
+      _loadingCounts = true;
+      _selectedSlot = null;
+      _userBookedSlotIds = {};
+    });
     final dateStr = _fmt(date);
+    final slotsForDay = _slotsForDay(date.weekday);
+
     final Map<String, int> counts = {};
-    for (final slot in _slotsForDay(date.weekday)) {
+    final Set<String> userBooked = {};
+
+    await Future.wait(slotsForDay.map((slot) async {
+      final slotId = slot['id'] as String;
       final count = await SupabaseService.getSlotBookingCount(
-        weeklySlotId: slot['id'] as String,
+        weeklySlotId: slotId,
         date: dateStr,
       );
-      counts[slot['id'] as String] = count;
-    }
-    if (mounted) setState(() { _slotCounts = counts; _loadingCounts = false; });
+      counts[slotId] = count;
+
+      final alreadyBooked = await SupabaseService.hasBookedSlot(
+        weeklySlotId: slotId,
+        date: dateStr,
+      );
+      if (alreadyBooked) userBooked.add(slotId);
+    }));
+
+    if (!mounted) return;
+    setState(() {
+      _slotCounts = counts;
+      _userBookedSlotIds = userBooked;
+      _loadingCounts = false;
+    });
   }
 
   List<Map<String, dynamic>> _slotsForDay(int weekday) =>
@@ -108,9 +150,6 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     'July','August','September','October','November','December'
   ][m - 1];
 
-  String _dayAbbr(int weekday) =>
-      ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][weekday - 1];
-
   bool _isPast(DateTime date) {
     final today = DateTime.now();
     return date.isBefore(DateTime(today.year, today.month, today.day));
@@ -121,6 +160,34 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     return date.year == today.year &&
         date.month == today.month &&
         date.day == today.day;
+  }
+
+  /// Returns true if this slot's end time has already passed today.
+  /// Only relevant when the selected date is today.
+  bool _isSlotTimeExpired(Map<String, dynamic> slot) {
+    if (_selectedDate == null || !_isToday(_selectedDate!)) return false;
+    final now = DateTime.now();
+    final parts = (slot['end_time'] as String).split(':');
+    final slotEnd = DateTime(
+      now.year, now.month, now.day,
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+    );
+    return now.isAfter(slotEnd);
+  }
+
+  /// Returns true if this slot's start time has already passed today
+  /// (but end hasn't — slot is "in progress", still lock it for new bookings).
+  bool _isSlotStartPast(Map<String, dynamic> slot) {
+    if (_selectedDate == null || !_isToday(_selectedDate!)) return false;
+    final now = DateTime.now();
+    final parts = (slot['start_time'] as String).split(':');
+    final slotStart = DateTime(
+      now.year, now.month, now.day,
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+    );
+    return now.isAfter(slotStart);
   }
 
   void _proceed() {
@@ -137,8 +204,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
           time:
               '${_fmtTime(_selectedSlot!['start_time'] as String)} → ${_fmtTime(_selectedSlot!['end_time'] as String)}',
           notes: _notesController.text.trim(),
-          sessionPrice:
-              (_selectedSlot!['price'] as num).toDouble(),
+          sessionPrice: (_selectedSlot!['price'] as num).toDouble(),
           trainerRating: widget.trainerRating,
           trainerAvatarUrl: widget.trainerAvatarUrl,
           weeklySlotId: _selectedSlot!['id'] as String,
@@ -187,25 +253,16 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Trainer card
                           _buildTrainerCard(context, accent),
                           const SizedBox(height: 20),
-
-                          // Available days chips
                           _buildDayChips(context, accent),
                           const SizedBox(height: 20),
-
-                          // Calendar
                           _buildCalendar(context, accent),
                           const SizedBox(height: 20),
-
-                          // Slots for selected date
                           if (_selectedDate != null) ...[
                             _buildSlotsSection(context, accent),
                             const SizedBox(height: 20),
                           ],
-
-                          // Notes
                           Text('Notes (Optional)',
                               style: TextStyle(
                                   color: context.textColor,
@@ -233,8 +290,6 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                             ),
                           ),
                           const SizedBox(height: 28),
-
-                          // Proceed button
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
@@ -244,13 +299,11 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                                   : _proceed,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: themeColor,
-                                disabledBackgroundColor:
-                                    Colors.grey.shade700,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 16),
+                                disabledBackgroundColor: Colors.grey.shade700,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(30)),
+                                    borderRadius: BorderRadius.circular(30)),
                               ),
                               child: Text(
                                 _selectedSlot == null
@@ -294,15 +347,17 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
         ),
         const SizedBox(width: 14),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             Text(widget.trainerName,
                 style: TextStyle(
                     color: context.textColor,
                     fontSize: 17,
                     fontWeight: FontWeight.bold)),
             Text(widget.trainerType,
-                style:
-                    TextStyle(color: context.subtextColor, fontSize: 13)),
+                style: TextStyle(
+                    color: context.subtextColor, fontSize: 13)),
             const SizedBox(height: 4),
             Row(children: [
               Icon(Icons.calendar_month, color: accent, size: 13),
@@ -318,8 +373,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
           ]),
         ),
         Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: themeColor,
             borderRadius: BorderRadius.circular(8),
@@ -374,17 +428,15 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                 style: TextStyle(
                   color: isActive ? themeColor : context.subtextColor,
                   fontSize: 12,
-                  fontWeight: isActive
-                      ? FontWeight.bold
-                      : FontWeight.normal,
+                  fontWeight:
+                      isActive ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
               if (isActive) ...[
                 const SizedBox(height: 2),
                 Text(
                   '$slotCount slot${slotCount == 1 ? '' : 's'}',
-                  style: TextStyle(
-                      color: accent, fontSize: 10),
+                  style: TextStyle(color: accent, fontSize: 10),
                 ),
               ],
             ]),
@@ -408,15 +460,13 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(children: [
-        // Month nav
         Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               GestureDetector(
                 onTap: () => setState(() => _focusedMonth =
                     DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
-                child:
-                    Icon(Icons.chevron_left, color: context.textColor),
+                child: Icon(Icons.chevron_left, color: context.textColor),
               ),
               Text(
                 '${_monthName(_focusedMonth.month)} ${_focusedMonth.year}',
@@ -428,27 +478,25 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
               GestureDetector(
                 onTap: () => setState(() => _focusedMonth =
                     DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
-                child:
-                    Icon(Icons.chevron_right, color: context.textColor),
+                child: Icon(Icons.chevron_right, color: context.textColor),
               ),
             ]),
         const SizedBox(height: 16),
-        // Day headers
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: ['Mo','Tu','We','Th','Fr','Sa','Su'].map((d) =>
-            SizedBox(
-              width: 36,
-              child: Text(d,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: context.subtextColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600)),
-            )).toList(),
+          children: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
+              .map((d) => SizedBox(
+                    width: 36,
+                    child: Text(d,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: context.subtextColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600)),
+                  ))
+              .toList(),
         ),
         const SizedBox(height: 8),
-        // Grid
         _buildCalendarGrid(daysInMonth, startOffset, accent),
       ]),
     );
@@ -473,8 +521,15 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
           _selectedDate!.month == date.month &&
           _selectedDate!.day == date.day;
 
+      // For today: check if ALL slots for this day have passed
+      final bool allSlotsExpiredToday = isToday &&
+          hasSlots &&
+          _slotsForDay(date.weekday).every(_isSlotStartPast);
+
+      final bool tappable = !isPast && !allSlotsExpiredToday && hasSlots;
+
       cells.add(GestureDetector(
-        onTap: (isPast || !hasSlots)
+        onTap: !tappable
             ? null
             : () {
                 setState(() => _selectedDate = date);
@@ -500,9 +555,11 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                   style: TextStyle(
                     color: isSelected
                         ? Colors.black
-                        : isPast || !hasSlots
+                        : (!tappable && !isToday)
                             ? context.subtextColor.withOpacity(0.3)
-                            : context.textColor,
+                            : allSlotsExpiredToday
+                                ? context.subtextColor.withOpacity(0.3)
+                                : context.textColor,
                     fontWeight: isSelected || isToday || hasSlots
                         ? FontWeight.bold
                         : FontWeight.normal,
@@ -511,8 +568,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                 ),
               ),
             ),
-            // Green dot for available days
-            if (hasSlots && !isPast && !isSelected)
+            if (hasSlots && !isPast && !isSelected && !allSlotsExpiredToday)
               Positioned(
                 bottom: 2,
                 left: 0,
@@ -574,8 +630,8 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     ]);
   }
 
-  Widget _buildSlotCard(BuildContext context,
-      Map<String, dynamic> slot, Color accent) {
+  Widget _buildSlotCard(
+      BuildContext context, Map<String, dynamic> slot, Color accent) {
     final slotId = slot['id'] as String;
     final maxCapacity = slot['max_capacity'] as int;
     final booked = _slotCounts[slotId] ?? 0;
@@ -586,6 +642,14 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     final startTime = _fmtTime(slot['start_time'] as String);
     final endTime = _fmtTime(slot['end_time'] as String);
     final duration = slot['duration_minutes'] as int;
+
+    // ── New state checks ──────────────────────────────────
+    final bool isExpired = _isSlotTimeExpired(slot);   // end time passed
+    final bool isInProgress = !isExpired && _isSlotStartPast(slot); // started but not ended
+    final bool isAlreadyBooked = _userBookedSlotIds.contains(slotId);
+    // A slot is locked if full, expired, or in-progress
+    final bool isLocked = isFull || isExpired || isInProgress;
+    // ─────────────────────────────────────────────────────
 
     Color capacityColor;
     String capacityLabel;
@@ -600,162 +664,201 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
       capacityLabel = '$remaining spots left';
     }
 
+    // Overlay color/icon for locked states
+    Color? lockedBorderColor;
+    String? lockedLabel;
+    Color? lockedLabelColor;
+    IconData? lockedIcon;
+
+    if (isAlreadyBooked) {
+      lockedBorderColor = themeColor.withOpacity(0.6);
+      lockedLabel = 'Booked';
+      lockedLabelColor = themeColor;
+      lockedIcon = Icons.check_circle_outline;
+    } else if (isExpired) {
+      lockedBorderColor = Colors.grey.withOpacity(0.3);
+      lockedLabel = 'Expired';
+      lockedLabelColor = Colors.grey;
+      lockedIcon = Icons.lock_clock;
+    } else if (isInProgress) {
+      lockedBorderColor = Colors.orange.withOpacity(0.4);
+      lockedLabel = 'In Progress';
+      lockedLabelColor = Colors.orange;
+      lockedIcon = Icons.timelapse;
+    } else if (isFull) {
+      lockedBorderColor = Colors.red.withOpacity(0.3);
+      lockedLabel = 'Full';
+      lockedLabelColor = Colors.red;
+      lockedIcon = Icons.event_busy;
+    }
+
+    final bool fullyDisabled = isLocked || isAlreadyBooked;
+
     return GestureDetector(
-      onTap: isFull
-          ? () => _showFullDialog()
+      onTap: fullyDisabled
+          ? () {
+              if (isAlreadyBooked) {
+                _showAlreadyBookedDialog();
+              } else if (isExpired || isInProgress) {
+                _showExpiredDialog(isInProgress);
+              } else if (isFull) {
+                _showFullDialog();
+              }
+            }
           : () => setState(() => _selectedSlot = slot),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isFull
-              ? context.cardBgColor.withOpacity(0.5)
+          color: fullyDisabled
+              ? context.cardBgColor.withOpacity(isAlreadyBooked ? 0.85 : 0.5)
               : isSelected
                   ? themeColor.withOpacity(0.12)
                   : context.cardBgColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isFull
-                ? Colors.red.withOpacity(0.3)
+            color: fullyDisabled
+                ? (lockedBorderColor ?? Colors.grey.withOpacity(0.3))
                 : isSelected
                     ? themeColor
                     : context.isDark
                         ? Colors.white12
                         : Colors.black12,
-            width: isSelected ? 2 : 1,
+            width: isSelected || isAlreadyBooked ? 2 : 1,
           ),
         ),
         child: Row(children: [
           // Time block
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isFull
-                  ? Colors.red.withOpacity(0.1)
-                  : isSelected
-                      ? themeColor
-                      : context.isDark
-                          ? Colors.white10
-                          : Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
+          Opacity(
+            opacity: fullyDisabled ? 0.45 : 1.0,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? themeColor
+                    : context.isDark
+                        ? Colors.white10
+                        : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(startTime,
+                    style: TextStyle(
+                      color: isSelected ? Colors.black : context.textColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    )),
+                Text('↓',
+                    style: TextStyle(
+                        color: isSelected
+                            ? Colors.black54
+                            : context.subtextColor,
+                        fontSize: 11)),
+                Text(endTime,
+                    style: TextStyle(
+                      color: isSelected ? Colors.black : context.textColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    )),
+              ]),
             ),
-            child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-              Text(
-                startTime,
-                style: TextStyle(
-                  color: isSelected ? Colors.black : context.textColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                '↓',
-                style: TextStyle(
-                    color: isSelected
-                        ? Colors.black54
-                        : context.subtextColor,
-                    fontSize: 11),
-              ),
-              Text(
-                endTime,
-                style: TextStyle(
-                  color: isSelected ? Colors.black : context.textColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ]),
           ),
           const SizedBox(width: 14),
 
           // Info
           Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Icon(Icons.timer_outlined,
-                    color: isSelected ? themeColor : accent, size: 13),
-                const SizedBox(width: 4),
-                Text('$duration min',
-                    style: TextStyle(
-                        color:
-                            context.subtextColor, fontSize: 12)),
-              ]),
-              const SizedBox(height: 6),
-              // Capacity bar
-              Column(
+            child: Opacity(
+              opacity: fullyDisabled ? 0.55 : 1.0,
+              child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
-                    children: [
-                  Row(children: [
-                    Icon(Icons.people_outline,
-                        color: capacityColor, size: 13),
-                    const SizedBox(width: 4),
-                    Text(capacityLabel,
-                        style: TextStyle(
-                            color: capacityColor,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600)),
-                  ]),
-                  Text('$booked/$maxCapacity',
+                Row(children: [
+                  Icon(Icons.timer_outlined,
+                      color: isSelected ? themeColor : accent, size: 13),
+                  const SizedBox(width: 4),
+                  Text('$duration min',
                       style: TextStyle(
-                          color: context.subtextColor,
-                          fontSize: 11)),
+                          color: context.subtextColor, fontSize: 12)),
                 ]),
-                const SizedBox(height: 4),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: booked / maxCapacity,
-                    minHeight: 5,
-                    backgroundColor: context.isDark
-                        ? Colors.white12
-                        : Colors.grey.shade200,
-                    valueColor:
-                        AlwaysStoppedAnimation(capacityColor),
+                const SizedBox(height: 6),
+                Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                    Row(children: [
+                      Icon(Icons.people_outline,
+                          color: capacityColor, size: 13),
+                      const SizedBox(width: 4),
+                      Text(capacityLabel,
+                          style: TextStyle(
+                              color: capacityColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600)),
+                    ]),
+                    Text('$booked/$maxCapacity',
+                        style: TextStyle(
+                            color: context.subtextColor, fontSize: 11)),
+                  ]),
+                  const SizedBox(height: 4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: booked / maxCapacity,
+                      minHeight: 5,
+                      backgroundColor: context.isDark
+                          ? Colors.white12
+                          : Colors.grey.shade200,
+                      valueColor:
+                          AlwaysStoppedAnimation(capacityColor),
+                    ),
                   ),
-                ),
+                ]),
               ]),
-            ]),
+            ),
           ),
 
           const SizedBox(width: 12),
 
-          // Price + check
-          Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
+          // Price + status badge
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(
               '\$${price.toStringAsFixed(0)}',
               style: TextStyle(
-                color: isSelected ? themeColor : accent,
+                color: fullyDisabled
+                    ? context.subtextColor
+                    : isSelected
+                        ? themeColor
+                        : accent,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 6),
-            if (isFull)
+            if (lockedLabel != null)
               Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.15),
+                  color: (lockedLabelColor ?? Colors.grey).withOpacity(0.12),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                      color: Colors.red.withOpacity(0.4)),
+                      color:
+                          (lockedLabelColor ?? Colors.grey).withOpacity(0.4)),
                 ),
-                child: const Text('Full',
-                    style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(lockedIcon,
+                      color: lockedLabelColor, size: 10),
+                  const SizedBox(width: 3),
+                  Text(lockedLabel,
+                      style: TextStyle(
+                          color: lockedLabelColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold)),
+                ]),
               )
             else
               AnimatedContainer(
@@ -763,7 +866,8 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                 width: 26,
                 height: 26,
                 decoration: BoxDecoration(
-                  color: isSelected ? themeColor : Colors.transparent,
+                  color:
+                      isSelected ? themeColor : Colors.transparent,
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isSelected
@@ -783,46 +887,93 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     );
   }
 
+  // ── Dialogs ──────────────────────────────────────────────
+
   void _showFullDialog() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF2C2C2C),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Column(children: [
-          Icon(Icons.event_busy, color: Colors.orange, size: 48),
-          SizedBox(height: 12),
-          Text('Slot Full',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold)),
-        ]),
-        content: const Text(
-          'This time slot is fully booked for the selected date. Please try a different time or another date.',
+      builder: (_) => _buildInfoDialog(
+        icon: Icons.event_busy,
+        iconColor: Colors.orange,
+        title: 'Slot Full',
+        message:
+            'This time slot is fully booked for the selected date. Please try a different time or another date.',
+        buttonColor: Colors.orange,
+      ),
+    );
+  }
+
+  void _showAlreadyBookedDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => _buildInfoDialog(
+        icon: Icons.check_circle_outline,
+        iconColor: themeColor,
+        title: 'Already Booked',
+        message:
+            'You already have a booking for this slot on the selected date. Check your appointments to manage it.',
+        buttonColor: themeColor,
+        buttonTextColor: Colors.black,
+      ),
+    );
+  }
+
+  void _showExpiredDialog(bool isInProgress) {
+    showDialog(
+      context: context,
+      builder: (_) => _buildInfoDialog(
+        icon: isInProgress ? Icons.timelapse : Icons.lock_clock,
+        iconColor: isInProgress ? Colors.orange : Colors.grey,
+        title: isInProgress ? 'Session In Progress' : 'Slot Expired',
+        message: isInProgress
+            ? 'This session has already started and cannot be booked. Please select an upcoming slot.'
+            : 'This time slot has already passed for today. Please select a future slot or another date.',
+        buttonColor: isInProgress ? Colors.orange : Colors.grey,
+      ),
+    );
+  }
+
+  Widget _buildInfoDialog({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String message,
+    required Color buttonColor,
+    Color buttonTextColor = Colors.white,
+  }) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF2C2C2C),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Column(children: [
+        Icon(icon, color: iconColor, size: 48),
+        const SizedBox(height: 12),
+        Text(title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold)),
+      ]),
+      content: Text(message,
           textAlign: TextAlign.center,
           style:
-              TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 32, vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('OK',
-                style: TextStyle(
-                    color: Colors.black, fontWeight: FontWeight.bold)),
+              const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5)),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: buttonColor,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
           ),
-        ],
-      ),
+          child: Text('OK',
+              style: TextStyle(
+                  color: buttonTextColor, fontWeight: FontWeight.bold)),
+        ),
+      ],
     );
   }
 }

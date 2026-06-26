@@ -35,6 +35,7 @@ class _BookingsPageState extends State<BookingsPage>
 
   Future<void> _load() async {
     setState(() => _isLoading = true);
+    debugPrint('YOGA BOOKING: ${_yogaBookings.isNotEmpty ? _yogaBookings.first : "empty"}');
     final data = await SupabaseService.getAllMyBookings();
     if (mounted) {
       setState(() {
@@ -43,6 +44,9 @@ class _BookingsPageState extends State<BookingsPage>
         _yogaBookings =
             List<Map<String, dynamic>>.from(data['yoga'] ?? []);
         _isLoading = false;
+        if (_yogaBookings.isNotEmpty) {
+          debugPrint('YOGA BOOKING: ${_yogaBookings.first}');
+        }
       });
     }
   }
