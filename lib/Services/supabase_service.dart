@@ -2353,4 +2353,97 @@ static Future<Map<String, dynamic>> getAllMyBookings() async {
   }
 }
 
+// Add trainer content to feed
+static Future<void> addTrainerContentToFeed({
+  required String trainerId,
+  required String bookingId,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    debugPrint('\x1B[33m[API] ADD trainer content to feed | booking: $bookingId\x1B[0m');
+    await client.from('user_feed_classes').upsert({
+      'user_id': userId,
+      'class_id': bookingId,
+      'instructor_id': trainerId,
+      'content_type': 'trainer',
+      'trainer_id': trainerId,
+      'booking_id': bookingId,
+    }, onConflict: 'user_id,class_id');
+    debugPrint('\x1B[32m[API] 200 OK | Trainer content added to feed\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | addTrainerContentToFeed | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+static Future<void> removeTrainerContentFromFeed({
+  required String bookingId,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    await client
+        .from('user_feed_classes')
+        .delete()
+        .eq('user_id', userId)
+        .eq('class_id', bookingId)
+        .eq('content_type', 'trainer');
+    debugPrint('\x1B[32m[API] 200 OK | Trainer content removed from feed\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | removeTrainerContentFromFeed | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+static Future<bool> isTrainerContentInFeed(String bookingId) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return false;
+    final data = await client
+        .from('user_feed_classes')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('class_id', bookingId)
+        .eq('content_type', 'trainer')
+        .maybeSingle();
+    return data != null;
+  } catch (e) {
+    return false;
+  }
+}
+
+static Future<void> markAllStepsCompleted({
+  required String bookingId,
+}) async {
+  try {
+    debugPrint('\x1B[33m[API] MARK all steps completed | booking: $bookingId\x1B[0m');
+    await client.from('trainer_slot_bookings').update({
+      'all_steps_completed': true,
+      'steps_completed_at': DateTime.now().toIso8601String(),
+    }).eq('id', bookingId);
+    debugPrint('\x1B[32m[API] 200 OK | All steps marked completed\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | markAllStepsCompleted | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getTrainerFeedItems() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+    final data = await client
+        .from('user_feed_classes')
+        .select('*, fitness_trainers(name, image_url, training_type)')
+        .eq('user_id', userId)
+        .eq('content_type', 'trainer')
+        .order('added_at', ascending: false);
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTrainerFeedItems | $e\x1B[0m');
+    return [];
+  }
+}
+
 }
