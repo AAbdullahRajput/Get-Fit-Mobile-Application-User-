@@ -3,12 +3,8 @@ import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/payment/payment_page.dart';
 
-// Darker accent used in LIGHT mode wherever themeColor would otherwise be
-// used as TEXT/ICON color directly on a light background (low contrast).
-// In DARK mode this returns themeColor, unchanged from before.
-Color _accent(BuildContext context) {
-  return context.isDark ? themeColor : const Color(0xFF6B7A00);
-}
+Color _accent(BuildContext context) =>
+    context.isDark ? themeColor : const Color(0xFF6B7A00);
 
 class AppointmentBookingPage extends StatefulWidget {
   final String trainerId;
@@ -35,25 +31,27 @@ class AppointmentBookingPage extends StatefulWidget {
 }
 
 class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
+  List<Map<String, dynamic>> _weeklySlots = [];
+  bool _isLoading = true;
+
   DateTime _focusedMonth = DateTime.now();
   DateTime? _selectedDate;
-  String? _selectedTime;
-  double _selectedPrice = 0.0;
-  List<String> _bookedSlots = [];
-  bool _loadingSlots = false;
-  List<Map<String, dynamic>> _trainerSlots = [];
-  bool _loadingTrainerSlots = true;
-  final _notesController = TextEditingController();
+  Map<String, dynamic>? _selectedSlot;
+
+  // slotId -> booking count for selected date
+  Map<String, int> _slotCounts = {};
+  bool _loadingCounts = false;
+
+  final TextEditingController _notesController = TextEditingController();
+
+  // days that have slots (1=Mon..7=Sun)
+  Set<int> get _activeDays =>
+      _weeklySlots.map((s) => s['day_of_week'] as int).toSet();
 
   @override
   void initState() {
     super.initState();
-    _loadTrainerSlots();
-  }
-
-  Future<void> _loadTrainerSlots() async {
-    final slots = await SupabaseService.getTrainerSlots(widget.trainerId);
-    if (mounted) setState(() { _trainerSlots = slots; _loadingTrainerSlots = false; });
+    _load();
   }
 
   @override
@@ -62,327 +60,402 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     super.dispose();
   }
 
-  Future<void> _loadSlots(DateTime date) async {
-    setState(() { _loadingSlots = true; _selectedTime = null; });
-    final dateStr = _dateToStr(date);
-    final booked = await SupabaseService.getBookedSlots(
-      trainerId: widget.trainerId,
-      date: dateStr,
-    );
-    if (mounted) setState(() { _bookedSlots = booked; _loadingSlots = false; });
+  Future<void> _load() async {
+    setState(() => _isLoading = true);
+    final slots =
+        await SupabaseService.getTrainerWeeklySlots(widget.trainerId);
+    if (mounted) setState(() { _weeklySlots = slots; _isLoading = false; });
   }
 
-  String _dateToStr(DateTime d) =>
+  Future<void> _loadSlotCounts(DateTime date) async {
+    setState(() { _loadingCounts = true; _selectedSlot = null; });
+    final dateStr = _fmt(date);
+    final Map<String, int> counts = {};
+    for (final slot in _slotsForDay(date.weekday)) {
+      final count = await SupabaseService.getSlotBookingCount(
+        weeklySlotId: slot['id'] as String,
+        date: dateStr,
+      );
+      counts[slot['id'] as String] = count;
+    }
+    if (mounted) setState(() { _slotCounts = counts; _loadingCounts = false; });
+  }
+
+  List<Map<String, dynamic>> _slotsForDay(int weekday) =>
+      _weeklySlots.where((s) => s['day_of_week'] == weekday).toList();
+
+  String _fmt(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF2C2C2C),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Column(children: [
-          Icon(Icons.check_circle_outline, color: themeColor, size: 56),
-          SizedBox(height: 8),
-          Text('Appointment Booked!',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-        ]),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(widget.trainerName,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: themeColor, fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text(
-            '${_formatDisplayDate(_selectedDate!)}  •  $_selectedTime',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          const SizedBox(height: 12),
-          const Text('Pending confirmation from the trainer.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white38, fontSize: 12)),
-        ]),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () { Navigator.pop(context); Navigator.pop(context); },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-              decoration: BoxDecoration(color: themeColor, borderRadius: BorderRadius.circular(12)),
-              child: const Text('Done',
-                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
-            ),
-          ),
-        ],
+  String _fmtTime(String t) {
+    final parts = t.split(':');
+    final h = int.parse(parts[0]);
+    final m = parts[1];
+    final period = h >= 12 ? 'PM' : 'AM';
+    final h12 = h > 12 ? h - 12 : h == 0 ? 12 : h;
+    return '$h12:$m $period';
+  }
+
+  String _fmtDisplayDate(DateTime d) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun',
+                    'Jul','Aug','Sep','Oct','Nov','Dec'];
+    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    return '${days[d.weekday - 1]}, ${d.day} ${months[d.month - 1]} ${d.year}';
+  }
+
+  String _monthName(int m) => [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December'
+  ][m - 1];
+
+  String _dayAbbr(int weekday) =>
+      ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][weekday - 1];
+
+  bool _isPast(DateTime date) {
+    final today = DateTime.now();
+    return date.isBefore(DateTime(today.year, today.month, today.day));
+  }
+
+  bool _isToday(DateTime date) {
+    final today = DateTime.now();
+    return date.year == today.year &&
+        date.month == today.month &&
+        date.day == today.day;
+  }
+
+  void _proceed() {
+    if (_selectedDate == null || _selectedSlot == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AppointmentPaymentPage(
+          trainerId: widget.trainerId,
+          trainerName: widget.trainerName,
+          trainerType: widget.trainerType,
+          date: _fmt(_selectedDate!),
+          displayDate: _fmtDisplayDate(_selectedDate!),
+          time:
+              '${_fmtTime(_selectedSlot!['start_time'] as String)} → ${_fmtTime(_selectedSlot!['end_time'] as String)}',
+          notes: _notesController.text.trim(),
+          sessionPrice:
+              (_selectedSlot!['price'] as num).toDouble(),
+          trainerRating: widget.trainerRating,
+          trainerAvatarUrl: widget.trainerAvatarUrl,
+          weeklySlotId: _selectedSlot!['id'] as String,
+          startTime: _selectedSlot!['start_time'] as String,
+          endTime: _selectedSlot!['end_time'] as String,
+        ),
       ),
     );
   }
-
-  String _formatDisplayDate(DateTime d) {
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-    return '${months[d.month - 1]} ${d.day}, ${d.year} - ${days[d.weekday - 1]}';
-  }
-
-  void _prevMonth() => setState(() =>
-      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1));
-
-  void _nextMonth() => setState(() =>
-      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1));
 
   @override
   Widget build(BuildContext context) {
     final accent = _accent(context);
-
     return Scaffold(
       backgroundColor: context.bgColor,
       body: SafeArea(
-        child: Column(
-          children: [
-            // Top bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
-              child: Row(
-                children: [
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      shape: const CircleBorder(),
-                      padding: const EdgeInsets.all(10),
-                      backgroundColor: Colors.black54,
-                      elevation: 0,
-                    ),
-                    child: const Icon(Icons.arrow_back, color: Colors.white),
-                  ),
-                  const SizedBox(width: 8),
-                  Text('Appointment',
-                      style: TextStyle(color: accent, fontSize: 22, fontWeight: FontWeight.bold)),
-                ],
+        child: Column(children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
+            child: Row(children: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  shape: const CircleBorder(),
+                  padding: const EdgeInsets.all(10),
+                  backgroundColor: Colors.black54,
+                  elevation: 0,
+                ),
+                child: const Icon(Icons.arrow_back, color: Colors.white),
               ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Trainer card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: context.cardBgColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      CircleAvatar(
-                        radius: 35,
-                        backgroundColor: themeColor,
-                        backgroundImage: widget.trainerAvatarUrl.isNotEmpty
-                            ? NetworkImage(widget.trainerAvatarUrl) : null,
-                        child: widget.trainerAvatarUrl.isEmpty
-                            ? const Icon(Icons.person, color: Colors.black, size: 32) : null,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(widget.trainerName,
-                                style: TextStyle(
-                                    color: context.textColor,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold)),
-                            Text(widget.trainerType,
-                                style: TextStyle(color: context.subtextColor, fontSize: 13)),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                if (widget.trainerExperience.isNotEmpty)
-                                  Text('${widget.trainerExperience} years experience',
-                                      // themeColor as text on cardBgColor → use accent in light
-                                      style: TextStyle(color: accent, fontSize: 12)),
-                                const Spacer(),
-                                // Rating badge: themeColor bg + black text — fine as-is
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: themeColor,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    widget.trainerRating.toStringAsFixed(1),
-                                    style: const TextStyle(
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  ),
-                  const SizedBox(height: 24),
+              const SizedBox(width: 8),
+              Text('Book a Session',
+                  style: TextStyle(
+                      color: accent,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold)),
+            ]),
+          ),
 
-                  // Calendar
-                  Container(
-                    decoration: BoxDecoration(
-                      color: context.cardBgColor,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.all(16),
+          Expanded(
+            child: _isLoading
+                ? Center(child: CircularProgressIndicator(color: accent))
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                     child: Column(
-                      children: [
-                        // Month header
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            GestureDetector(
-                              onTap: _prevMonth,
-                              child: Icon(Icons.chevron_left, color: context.textColor),
-                            ),
-                            Text(
-                              '${_monthName(_focusedMonth.month)} ${_focusedMonth.year}',
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Trainer card
+                          _buildTrainerCard(context, accent),
+                          const SizedBox(height: 20),
+
+                          // Available days chips
+                          _buildDayChips(context, accent),
+                          const SizedBox(height: 20),
+
+                          // Calendar
+                          _buildCalendar(context, accent),
+                          const SizedBox(height: 20),
+
+                          // Slots for selected date
+                          if (_selectedDate != null) ...[
+                            _buildSlotsSection(context, accent),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // Notes
+                          Text('Notes (Optional)',
                               style: TextStyle(
                                   color: context.textColor,
                                   fontSize: 16,
-                                  fontWeight: FontWeight.bold),
+                                  fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: context.cardBgColor,
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                            GestureDetector(
-                              onTap: _nextMonth,
-                              child: Icon(Icons.chevron_right, color: context.textColor),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Day headers
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: ['Mo','Tu','We','Th','Fr','Sa','Su'].map((d) =>
-                            SizedBox(
-                              width: 36,
-                              child: Text(d,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                      color: context.subtextColor,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600)),
-                            )
-                          ).toList(),
-                        ),
-                        const SizedBox(height: 8),
-                        // Day grid
-                        _buildCalendarGrid(),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Selected date display
-                  if (_selectedDate != null) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        // themeColor tint bg is fine, icon/text use accent for readability
-                        color: themeColor.withOpacity(context.isDark ? 0.15 : 0.14),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: themeColor.withOpacity(0.4)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.calendar_today, color: accent, size: 16),
-                          const SizedBox(width: 8),
-                          Text(_formatDisplayDate(_selectedDate!),
+                            child: TextField(
+                              controller: _notesController,
+                              maxLines: 3,
                               style: TextStyle(
-                                  color: context.textColor,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-
-                  // Time slots
-                  Text('Time',
-                      style: TextStyle(
-                          color: context.textColor,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 12),
-                  _loadingSlots
-                      ? Center(child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: CircularProgressIndicator(color: accent)))
-                      : _buildTimeSlots(),
-                  const SizedBox(height: 20),
-
-                  // Next button → Payment
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (_selectedDate == null || _selectedTime == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: const Text('Select a date and time slot first.',
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            backgroundColor: Colors.redAccent,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ));
-                          return;
-                        }
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => AppointmentPaymentPage(
-                              trainerId: widget.trainerId,
-                              trainerName: widget.trainerName,
-                              trainerType: widget.trainerType,
-                              date: _dateToStr(_selectedDate!),
-                              displayDate: _formatDisplayDate(_selectedDate!),
-                              time: _selectedTime!,
-                              notes: _notesController.text.trim(),
-                              sessionPrice: _selectedPrice,
-                              trainerRating: widget.trainerRating,
-                              trainerAvatarUrl: widget.trainerAvatarUrl,
+                                  color: context.textColor, fontSize: 14),
+                              decoration: InputDecoration(
+                                hintText:
+                                    'Any goals, health concerns, preferences...',
+                                hintStyle:
+                                    TextStyle(color: context.subtextColor),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.all(14),
+                              ),
                             ),
                           ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: themeColor,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      ),
-                      child: const Text('Next',
-                          style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold)),
-                    ),
+                          const SizedBox(height: 28),
+
+                          // Proceed button
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: (_selectedDate == null ||
+                                      _selectedSlot == null)
+                                  ? null
+                                  : _proceed,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: themeColor,
+                                disabledBackgroundColor:
+                                    Colors.grey.shade700,
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(30)),
+                              ),
+                              child: Text(
+                                _selectedSlot == null
+                                    ? 'Select a date and time slot'
+                                    : 'Proceed to Payment  •  \$${(_selectedSlot!['price'] as num).toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: _selectedSlot == null
+                                      ? Colors.grey.shade400
+                                      : Colors.black,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ]),
                   ),
-                ],
-              ),
-            ),
           ),
-        ],
+        ]),
       ),
-      )
     );
   }
 
-  Widget _buildCalendarGrid() {
-    final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
-    final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
-    final startOffset = firstDay.weekday - 1;
-    final today = DateTime.now();
+  Widget _buildTrainerCard(BuildContext context, Color accent) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.cardBgColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(children: [
+        CircleAvatar(
+          radius: 28,
+          backgroundColor: themeColor,
+          backgroundImage: widget.trainerAvatarUrl.isNotEmpty
+              ? NetworkImage(widget.trainerAvatarUrl)
+              : null,
+          child: widget.trainerAvatarUrl.isEmpty
+              ? const Icon(Icons.person, color: Colors.black, size: 28)
+              : null,
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(widget.trainerName,
+                style: TextStyle(
+                    color: context.textColor,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold)),
+            Text(widget.trainerType,
+                style:
+                    TextStyle(color: context.subtextColor, fontSize: 13)),
+            const SizedBox(height: 4),
+            Row(children: [
+              Icon(Icons.calendar_month, color: accent, size: 13),
+              const SizedBox(width: 4),
+              Text(
+                '${_activeDays.length} day${_activeDays.length == 1 ? '' : 's'}/week  •  ${_weeklySlots.length} slots available',
+                style: TextStyle(
+                    color: accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500),
+              ),
+            ]),
+          ]),
+        ),
+        Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: themeColor,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            widget.trainerRating.toStringAsFixed(1),
+            style: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                fontSize: 13),
+          ),
+        ),
+      ]),
+    );
+  }
 
+  Widget _buildDayChips(BuildContext context, Color accent) {
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Available Days',
+          style: TextStyle(
+              color: context.textColor,
+              fontSize: 16,
+              fontWeight: FontWeight.bold)),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 8,
+        children: List.generate(7, (i) {
+          final day = i + 1;
+          final isActive = _activeDays.contains(day);
+          final slotCount =
+              _weeklySlots.where((s) => s['day_of_week'] == day).length;
+          return Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? themeColor.withOpacity(0.15)
+                  : context.cardBgColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isActive
+                    ? themeColor
+                    : context.isDark
+                        ? Colors.white12
+                        : Colors.black12,
+              ),
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(
+                dayNames[i],
+                style: TextStyle(
+                  color: isActive ? themeColor : context.subtextColor,
+                  fontSize: 12,
+                  fontWeight: isActive
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                ),
+              ),
+              if (isActive) ...[
+                const SizedBox(height: 2),
+                Text(
+                  '$slotCount slot${slotCount == 1 ? '' : 's'}',
+                  style: TextStyle(
+                      color: accent, fontSize: 10),
+                ),
+              ],
+            ]),
+          );
+        }),
+      ),
+    ]);
+  }
+
+  Widget _buildCalendar(BuildContext context, Color accent) {
+    final firstDay =
+        DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+    final daysInMonth =
+        DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
+    final startOffset = firstDay.weekday - 1;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.cardBgColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(children: [
+        // Month nav
+        Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              GestureDetector(
+                onTap: () => setState(() => _focusedMonth =
+                    DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
+                child:
+                    Icon(Icons.chevron_left, color: context.textColor),
+              ),
+              Text(
+                '${_monthName(_focusedMonth.month)} ${_focusedMonth.year}',
+                style: TextStyle(
+                    color: context.textColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold),
+              ),
+              GestureDetector(
+                onTap: () => setState(() => _focusedMonth =
+                    DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
+                child:
+                    Icon(Icons.chevron_right, color: context.textColor),
+              ),
+            ]),
+        const SizedBox(height: 16),
+        // Day headers
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: ['Mo','Tu','We','Th','Fr','Sa','Su'].map((d) =>
+            SizedBox(
+              width: 36,
+              child: Text(d,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: context.subtextColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
+            )).toList(),
+        ),
+        const SizedBox(height: 8),
+        // Grid
+        _buildCalendarGrid(daysInMonth, startOffset, accent),
+      ]),
+    );
+  }
+
+  Widget _buildCalendarGrid(
+      int daysInMonth, int startOffset, Color accent) {
     final cells = <Widget>[];
 
     for (int i = 0; i < startOffset; i++) {
@@ -390,57 +463,80 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     }
 
     for (int day = 1; day <= daysInMonth; day++) {
-      final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
-      final isPast = date.isBefore(DateTime(today.year, today.month, today.day));
+      final date =
+          DateTime(_focusedMonth.year, _focusedMonth.month, day);
+      final hasSlots = _activeDays.contains(date.weekday);
+      final isPast = _isPast(date);
+      final isToday = _isToday(date);
       final isSelected = _selectedDate != null &&
           _selectedDate!.year == date.year &&
           _selectedDate!.month == date.month &&
           _selectedDate!.day == date.day;
-      final isToday = date.year == today.year &&
-          date.month == today.month &&
-          date.day == today.day;
 
       cells.add(GestureDetector(
-        onTap: isPast ? null : () {
-          setState(() => _selectedDate = date);
-          _loadSlots(date);
-        },
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            // Selected: themeColor bg + black text — fine as-is
-            // Today: themeColor tint bg — text uses context.textColor, fine
-            color: isSelected
-                ? themeColor
-                : isToday
-                    ? themeColor.withOpacity(0.25)
-                    : Colors.transparent,
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              '$day',
-              style: TextStyle(
+        onTap: (isPast || !hasSlots)
+            ? null
+            : () {
+                setState(() => _selectedDate = date);
+                _loadSlotCounts(date);
+              },
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
                 color: isSelected
-                    ? Colors.black
-                    : isPast
-                        ? context.subtextColor.withOpacity(0.3)
-                        : context.textColor,
-                fontWeight: isSelected || isToday
-                    ? FontWeight.bold
-                    : FontWeight.normal,
-                fontSize: 14,
+                    ? themeColor
+                    : isToday
+                        ? themeColor.withOpacity(0.25)
+                        : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '$day',
+                  style: TextStyle(
+                    color: isSelected
+                        ? Colors.black
+                        : isPast || !hasSlots
+                            ? context.subtextColor.withOpacity(0.3)
+                            : context.textColor,
+                    fontWeight: isSelected || isToday || hasSlots
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    fontSize: 14,
+                  ),
+                ),
               ),
             ),
-          ),
+            // Green dot for available days
+            if (hasSlots && !isPast && !isSelected)
+              Positioned(
+                bottom: 2,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ));
     }
 
     final rows = <Widget>[];
     for (int i = 0; i < cells.length; i += 7) {
-      final rowCells = cells.sublist(i, i + 7 > cells.length ? cells.length : i + 7);
+      final end = (i + 7) > cells.length ? cells.length : i + 7;
+      final rowCells = cells.sublist(i, end);
       while (rowCells.length < 7) {
         rowCells.add(const SizedBox(width: 36, height: 36));
       }
@@ -452,93 +548,281 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
         ),
       ));
     }
-
     return Column(children: rows);
   }
 
-  Widget _buildTimeSlots() {
-    final accent = _accent(context);
+  Widget _buildSlotsSection(BuildContext context, Color accent) {
+    final slots = _slotsForDay(_selectedDate!.weekday);
 
-    if (_loadingTrainerSlots) {
-      return Center(child: Padding(
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(
+        'Available Slots  —  ${_fmtDisplayDate(_selectedDate!)}',
+        style: TextStyle(
+            color: context.textColor,
+            fontSize: 16,
+            fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 12),
+      if (_loadingCounts)
+        Center(
+            child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: CircularProgressIndicator(color: accent),
+        ))
+      else
+        ...slots.map((slot) => _buildSlotCard(context, slot, accent)),
+    ]);
+  }
+
+  Widget _buildSlotCard(BuildContext context,
+      Map<String, dynamic> slot, Color accent) {
+    final slotId = slot['id'] as String;
+    final maxCapacity = slot['max_capacity'] as int;
+    final booked = _slotCounts[slotId] ?? 0;
+    final remaining = maxCapacity - booked;
+    final isFull = remaining <= 0;
+    final isSelected = _selectedSlot?['id'] == slotId;
+    final price = (slot['price'] as num).toDouble();
+    final startTime = _fmtTime(slot['start_time'] as String);
+    final endTime = _fmtTime(slot['end_time'] as String);
+    final duration = slot['duration_minutes'] as int;
+
+    Color capacityColor;
+    String capacityLabel;
+    if (isFull) {
+      capacityColor = Colors.red;
+      capacityLabel = 'Full';
+    } else if (remaining <= 3) {
+      capacityColor = Colors.orange;
+      capacityLabel = '$remaining spot${remaining == 1 ? '' : 's'} left';
+    } else {
+      capacityColor = Colors.green;
+      capacityLabel = '$remaining spots left';
+    }
+
+    return GestureDetector(
+      onTap: isFull
+          ? () => _showFullDialog()
+          : () => setState(() => _selectedSlot = slot),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
-        child: CircularProgressIndicator(color: accent),
-      ));
-    }
-    if (_trainerSlots.isEmpty) {
-      return Text('No slots available.', style: TextStyle(color: context.subtextColor));
-    }
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: _trainerSlots.map((slot) {
-        final time = slot['slot_time'] as String;
-        final price = (slot['price'] as num).toDouble();
-        final isBooked = _bookedSlots.contains(time);
-        final isSelected = _selectedTime == time;
-        return GestureDetector(
-          onTap: isBooked
-              ? () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: const Text('This slot is already booked.'),
-                    backgroundColor: Colors.redAccent,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ))
-              : () => setState(() {
-                    _selectedTime = time;
-                    _selectedPrice = price;
-                  }),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isFull
+              ? context.cardBgColor.withOpacity(0.5)
+              : isSelected
+                  ? themeColor.withOpacity(0.12)
+                  : context.cardBgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isFull
+                ? Colors.red.withOpacity(0.3)
+                : isSelected
+                    ? themeColor
+                    : context.isDark
+                        ? Colors.white12
+                        : Colors.black12,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(children: [
+          // Time block
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              // Selected: themeColor bg + black text — fine as-is
-              color: isSelected
-                  ? themeColor
-                  : isBooked
-                      ? (context.isDark ? const Color(0xff2a2a2a) : Colors.grey.shade200)
-                      : context.cardBgColor,
-              borderRadius: BorderRadius.circular(25),
-              border: Border.all(
-                color: isSelected ? themeColor
-                    : isBooked ? Colors.transparent
-                    : context.isDark ? Colors.white12 : Colors.grey.shade300,
-              ),
+              color: isFull
+                  ? Colors.red.withOpacity(0.1)
+                  : isSelected
+                      ? themeColor
+                      : context.isDark
+                          ? Colors.white10
+                          : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  time,
-                  style: TextStyle(
-                    color: isSelected ? Colors.black
-                        : isBooked ? context.subtextColor.withOpacity(0.35)
-                        : context.textColor,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    fontSize: 13,
-                    decoration: isBooked ? TextDecoration.lineThrough : null,
-                  ),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+              Text(
+                startTime,
+                style: TextStyle(
+                  color: isSelected ? Colors.black : context.textColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '\$${price.toStringAsFixed(0)}',
-                  style: TextStyle(
-                    // Price text on cardBgColor → use accent in light mode
-                    color: isSelected ? Colors.black87 : accent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
+              ),
+              Text(
+                '↓',
+                style: TextStyle(
+                    color: isSelected
+                        ? Colors.black54
+                        : context.subtextColor,
+                    fontSize: 11),
+              ),
+              Text(
+                endTime,
+                style: TextStyle(
+                  color: isSelected ? Colors.black : context.textColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            ),
+              ),
+            ]),
           ),
-        );
-      }).toList(),
+          const SizedBox(width: 14),
+
+          // Info
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Icon(Icons.timer_outlined,
+                    color: isSelected ? themeColor : accent, size: 13),
+                const SizedBox(width: 4),
+                Text('$duration min',
+                    style: TextStyle(
+                        color:
+                            context.subtextColor, fontSize: 12)),
+              ]),
+              const SizedBox(height: 6),
+              // Capacity bar
+              Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Row(
+                    mainAxisAlignment:
+                        MainAxisAlignment.spaceBetween,
+                    children: [
+                  Row(children: [
+                    Icon(Icons.people_outline,
+                        color: capacityColor, size: 13),
+                    const SizedBox(width: 4),
+                    Text(capacityLabel,
+                        style: TextStyle(
+                            color: capacityColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600)),
+                  ]),
+                  Text('$booked/$maxCapacity',
+                      style: TextStyle(
+                          color: context.subtextColor,
+                          fontSize: 11)),
+                ]),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: booked / maxCapacity,
+                    minHeight: 5,
+                    backgroundColor: context.isDark
+                        ? Colors.white12
+                        : Colors.grey.shade200,
+                    valueColor:
+                        AlwaysStoppedAnimation(capacityColor),
+                  ),
+                ),
+              ]),
+            ]),
+          ),
+
+          const SizedBox(width: 12),
+
+          // Price + check
+          Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+            Text(
+              '\$${price.toStringAsFixed(0)}',
+              style: TextStyle(
+                color: isSelected ? themeColor : accent,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            if (isFull)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                      color: Colors.red.withOpacity(0.4)),
+                ),
+                child: const Text('Full',
+                    style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
+              )
+            else
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: isSelected ? themeColor : Colors.transparent,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected
+                        ? themeColor
+                        : context.subtextColor,
+                    width: 2,
+                  ),
+                ),
+                child: isSelected
+                    ? const Icon(Icons.check,
+                        color: Colors.black, size: 16)
+                    : null,
+              ),
+          ]),
+        ]),
+      ),
     );
   }
 
-  String _monthName(int m) => [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December'
-  ][m - 1];
+  void _showFullDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C2C),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Column(children: [
+          Icon(Icons.event_busy, color: Colors.orange, size: 48),
+          SizedBox(height: 12),
+          Text('Slot Full',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold)),
+        ]),
+        content: const Text(
+          'This time slot is fully booked for the selected date. Please try a different time or another date.',
+          textAlign: TextAlign.center,
+          style:
+              TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 32, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('OK',
+                style: TextStyle(
+                    color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
 }
