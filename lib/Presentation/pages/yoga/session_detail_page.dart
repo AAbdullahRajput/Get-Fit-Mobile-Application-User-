@@ -144,7 +144,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   }
 
   String _fmtDate(String dateStr) {
-    final dt = DateTime.parse(dateStr);
+    final dt = DateTime.tryParse(dateStr.substring(0, 10)) ?? DateTime(2000);
     const months = ['Jan','Feb','Mar','Apr','May','Jun',
                     'Jul','Aug','Sep','Oct','Nov','Dec'];
     const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
