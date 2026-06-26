@@ -106,6 +106,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     final startStr = slot['start_time'] as String;
     final endStr = slot['end_time'] as String;
 
+    if (dateStr.length < 10) return false;
     final start = DateTime.tryParse('${dateStr.substring(0, 10)}T$startStr') ?? DateTime(2000);
     final end = DateTime.tryParse('${dateStr.substring(0, 10)}T$endStr') ?? DateTime(2000);
 
@@ -116,6 +117,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     final now = DateTime.now();
     final dateStr = slot['slot_date'] as String;
     final endStr = slot['end_time'] as String;
+    if (dateStr.length < 10) return true;
     final end = DateTime.tryParse('${dateStr.substring(0, 10)}T$endStr') ?? DateTime(2000);
     return now.isAfter(end);
   }
@@ -123,6 +125,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   Duration _timeUntilSlot(Map<String, dynamic> slot) {
     final dateStr = slot['slot_date'] as String;
     final startStr = slot['start_time'] as String;
+    if (dateStr.length < 10) return Duration.zero;
     final start = DateTime.tryParse('${dateStr.substring(0, 10)}T$startStr') ?? DateTime(2000);
     final diff = start.difference(DateTime.now());
     return diff.isNegative ? Duration.zero : diff;
@@ -144,7 +147,8 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   }
 
   String _fmtDate(String dateStr) {
-    final dt = DateTime.tryParse(dateStr.substring(0, 10)) ?? DateTime(2000);
+    if (dateStr.isEmpty) return '—';
+    final dt = DateTime.tryParse(dateStr.length >= 10 ? dateStr.substring(0, 10) : dateStr) ?? DateTime(2000);
     const months = ['Jan','Feb','Mar','Apr','May','Jun',
                     'Jul','Aug','Sep','Oct','Nov','Dec'];
     const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
