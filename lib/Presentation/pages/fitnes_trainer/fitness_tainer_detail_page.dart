@@ -623,6 +623,7 @@ Future<void> _loadData() async {
             ),
           ),
         ),
+        _buildMyBookingsSection(context),
       ],
     );
   }
