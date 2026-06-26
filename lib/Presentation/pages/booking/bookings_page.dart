@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/fitnes_trainer/trainer_booking_detail_page.dart';
+import 'package:get_fit/Presentation/pages/yoga/session_detail_page.dart';
 
 Color _accent(BuildContext context) =>
     context.isDark ? themeColor : const Color(0xFF6B7A00);
@@ -35,7 +36,6 @@ class _BookingsPageState extends State<BookingsPage>
 
   Future<void> _load() async {
     setState(() => _isLoading = true);
-    debugPrint('YOGA BOOKING: ${_yogaBookings.isNotEmpty ? _yogaBookings.first : "empty"}');
     final data = await SupabaseService.getAllMyBookings();
     if (mounted) {
       setState(() {
@@ -44,9 +44,6 @@ class _BookingsPageState extends State<BookingsPage>
         _yogaBookings =
             List<Map<String, dynamic>>.from(data['yoga'] ?? []);
         _isLoading = false;
-        if (_yogaBookings.isNotEmpty) {
-          debugPrint('YOGA BOOKING: ${_yogaBookings.first}');
-        }
       });
     }
   }
@@ -375,84 +372,95 @@ class _BookingsPageState extends State<BookingsPage>
           '${days[dt.weekday - 1]}, ${dt.day} ${months[dt.month - 1]} ${dt.year}';
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: context.cardBgColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: statusColor.withOpacity(0.35)),
-      ),
-      child: Column(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-          child: Row(children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: themeColor,
-              backgroundImage:
-                  (instructor['image_url'] ?? '').toString().isNotEmpty
-                      ? NetworkImage(instructor['image_url'])
-                      : null,
-              child:
-                  (instructor['image_url'] ?? '').toString().isEmpty
-                      ? const Icon(Icons.self_improvement,
-                          color: Colors.black, size: 22)
-                      : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text(instructor['name'] ?? 'Instructor',
-                    style: TextStyle(
-                        color: context.textColor,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold)),
-                Text(instructor['specialty'] ?? 'Yoga',
-                    style: TextStyle(
-                        color: context.subtextColor, fontSize: 12)),
-              ]),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
-                border:
-                    Border.all(color: statusColor.withOpacity(0.4)),
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SessionDetailPage(
+            booking: booking,
+            instructor: instructor,
+          ),
+        ),
+      ).then((_) => _load()),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: context.cardBgColor,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: statusColor.withOpacity(0.35)),
+        ),
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            child: Row(children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: themeColor,
+                backgroundImage:
+                    (instructor['image_url'] ?? '').toString().isNotEmpty
+                        ? NetworkImage(instructor['image_url'])
+                        : null,
+                child:
+                    (instructor['image_url'] ?? '').toString().isEmpty
+                        ? const Icon(Icons.self_improvement,
+                            color: Colors.black, size: 22)
+                        : null,
               ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(statusIcon, color: statusColor, size: 12),
-                const SizedBox(width: 4),
-                Text(statusLabel,
-                    style: TextStyle(
-                        color: statusColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold)),
-              ]),
-            ),
-          ]),
-        ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(instructor['name'] ?? 'Instructor',
+                      style: TextStyle(
+                          color: context.textColor,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold)),
+                  Text(instructor['specialty'] ?? 'Yoga',
+                      style: TextStyle(
+                          color: context.subtextColor, fontSize: 12)),
+                ]),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border:
+                      Border.all(color: statusColor.withOpacity(0.4)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(statusIcon, color: statusColor, size: 12),
+                  const SizedBox(width: 4),
+                  Text(statusLabel,
+                      style: TextStyle(
+                          color: statusColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
+                ]),
+              ),
+            ]),
+          ),
 
-        Divider(height: 1,
-            color: context.isDark ? Colors.white10 : Colors.black12),
+          Divider(height: 1,
+              color: context.isDark ? Colors.white10 : Colors.black12),
 
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-          child: Row(children: [
-            _infoChip(
-                context, accent, Icons.calendar_today, fmtDate),
-            const Spacer(),
-            Text('\$${price.toStringAsFixed(2)}',
-                style: TextStyle(
-                    color: themeColor,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold)),
-          ]),
-        ),
-      ]),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+            child: Row(children: [
+              _infoChip(
+                  context, accent, Icons.calendar_today, fmtDate),
+              const Spacer(),
+              Text('\$${price.toStringAsFixed(2)}',
+                  style: TextStyle(
+                      color: themeColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold)),
+            ]),
+          ),
+        ]),
+      ),
     );
   }
 
