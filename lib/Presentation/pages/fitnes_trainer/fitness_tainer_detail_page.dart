@@ -4,6 +4,7 @@ import 'package:get_fit/Presentation/pages/review/reviews_page.dart';
 import 'package:get_fit/Presentation/widgets/reuseable_button.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Presentation/pages/fitnes_trainer/trainer_booking_detail_page.dart';
 
 Color _accent(BuildContext context) {
   return context.isDark ? themeColor : const Color(0xFF6B7A00);
@@ -23,6 +24,8 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _reviews = [];
   Map<String, dynamic>? _myReview;
+  List<Map<String, dynamic>> _myBookings = [];
+
 
   @override
   void initState() {
@@ -30,19 +33,27 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    final trainerId = widget.trainer['id'] as String;
-    final reviews = await SupabaseService.getTrainerReviews(trainerId);
-    final myReview = await SupabaseService.getMyReview(trainerId);
-    if (mounted) {
-      setState(() {
-        _reviews = reviews;
-        _myReview = myReview;
-        _isLoading = false;
-      });
-    }
+  // UPDATE _loadData to also fetch bookings:
+Future<void> _loadData() async {
+  setState(() => _isLoading = true);
+  final trainerId = widget.trainer['id'] as String;
+  final reviews = await SupabaseService.getTrainerReviews(trainerId);
+  final myReview = await SupabaseService.getMyReview(trainerId);
+  final myBookings = await SupabaseService.getMyTrainerSlotBookings();
+  // filter to this trainer only
+  final trainerBookings = myBookings
+      .where((b) => b['trainer_id'] == trainerId)
+      .toList();
+
+  if (mounted) {
+    setState(() {
+      _reviews = reviews;
+      _myReview = myReview;
+      _myBookings = trainerBookings;
+      _isLoading = false;
+    });
   }
+}
 
   Future<void> _onRefresh() async => _loadData();
 
@@ -748,6 +759,171 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
       return '';
     }
   }
+
+  // ADD this method before _buildSkeleton:
+Widget _buildMyBookingsSection(BuildContext context) {
+  if (_myBookings.isEmpty) return const SizedBox.shrink();
+  final accent = _accent(context);
+
+  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    const SizedBox(height: 28),
+    Row(children: [
+      Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: themeColor.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(Icons.event_available, color: themeColor, size: 18),
+      ),
+      const SizedBox(width: 10),
+      Text('My Bookings',
+          style: TextStyle(
+              color: context.textColor,
+              fontSize: 18,
+              fontWeight: FontWeight.bold)),
+    ]),
+    const SizedBox(height: 6),
+    Text('Tap to view session details',
+        style: TextStyle(color: context.subtextColor, fontSize: 13)),
+    const SizedBox(height: 14),
+
+    ..._myBookings.map((booking) {
+      final date = booking['booking_date'] as String? ?? '';
+      final startTime = booking['start_time'] as String? ?? '';
+      final endTime = booking['end_time'] as String? ?? '';
+      final price = (booking['price'] as num?)?.toDouble() ?? 0.0;
+      final status = booking['status'] as String? ?? 'confirmed';
+
+      final dt = DateTime.tryParse(date);
+      final isPast = dt != null &&
+          dt.isBefore(DateTime.now().subtract(const Duration(days: 1)));
+
+      Color statusColor;
+      IconData statusIcon;
+      String statusLabel;
+
+      if (status == 'cancelled') {
+        statusColor = Colors.red;
+        statusIcon = Icons.cancel;
+        statusLabel = 'Cancelled';
+      } else if (status == 'attended') {
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+        statusLabel = 'Attended';
+      } else if (isPast) {
+        statusColor = Colors.grey;
+        statusIcon = Icons.lock_clock;
+        statusLabel = 'Expired';
+      } else {
+        statusColor = accent;
+        statusIcon = Icons.schedule;
+        statusLabel = 'Upcoming';
+      }
+
+      // Format date
+      String fmtDate = date;
+      if (dt != null) {
+        const months = ['Jan','Feb','Mar','Apr','May','Jun',
+                        'Jul','Aug','Sep','Oct','Nov','Dec'];
+        const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        fmtDate =
+            '${days[dt.weekday - 1]}, ${dt.day} ${months[dt.month - 1]}';
+      }
+
+      // Format time
+      String fmtTime(String t) {
+        final parts = t.split(':');
+        final h = int.parse(parts[0]);
+        final m = parts[1];
+        final period = h >= 12 ? 'PM' : 'AM';
+        final h12 = h > 12 ? h - 12 : h == 0 ? 12 : h;
+        return '$h12:$m $period';
+      }
+
+      return GestureDetector(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TrainerBookingDetailPage(
+              booking: booking,
+              trainer: widget.trainer,
+            ),
+          ),
+        ).then((_) => _loadData()),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: context.cardBgColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: statusColor.withOpacity(0.4),
+            ),
+          ),
+          child: Row(children: [
+            // Date badge
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                Icon(statusIcon, color: statusColor, size: 22),
+              ]),
+            ),
+            const SizedBox(width: 14),
+
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(fmtDate,
+                    style: TextStyle(
+                        color: context.textColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(
+                  '${fmtTime(startTime)} → ${fmtTime(endTime)}',
+                  style: TextStyle(
+                      color: context.subtextColor, fontSize: 12),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '\$${price.toStringAsFixed(2)}',
+                  style: TextStyle(
+                      color: themeColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600),
+                ),
+              ]),
+            ),
+
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: statusColor.withOpacity(0.4)),
+              ),
+              child: Text(statusLabel,
+                  style: TextStyle(
+                      color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold)),
+            ),
+          ]),
+        ),
+      );
+    }).toList(),
+  ]);
+}
 
   Widget _buildSkeleton(BuildContext context) {
     return Column(
