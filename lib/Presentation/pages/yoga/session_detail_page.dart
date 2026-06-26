@@ -106,8 +106,8 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     final startStr = slot['start_time'] as String;
     final endStr = slot['end_time'] as String;
 
-    final start = DateTime.parse('${dateStr}T$startStr');
-    final end = DateTime.parse('${dateStr}T$endStr');
+    final start = DateTime.tryParse('${dateStr.substring(0, 10)}T$startStr') ?? DateTime(2000);
+    final end = DateTime.tryParse('${dateStr.substring(0, 10)}T$endStr') ?? DateTime(2000);
 
     return now.isAfter(start) && now.isBefore(end);
   }
@@ -116,14 +116,14 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     final now = DateTime.now();
     final dateStr = slot['slot_date'] as String;
     final endStr = slot['end_time'] as String;
-    final end = DateTime.parse('${dateStr}T$endStr');
+    final end = DateTime.tryParse('${dateStr.substring(0, 10)}T$endStr') ?? DateTime(2000);
     return now.isAfter(end);
   }
 
   Duration _timeUntilSlot(Map<String, dynamic> slot) {
     final dateStr = slot['slot_date'] as String;
     final startStr = slot['start_time'] as String;
-    final start = DateTime.parse('${dateStr}T$startStr');
+    final start = DateTime.tryParse('${dateStr.substring(0, 10)}T$startStr') ?? DateTime(2000);
     final diff = start.difference(DateTime.now());
     return diff.isNegative ? Duration.zero : diff;
   }
