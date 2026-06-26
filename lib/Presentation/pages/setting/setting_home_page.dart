@@ -7,6 +7,7 @@ import 'package:get_fit/Presentation/pages/setting/profile_page.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/auth/login_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
+import 'package:get_fit/Presentation/pages/booking/bookings_page.dart';
 
 class SettingHomePage extends StatefulWidget {
   const SettingHomePage({super.key});
@@ -23,6 +24,7 @@ class _SettingHomePageState extends State<SettingHomePage> {
   final List<Map<String, dynamic>> settingsItems = const [
     {'title': 'Profile', 'icon': Icons.person},
     {'title': 'Favourite', 'icon': Icons.star},
+    {'title': 'Bookings', 'icon': Icons.calendar_month},  
     {'title': 'Privacy Policy', 'icon': Icons.lock},
     {'title': 'Settings', 'icon': Icons.settings},
     {'title': 'Help', 'icon': Icons.help},
@@ -312,6 +314,10 @@ void initState() {
       case 'Privacy Policy':
         Navigator.push(context,
             MaterialPageRoute(builder: (context) => const PrivacyPolicyPage()));
+        break;
+      case 'Bookings':
+        Navigator.push(context,
+      MaterialPageRoute(builder: (context) => const BookingsPage()));
         break;
       case 'Settings':
         Navigator.push(context,
