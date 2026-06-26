@@ -1937,5 +1937,229 @@ static Future<bool> hasBookedSession(String sessionId) async {
     return false;
   }
 }
+// ─────────────────────────────────────────────
+// TRAINER WEEKLY SLOTS (new system)
+// ─────────────────────────────────────────────
+
+/// Get all weekly slots for a trainer
+static Future<List<Map<String, dynamic>>> getTrainerWeeklySlots(
+    String trainerId) async {
+  try {
+    debugPrint('\x1B[33m[API] GET trainer_weekly_slots | trainer: $trainerId\x1B[0m');
+    final data = await client
+        .from('trainer_weekly_slots')
+        .select()
+        .eq('trainer_id', trainerId)
+        .eq('is_active', true)
+        .order('day_of_week', ascending: true)
+        .order('start_time', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | WeeklySlots: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTrainerWeeklySlots | $e\x1B[0m');
+    return [];
+  }
+}
+
+/// Get booking count for a specific slot on a specific date
+static Future<int> getSlotBookingCount({
+  required String weeklySlotId,
+  required String date,
+}) async {
+  try {
+    final result = await client.rpc('get_slot_booking_count', params: {
+      'p_weekly_slot_id': weeklySlotId,
+      'p_date': date,
+    });
+    return (result as int?) ?? 0;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getSlotBookingCount | $e\x1B[0m');
+    return 0;
+  }
+}
+
+/// Check if current user already booked this slot on this date
+static Future<bool> hasBookedSlot({
+  required String weeklySlotId,
+  required String date,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return false;
+    final data = await client
+        .from('trainer_slot_bookings')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('weekly_slot_id', weeklySlotId)
+        .eq('booking_date', date)
+        .neq('status', 'cancelled')
+        .maybeSingle();
+    return data != null;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | hasBookedSlot | $e\x1B[0m');
+    return false;
+  }
+}
+
+/// Book a trainer slot
+static Future<Map<String, dynamic>> bookTrainerSlot({
+  required String trainerId,
+  required String weeklySlotId,
+  required String bookingDate,
+  required String startTime,
+  required String endTime,
+  required double price,
+  required String paymentCardLast4,
+  String notes = '',
+}) async {
+  final userId = currentUser?.id;
+  if (userId == null) throw Exception('Not logged in');
+
+  // Duplicate check
+  final alreadyBooked = await hasBookedSlot(
+    weeklySlotId: weeklySlotId,
+    date: bookingDate,
+  );
+  if (alreadyBooked) throw Exception('already_booked');
+
+  // Capacity check
+  final slotData = await client
+      .from('trainer_weekly_slots')
+      .select('max_capacity')
+      .eq('id', weeklySlotId)
+      .single();
+  final maxCapacity = (slotData['max_capacity'] as int?) ?? 20;
+  final currentCount = await getSlotBookingCount(
+    weeklySlotId: weeklySlotId,
+    date: bookingDate,
+  );
+  if (currentCount >= maxCapacity) throw Exception('slot_full');
+
+  debugPrint('\x1B[33m[API] POST trainer_slot_bookings | slot: $weeklySlotId | date: $bookingDate\x1B[0m');
+  final result = await client
+      .from('trainer_slot_bookings')
+      .insert({
+        'user_id': userId,
+        'trainer_id': trainerId,
+        'weekly_slot_id': weeklySlotId,
+        'booking_date': bookingDate,
+        'start_time': startTime,
+        'end_time': endTime,
+        'price': price,
+        'status': 'confirmed',
+        'payment_card_last4': paymentCardLast4,
+        'notes': notes,
+      })
+      .select()
+      .single();
+  debugPrint('\x1B[32m[API] 200 OK | Slot booked\x1B[0m');
+  return Map<String, dynamic>.from(result);
+}
+
+/// Get all bookings for current user
+static Future<List<Map<String, dynamic>>> getMyTrainerSlotBookings() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+    final data = await client
+        .from('trainer_slot_bookings')
+        .select('*, fitness_trainers(name, image_url, training_type), trainer_weekly_slots(day_of_week, duration_minutes)')
+        .eq('user_id', userId)
+        .order('booking_date', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | MySlotBookings: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getMyTrainerSlotBookings | $e\x1B[0m');
+    return [];
+  }
+}
+
+/// Get upcoming bookings for current user (today and future)
+static Future<List<Map<String, dynamic>>> getUpcomingTrainerBookings() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final data = await client
+        .from('trainer_slot_bookings')
+        .select('*, fitness_trainers(name, image_url, training_type)')
+        .eq('user_id', userId)
+        .eq('status', 'confirmed')
+        .gte('booking_date', today)
+        .order('booking_date', ascending: true)
+        .order('start_time', ascending: true);
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getUpcomingTrainerBookings | $e\x1B[0m');
+    return [];
+  }
+}
+
+/// Mark attendance for a booked slot
+static Future<void> markTrainerSlotAttendance({
+  required String bookingId,
+  required String trainerId,
+  required String weeklySlotId,
+  required String bookingDate,
+  required bool isDone,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    debugPrint('\x1B[33m[API] UPSERT trainer_slot_attendance | booking: $bookingId | done: $isDone\x1B[0m');
+    await client.from('trainer_slot_attendance').upsert({
+      'user_id': userId,
+      'booking_id': bookingId,
+      'trainer_id': trainerId,
+      'weekly_slot_id': weeklySlotId,
+      'booking_date': bookingDate,
+      'status': isDone ? 'done' : 'joined',
+      'marked_done_at': isDone ? DateTime.now().toIso8601String() : null,
+    }, onConflict: 'user_id,booking_id');
+    // Also update booking status
+    await client
+        .from('trainer_slot_bookings')
+        .update({'status': isDone ? 'attended' : 'confirmed'})
+        .eq('id', bookingId);
+    debugPrint('\x1B[32m[API] 200 OK | Attendance marked\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | markTrainerSlotAttendance | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+/// Get attendance for a booking
+static Future<Map<String, dynamic>?> getTrainerSlotAttendance(
+    String bookingId) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return null;
+    final data = await client
+        .from('trainer_slot_attendance')
+        .select()
+        .eq('user_id', userId)
+        .eq('booking_id', bookingId)
+        .maybeSingle();
+    return data;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTrainerSlotAttendance | $e\x1B[0m');
+    return null;
+  }
+}
+
+/// Cancel a booking
+static Future<void> cancelTrainerSlotBooking(String bookingId) async {
+  try {
+    debugPrint('\x1B[33m[API] PATCH trainer_slot_bookings | cancel: $bookingId\x1B[0m');
+    await client
+        .from('trainer_slot_bookings')
+        .update({'status': 'cancelled'})
+        .eq('id', bookingId);
+    debugPrint('\x1B[32m[API] 200 OK | Booking cancelled\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | cancelTrainerSlotBooking | $e\x1B[0m');
+    rethrow;
+  }
+}
 
 }
