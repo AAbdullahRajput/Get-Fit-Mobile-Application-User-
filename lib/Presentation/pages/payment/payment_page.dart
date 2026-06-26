@@ -8,6 +8,7 @@ Color _accent(BuildContext context) {
   return context.isDark ? themeColor : const Color(0xFF6B7A00);
 }
 
+// REPLACE the class declaration and fields:
 class AppointmentPaymentPage extends StatefulWidget {
   final String trainerId;
   final String trainerName;
@@ -19,6 +20,9 @@ class AppointmentPaymentPage extends StatefulWidget {
   final double sessionPrice;
   final double trainerRating;
   final String trainerAvatarUrl;
+  final String weeklySlotId;
+  final String startTime;
+  final String endTime;
 
   const AppointmentPaymentPage({
     super.key,
@@ -29,6 +33,9 @@ class AppointmentPaymentPage extends StatefulWidget {
     required this.displayDate,
     required this.time,
     required this.notes,
+    required this.weeklySlotId,
+    required this.startTime,
+    required this.endTime,
     this.sessionPrice = 50.00,
     this.trainerRating = 0.0,
     this.trainerAvatarUrl = '',
@@ -64,44 +71,98 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
     }
   }
 
-  Future<void> _confirmBooking() async {
-    setState(() => _isBooking = true);
-    try {
-      await SupabaseService.bookAppointment(
-        trainerId: widget.trainerId,
-        date: widget.date,
-        time: widget.time,
-        notes: widget.notes,
-      );
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => BookingConfirmationPage(
-            trainerName: widget.trainerName,
-            trainerType: widget.trainerType,
-            trainerRating: widget.trainerRating,
-            trainerAvatarUrl: widget.trainerAvatarUrl,
-            displayDate: widget.displayDate,
-            time: widget.time,
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      final msg = e.toString().contains('unique') || e.toString().contains('duplicate')
-          ? 'This slot was just booked. Please go back and pick another.'
-          : 'Failed to book. Please try again.';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
-    } finally {
-      if (mounted) setState(() => _isBooking = false);
-    }
+  // REPLACE _confirmBooking entirely:
+Future<void> _confirmBooking() async {
+  if (_cards.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: const Text('Please add a payment card first.',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      backgroundColor: Colors.redAccent,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
+    return;
   }
+
+  setState(() => _isBooking = true);
+
+  final selectedCard = _cards[_selectedCardIndex];
+
+  try {
+    await SupabaseService.bookTrainerSlot(
+      trainerId: widget.trainerId,
+      weeklySlotId: widget.weeklySlotId,
+      bookingDate: widget.date,
+      startTime: widget.startTime,
+      endTime: widget.endTime,
+      price: widget.sessionPrice,
+      paymentCardLast4: selectedCard['last4'] ?? '',
+      notes: widget.notes,
+    );
+
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BookingConfirmationPage(
+          trainerName: widget.trainerName,
+          trainerType: widget.trainerType,
+          trainerRating: widget.trainerRating,
+          trainerAvatarUrl: widget.trainerAvatarUrl,
+          displayDate: widget.displayDate,
+          time: widget.time,
+        ),
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return;
+    setState(() => _isBooking = false);
+
+    final msg = e.toString().contains('already_booked')
+        ? 'You already have this slot booked for this date.'
+        : e.toString().contains('slot_full')
+            ? 'This slot just filled up. Please go back and pick another time.'
+            : 'Booking failed. Please try again.';
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C2C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Column(children: [
+          Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+          SizedBox(height: 12),
+          Text('Booking Failed',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold)),
+        ]),
+        content: Text(msg,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                color: Colors.white70, fontSize: 14, height: 1.5)),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 32, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('OK',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
   void _showSuccessDialog() {
     showDialog(
