@@ -5,6 +5,7 @@ import 'package:get_fit/Presentation/widgets/reuseable_button.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/fitnes_trainer/trainer_booking_detail_page.dart';
+import 'package:get_fit/Presentation/pages/fitnes_trainer/trainer_content_page.dart';
 
 Color _accent(BuildContext context) {
   return context.isDark ? themeColor : const Color(0xFF6B7A00);
@@ -26,39 +27,37 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
   Map<String, dynamic>? _myReview;
   List<Map<String, dynamic>> _myBookings = [];
 
-
   @override
   void initState() {
     super.initState();
     _loadData();
   }
 
-  // UPDATE _loadData to also fetch bookings:
-Future<void> _loadData() async {
-  setState(() => _isLoading = true);
-  final trainerId = widget.trainer['id'] as String;
-  final reviews = await SupabaseService.getTrainerReviews(trainerId);
-  final myReview = await SupabaseService.getMyReview(trainerId);
-  final myBookings = await SupabaseService.getMyTrainerSlotBookings();
-  // filter to this trainer only
-  final trainerBookings = myBookings
-      .where((b) => b['trainer_id'] == trainerId)
-      .toList();
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    final trainerId = widget.trainer['id'] as String;
+    final reviews = await SupabaseService.getTrainerReviews(trainerId);
+    final myReview = await SupabaseService.getMyReview(trainerId);
+    final myBookings = await SupabaseService.getMyTrainerSlotBookings();
+    final trainerBookings = myBookings
+        .where((b) => b['trainer_id'] == trainerId)
+        .toList();
 
-  if (mounted) {
-    setState(() {
-      _reviews = reviews;
-      _myReview = myReview;
-      _myBookings = trainerBookings;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _reviews = reviews;
+        _myReview = myReview;
+        _myBookings = trainerBookings;
+        _isLoading = false;
+      });
+    }
   }
-}
 
   Future<void> _onRefresh() async => _loadData();
 
   void _showWriteReviewSheet() {
-    double _rating = _myReview != null ? (_myReview!['rating'] as num).toDouble() : 5.0;
+    double _rating =
+        _myReview != null ? (_myReview!['rating'] as num).toDouble() : 5.0;
     final _reviewController = TextEditingController(
       text: _myReview?['review_text'] ?? '',
     );
@@ -74,7 +73,9 @@ Future<void> _loadData() async {
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) => Padding(
           padding: EdgeInsets.only(
-            left: 24, right: 24, top: 24,
+            left: 24,
+            right: 24,
+            top: 24,
             bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
           child: Column(
@@ -83,7 +84,8 @@ Future<void> _loadData() async {
             children: [
               Center(
                 child: Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: Colors.white24,
                     borderRadius: BorderRadius.circular(2),
@@ -100,15 +102,13 @@ Future<void> _loadData() async {
                 ),
               ),
               const SizedBox(height: 4),
-              // Trainer name in sheet — always on dark sheet bg, themeColor fine as-is
               Text(
                 widget.trainer['name'] ?? '',
                 style: const TextStyle(color: themeColor, fontSize: 14),
               ),
               const SizedBox(height: 20),
-
-              // Star rating
-              const Text('Rating', style: TextStyle(color: Colors.white60, fontSize: 13)),
+              const Text('Rating',
+                  style: TextStyle(color: Colors.white60, fontSize: 13)),
               const SizedBox(height: 8),
               Row(
                 children: List.generate(5, (i) {
@@ -116,7 +116,6 @@ Future<void> _loadData() async {
                     onTap: () => setSheetState(() => _rating = i + 1.0),
                     child: Icon(
                       i < _rating ? Icons.star : Icons.star_border,
-                      // Stars on dark sheet bg — themeColor fine as-is
                       color: themeColor,
                       size: 36,
                     ),
@@ -124,9 +123,8 @@ Future<void> _loadData() async {
                 }),
               ),
               const SizedBox(height: 20),
-
-              // Review text
-              const Text('Your Review', style: TextStyle(color: Colors.white60, fontSize: 13)),
+              const Text('Your Review',
+                  style: TextStyle(color: Colors.white60, fontSize: 13)),
               const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
@@ -146,7 +144,6 @@ Future<void> _loadData() async {
                 ),
               ),
               const SizedBox(height: 24),
-
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -169,7 +166,8 @@ Future<void> _loadData() async {
                             setSheetState(() => _isSubmitting = false);
                             ScaffoldMessenger.of(this.context).showSnackBar(
                               SnackBar(
-                                content: const Text('Failed to submit review'),
+                                content:
+                                    const Text('Failed to submit review'),
                                 backgroundColor: Colors.redAccent,
                                 behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(
@@ -187,12 +185,15 @@ Future<void> _loadData() async {
                   ),
                   child: _isSubmitting
                       ? const SizedBox(
-                          width: 20, height: 20,
+                          width: 20,
+                          height: 20,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.black),
                         )
                       : Text(
-                          _myReview != null ? 'Update Review' : 'Submit Review',
+                          _myReview != null
+                              ? 'Update Review'
+                              : 'Submit Review',
                           style: const TextStyle(
                               color: Colors.black,
                               fontWeight: FontWeight.bold,
@@ -225,7 +226,8 @@ Future<void> _loadData() async {
                 children: [
                   SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       child: Row(
                         children: [
                           ElevatedButton(
@@ -236,13 +238,13 @@ Future<void> _loadData() async {
                               backgroundColor: Colors.black54,
                               elevation: 0,
                             ),
-                            child: const Icon(Icons.arrow_back, color: Colors.white),
+                            child: const Icon(Icons.arrow_back,
+                                color: Colors.white),
                           ),
                           const SizedBox(width: 8),
                           Text(
                             'Fitness Trainers',
                             style: TextStyle(
-                              // Title on scaffold bg → accent
                               color: _accent(context),
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -252,7 +254,6 @@ Future<void> _loadData() async {
                       ),
                     ),
                   ),
-
                   SizedBox(
                     width: double.infinity,
                     height: 450,
@@ -262,11 +263,11 @@ Future<void> _loadData() async {
                       errorBuilder: (_, __, ___) => Container(
                         height: 320,
                         color: const Color(0xFF2C2C2C),
-                        child: const Icon(Icons.person, color: Colors.white38, size: 80),
+                        child: const Icon(Icons.person,
+                            color: Colors.white38, size: 80),
                       ),
                     ),
                   ),
-
                   Container(
                     width: double.infinity,
                     constraints: BoxConstraints(
@@ -274,7 +275,8 @@ Future<void> _loadData() async {
                     ),
                     decoration: BoxDecoration(
                       color: context.bgColor,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                      borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(24)),
                     ),
                     padding: const EdgeInsets.all(20),
                     child: _isLoading
@@ -294,78 +296,6 @@ Future<void> _loadData() async {
     final previewReviews = _reviews.take(2).toList();
     final accent = _accent(context);
 
-    // Name + phone row (dead code block from original — preserved as-is)
-    Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                trainer['name'] ?? '',
-                style: TextStyle(
-                    color: accent,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                trainer['training_type'] ?? '',
-                style: TextStyle(color: context.subtextColor, fontSize: 16),
-              ),
-            ],
-          ),
-        ),
-        if (trainer['phone_number'] != null && trainer['phone_number'].toString().isNotEmpty)
-          GestureDetector(
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (_) => AlertDialog(
-                  backgroundColor: const Color(0xFF2C2C2C),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  title: const Icon(Icons.phone, color: themeColor, size: 40),
-                  content: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text(trainer['name'] ?? '',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                    const SizedBox(height: 8),
-                    Text(trainer['phone_number'],
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.5)),
-                  ]),
-                  actionsAlignment: MainAxisAlignment.center,
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                        decoration: BoxDecoration(
-                            color: themeColor, borderRadius: BorderRadius.circular(10)),
-                        child: const Text('OK',
-                            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-            child: CircleAvatar(
-              radius: 22,
-              backgroundColor: themeColor,
-              child: const Icon(Icons.phone, color: Colors.black, size: 20),
-            ),
-          ),
-      ],
-    );
-    const SizedBox(height: 12);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -380,7 +310,6 @@ Future<void> _loadData() async {
                 children: [
                   Text(
                     trainer['name'] ?? '',
-                    // Trainer name on scaffold/card bg → accent
                     style: TextStyle(
                         color: accent,
                         fontSize: 24,
@@ -389,7 +318,8 @@ Future<void> _loadData() async {
                   const SizedBox(height: 4),
                   Text(
                     trainer['training_type'] ?? '',
-                    style: TextStyle(color: context.subtextColor, fontSize: 16),
+                    style: TextStyle(
+                        color: context.subtextColor, fontSize: 16),
                   ),
                 ],
               ),
@@ -401,12 +331,13 @@ Future<void> _loadData() async {
                   showDialog(
                     context: context,
                     builder: (_) => AlertDialog(
-                      // Phone dialog always has dark bg — themeColor fine as-is
                       backgroundColor: const Color(0xFF2C2C2C),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16)),
-                      title: const Icon(Icons.phone, color: themeColor, size: 40),
-                      content: Column(mainAxisSize: MainAxisSize.min, children: [
+                      title:
+                          const Icon(Icons.phone, color: themeColor, size: 40),
+                      content:
+                          Column(mainAxisSize: MainAxisSize.min, children: [
                         Text(trainer['name'] ?? '',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
@@ -443,7 +374,8 @@ Future<void> _loadData() async {
                 child: CircleAvatar(
                   radius: 22,
                   backgroundColor: themeColor,
-                  child: const Icon(Icons.phone, color: Colors.black, size: 20),
+                  child:
+                      const Icon(Icons.phone, color: Colors.black, size: 20),
                 ),
               ),
           ],
@@ -456,22 +388,27 @@ Future<void> _loadData() async {
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
               trainer['bio'],
-              style: TextStyle(color: context.subtextColor, fontSize: 14, height: 1.5),
+              style: TextStyle(
+                  color: context.subtextColor, fontSize: 14, height: 1.5),
             ),
           ),
 
         // Stats card
         Card(
           color: context.cardBgColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _statColumn(context, trainer['experience'] ?? '-', 'Experience'),
-                _statColumn(context, trainer['training_completed'] ?? '-', 'Completed'),
-                _statColumn(context, trainer['active_clients'] ?? '-', 'Active Clients'),
+                _statColumn(
+                    context, trainer['experience'] ?? '-', 'Experience'),
+                _statColumn(context, trainer['training_completed'] ?? '-',
+                    'Completed'),
+                _statColumn(context, trainer['active_clients'] ?? '-',
+                    'Active Clients'),
               ],
             ),
           ),
@@ -492,30 +429,27 @@ Future<void> _loadData() async {
                       fontSize: 20,
                       fontWeight: FontWeight.bold),
                 ),
-                Row(
-                  children: [
-                    // Rating badge: themeColor bg + black text — fine as-is
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: themeColor,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        _reviews.isEmpty
-                            ? trainer['rating'].toString()
-                            : (_reviews
-                                    .map((r) => (r['rating'] as num).toDouble())
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: themeColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    _reviews.isEmpty
+                        ? trainer['rating'].toString()
+                        : (_reviews
+                                    .map((r) =>
+                                        (r['rating'] as num).toDouble())
                                     .reduce((a, b) => a + b) /
                                 _reviews.length)
-                                .toStringAsFixed(1),
-                        style: const TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13),
-                      ),
-                    ),
-                  ],
+                            .toStringAsFixed(1),
+                    style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13),
+                  ),
                 ),
               ],
             ),
@@ -523,13 +457,17 @@ Future<void> _loadData() async {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Overlapping avatars
                 if (_reviews.isNotEmpty)
                   SizedBox(
                     height: 36,
                     width: (_reviews.take(4).length * 24.0) + 12,
                     child: Stack(
-                      children: _reviews.take(4).toList().asMap().entries.map((entry) {
+                      children: _reviews
+                          .take(4)
+                          .toList()
+                          .asMap()
+                          .entries
+                          .map((entry) {
                         final i = entry.key;
                         final r = entry.value;
                         return Positioned(
@@ -537,51 +475,50 @@ Future<void> _loadData() async {
                           child: Container(
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: context.bgColor, width: 2),
+                              border: Border.all(
+                                  color: context.bgColor, width: 2),
                             ),
                             child: CircleAvatar(
                               radius: 16,
-                              // Avatar bg: themeColor bg + black icon — fine as-is
                               backgroundColor: themeColor,
-                              backgroundImage: (r['avatar_url'] ?? '').toString().isNotEmpty
+                              backgroundImage: (r['avatar_url'] ?? '')
+                                      .toString()
+                                      .isNotEmpty
                                   ? NetworkImage(r['avatar_url'])
                                   : null,
-                              child: (r['avatar_url'] ?? '').toString().isEmpty
-                                  ? const Icon(Icons.person, color: Colors.black, size: 14)
-                                  : null,
+                              child:
+                                  (r['avatar_url'] ?? '').toString().isEmpty
+                                      ? const Icon(Icons.person,
+                                          color: Colors.black, size: 14)
+                                      : null,
                             ),
                           ),
                         );
                       }).toList(),
                     ),
                   ),
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ReviewsPage(
-                              trainerId: trainer['id'],
-                              trainerName: trainer['name'] ?? '',
-                              rating: trainer['rating'].toString(),
-                              onReviewChanged: _loadData,
-                            ),
-                          ),
-                        );
-                        _loadData();
-                      },
-                      child: Text(
-                        'Read all Reviews',
-                        style: TextStyle(
-                            color: context.subtextColor,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500),
+                GestureDetector(
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ReviewsPage(
+                          trainerId: trainer['id'],
+                          trainerName: trainer['name'] ?? '',
+                          rating: trainer['rating'].toString(),
+                          onReviewChanged: _loadData,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                  ],
+                    );
+                    _loadData();
+                  },
+                  child: Text(
+                    'Read all Reviews',
+                    style: TextStyle(
+                        color: context.subtextColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500),
+                  ),
                 ),
               ],
             ),
@@ -596,7 +533,8 @@ Future<void> _loadData() async {
             child: Center(
               child: Text(
                 'No reviews yet. Be the first!',
-                style: TextStyle(color: context.subtextColor, fontSize: 14),
+                style:
+                    TextStyle(color: context.subtextColor, fontSize: 14),
               ),
             ),
           )
@@ -605,7 +543,48 @@ Future<void> _loadData() async {
 
         const SizedBox(height: 20),
 
-        // Book appointment button
+        // ── View Training Content button ──────────────
+        Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              final activeBooking = _myBookings
+                  .where((b) =>
+                      b['status'] != 'cancelled' &&
+                      b['status'] != 'attended')
+                  .toList();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TrainerContentPage(
+                    trainer: widget.trainer,
+                    activeBooking: activeBooking.isNotEmpty
+                        ? activeBooking.first
+                        : null,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.play_lesson_outlined,
+                color: Colors.black, size: 20),
+            label: const Text(
+              'View Training Content',
+              style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: themeColor,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25)),
+            ),
+          ),
+        ),
+
+        // ── Book appointment button ───────────────────
         ReuseableButton(
           title: 'Book an Appointment',
           onPressed: () => Navigator.push(
@@ -615,14 +594,22 @@ Future<void> _loadData() async {
                 trainerId: trainer['id'],
                 trainerName: trainer['name'] ?? '',
                 trainerType: trainer['training_type'] ?? '',
-                trainerExperience: trainer['experience']?.toString() ?? '',
-                trainerAvatarUrl: trainer['bg_image_url'] ?? trainer['avatar_url'] ?? '',
-                sessionPrice: (trainer['session_price'] as num?)?.toDouble() ?? 50.0,
-                trainerRating: double.tryParse(trainer['rating']?.toString() ?? '') ?? 0.0,
+                trainerExperience:
+                    trainer['experience']?.toString() ?? '',
+                trainerAvatarUrl: trainer['bg_image_url'] ??
+                    trainer['avatar_url'] ??
+                    '',
+                sessionPrice:
+                    (trainer['session_price'] as num?)?.toDouble() ??
+                        50.0,
+                trainerRating: double.tryParse(
+                        trainer['rating']?.toString() ?? '') ??
+                    0.0,
               ),
             ),
           ),
         ),
+
         _buildMyBookingsSection(context),
       ],
     );
@@ -638,7 +625,8 @@ Future<void> _loadData() async {
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         Text(label,
-            style: TextStyle(color: context.subtextColor, fontSize: 12)),
+            style:
+                TextStyle(color: context.subtextColor, fontSize: 12)),
       ],
     );
   }
@@ -669,7 +657,8 @@ Future<void> _loadData() async {
           color: context.cardBgColor,
           borderRadius: BorderRadius.circular(14),
           border: isMyReview
-              ? Border.all(color: themeColor.withOpacity(0.5), width: 1.5)
+              ? Border.all(
+                  color: themeColor.withOpacity(0.5), width: 1.5)
               : null,
         ),
         child: Column(
@@ -679,13 +668,14 @@ Future<void> _loadData() async {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  // Avatar bg: themeColor bg + black icon — fine as-is
                   backgroundColor: themeColor,
-                  backgroundImage: (r['avatar_url'] ?? '').toString().isNotEmpty
-                      ? NetworkImage(r['avatar_url'])
-                      : null,
+                  backgroundImage:
+                      (r['avatar_url'] ?? '').toString().isNotEmpty
+                          ? NetworkImage(r['avatar_url'])
+                          : null,
                   child: (r['avatar_url'] ?? '').toString().isEmpty
-                      ? const Icon(Icons.person, color: Colors.black, size: 18)
+                      ? const Icon(Icons.person,
+                          color: Colors.black, size: 18)
                       : null,
                 ),
                 const SizedBox(width: 10),
@@ -696,7 +686,9 @@ Future<void> _loadData() async {
                       Row(
                         children: [
                           Text(
-                            isMyReview ? 'You' : (r['username'] ?? 'User'),
+                            isMyReview
+                                ? 'You'
+                                : (r['username'] ?? 'User'),
                             style: TextStyle(
                                 color: context.textColor,
                                 fontWeight: FontWeight.bold,
@@ -704,7 +696,6 @@ Future<void> _loadData() async {
                           ),
                           if (isMyReview) ...[
                             const SizedBox(width: 6),
-                            // "Your review" badge: themeColor bg + black text — fine as-is
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
@@ -722,28 +713,33 @@ Future<void> _loadData() async {
                         ],
                       ),
                       Row(
-                        // Stars on cardBgColor → accent
-                        children: List.generate(5, (i) => Icon(
-                          i < (r['rating'] as num).toInt()
-                              ? Icons.star
-                              : Icons.star_border,
-                          color: accent,
-                          size: 14,
-                        )),
+                        children: List.generate(
+                            5,
+                            (i) => Icon(
+                                  i < (r['rating'] as num).toInt()
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  color: accent,
+                                  size: 14,
+                                )),
                       ),
                     ],
                   ),
                 ),
                 Text(
                   _formatDate(r['created_at']),
-                  style: TextStyle(color: context.subtextColor, fontSize: 11),
+                  style: TextStyle(
+                      color: context.subtextColor, fontSize: 11),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
               r['review_text'] ?? '',
-              style: TextStyle(color: context.subtextColor, fontSize: 14, height: 1.4),
+              style: TextStyle(
+                  color: context.subtextColor,
+                  fontSize: 14,
+                  height: 1.4),
             ),
           ],
         ),
@@ -761,170 +757,174 @@ Future<void> _loadData() async {
     }
   }
 
-  // ADD this method before _buildSkeleton:
-Widget _buildMyBookingsSection(BuildContext context) {
-  if (_myBookings.isEmpty) return const SizedBox.shrink();
-  final accent = _accent(context);
+  Widget _buildMyBookingsSection(BuildContext context) {
+    if (_myBookings.isEmpty) return const SizedBox.shrink();
+    final accent = _accent(context);
 
-  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    const SizedBox(height: 28),
-    Row(children: [
-      Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: themeColor.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(Icons.event_available, color: themeColor, size: 18),
-      ),
-      const SizedBox(width: 10),
-      Text('My Bookings',
-          style: TextStyle(
-              color: context.textColor,
-              fontSize: 18,
-              fontWeight: FontWeight.bold)),
-    ]),
-    const SizedBox(height: 6),
-    Text('Tap to view session details',
-        style: TextStyle(color: context.subtextColor, fontSize: 13)),
-    const SizedBox(height: 14),
-
-    ..._myBookings.map((booking) {
-      final date = booking['booking_date'] as String? ?? '';
-      final startTime = booking['start_time'] as String? ?? '';
-      final endTime = booking['end_time'] as String? ?? '';
-      final price = (booking['price'] as num?)?.toDouble() ?? 0.0;
-      final status = booking['status'] as String? ?? 'confirmed';
-
-      final dt = DateTime.tryParse(date);
-      final isPast = dt != null &&
-          dt.isBefore(DateTime.now().subtract(const Duration(days: 1)));
-
-      Color statusColor;
-      IconData statusIcon;
-      String statusLabel;
-
-      if (status == 'cancelled') {
-        statusColor = Colors.red;
-        statusIcon = Icons.cancel;
-        statusLabel = 'Cancelled';
-      } else if (status == 'attended') {
-        statusColor = Colors.green;
-        statusIcon = Icons.check_circle;
-        statusLabel = 'Attended';
-      } else if (isPast) {
-        statusColor = Colors.grey;
-        statusIcon = Icons.lock_clock;
-        statusLabel = 'Expired';
-      } else {
-        statusColor = accent;
-        statusIcon = Icons.schedule;
-        statusLabel = 'Upcoming';
-      }
-
-      // Format date
-      String fmtDate = date;
-      if (dt != null) {
-        const months = ['Jan','Feb','Mar','Apr','May','Jun',
-                        'Jul','Aug','Sep','Oct','Nov','Dec'];
-        const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-        fmtDate =
-            '${days[dt.weekday - 1]}, ${dt.day} ${months[dt.month - 1]}';
-      }
-
-      // Format time
-      String fmtTime(String t) {
-        final parts = t.split(':');
-        final h = int.parse(parts[0]);
-        final m = parts[1];
-        final period = h >= 12 ? 'PM' : 'AM';
-        final h12 = h > 12 ? h - 12 : h == 0 ? 12 : h;
-        return '$h12:$m $period';
-      }
-
-      return GestureDetector(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => TrainerBookingDetailPage(
-              booking: booking,
-              trainer: widget.trainer,
-            ),
-          ),
-        ).then((_) => _loadData()),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const SizedBox(height: 28),
+      Row(children: [
+        Container(
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: context.cardBgColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: statusColor.withOpacity(0.4),
-            ),
+            color: themeColor.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(8),
           ),
-          child: Row(children: [
-            // Date badge
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                Icon(statusIcon, color: statusColor, size: 22),
-              ]),
-            ),
-            const SizedBox(width: 14),
-
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text(fmtDate,
-                    style: TextStyle(
-                        color: context.textColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text(
-                  '${fmtTime(startTime)} → ${fmtTime(endTime)}',
-                  style: TextStyle(
-                      color: context.subtextColor, fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '\$${price.toStringAsFixed(2)}',
-                  style: TextStyle(
-                      color: themeColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600),
-                ),
-              ]),
-            ),
-
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: statusColor.withOpacity(0.4)),
-              ),
-              child: Text(statusLabel,
-                  style: TextStyle(
-                      color: statusColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold)),
-            ),
-          ]),
+          child: const Icon(Icons.event_available,
+              color: themeColor, size: 18),
         ),
-      );
-    }).toList(),
-  ]);
-}
+        const SizedBox(width: 10),
+        Text('My Bookings',
+            style: TextStyle(
+                color: context.textColor,
+                fontSize: 18,
+                fontWeight: FontWeight.bold)),
+      ]),
+      const SizedBox(height: 6),
+      Text('Tap to view session details',
+          style:
+              TextStyle(color: context.subtextColor, fontSize: 13)),
+      const SizedBox(height: 14),
+
+      ..._myBookings.map((booking) {
+        final date = booking['booking_date'] as String? ?? '';
+        final startTime = booking['start_time'] as String? ?? '';
+        final endTime = booking['end_time'] as String? ?? '';
+        final price =
+            (booking['price'] as num?)?.toDouble() ?? 0.0;
+        final status =
+            booking['status'] as String? ?? 'confirmed';
+
+        final dt = DateTime.tryParse(date);
+        final isPast = dt != null &&
+            dt.isBefore(
+                DateTime.now().subtract(const Duration(days: 1)));
+
+        Color statusColor;
+        IconData statusIcon;
+        String statusLabel;
+
+        if (status == 'cancelled') {
+          statusColor = Colors.red;
+          statusIcon = Icons.cancel;
+          statusLabel = 'Cancelled';
+        } else if (status == 'attended') {
+          statusColor = Colors.green;
+          statusIcon = Icons.check_circle;
+          statusLabel = 'Attended';
+        } else if (isPast) {
+          statusColor = Colors.grey;
+          statusIcon = Icons.lock_clock;
+          statusLabel = 'Expired';
+        } else {
+          statusColor = accent;
+          statusIcon = Icons.schedule;
+          statusLabel = 'Upcoming';
+        }
+
+        String fmtDate = date;
+        if (dt != null) {
+          const months = [
+            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+          ];
+          const days = [
+            'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'
+          ];
+          fmtDate =
+              '${days[dt.weekday - 1]}, ${dt.day} ${months[dt.month - 1]}';
+        }
+
+        String fmtTime(String t) {
+          final parts = t.split(':');
+          final h = int.parse(parts[0]);
+          final m = parts[1];
+          final period = h >= 12 ? 'PM' : 'AM';
+          final h12 = h > 12 ? h - 12 : h == 0 ? 12 : h;
+          return '$h12:$m $period';
+        }
+
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TrainerBookingDetailPage(
+                booking: booking,
+                trainer: widget.trainer,
+              ),
+            ),
+          ).then((_) => _loadData()),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: context.cardBgColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: statusColor.withOpacity(0.4),
+              ),
+            ),
+            child: Row(children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                  Icon(statusIcon, color: statusColor, size: 22),
+                ]),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(fmtDate,
+                      style: TextStyle(
+                          color: context.textColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${fmtTime(startTime)} → ${fmtTime(endTime)}',
+                    style: TextStyle(
+                        color: context.subtextColor, fontSize: 12),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '\$${price.toStringAsFixed(2)}',
+                    style: TextStyle(
+                        color: themeColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ]),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border:
+                      Border.all(color: statusColor.withOpacity(0.4)),
+                ),
+                child: Text(statusLabel,
+                    style: TextStyle(
+                        color: statusColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ]),
+          ),
+        );
+      }).toList(),
+    ]);
+  }
 
   Widget _buildSkeleton(BuildContext context) {
     return Column(
