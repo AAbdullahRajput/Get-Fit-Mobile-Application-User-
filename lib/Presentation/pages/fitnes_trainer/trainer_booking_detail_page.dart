@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Presentation/pages/fitnes_trainer/trainer_content_page.dart';
 
 Color _accent(BuildContext context) =>
     context.isDark ? themeColor : const Color(0xFF6B7A00);
@@ -509,69 +510,104 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
     }
 
     if (_isLive) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.green.withOpacity(0.4)),
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: Colors.green.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: Colors.green.withOpacity(0.4)),
+    ),
+    child: Column(children: [
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: Colors.green,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.green.withOpacity(0.5),
+                  blurRadius: 8,
+                  spreadRadius: 2)
+            ],
+          ),
         ),
-        child: Column(children: [
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
+        const SizedBox(width: 8),
+        const Text('Session is Live!',
+            style: TextStyle(
                 color: Colors.green,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.green.withOpacity(0.5),
-                      blurRadius: 8,
-                      spreadRadius: 2)
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text('Session is Live!',
-                style: TextStyle(
-                    color: Colors.green,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold)),
-          ]),
-          const SizedBox(height: 8),
-          Text(
-            'Ends in  ${_fmtDuration(_timeRemaining)}',
-            style: const TextStyle(
-                color: Colors.green, fontSize: 13),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _toggleDone,
-              icon: Icon(
-                  isDone
-                      ? Icons.remove_circle_outline
-                      : Icons.check_circle_outline,
-                  size: 18),
-              label: Text(
-                  isDone ? 'Unmark as Done' : 'Mark as Done'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isDone ? Colors.orange : Colors.green,
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                fontSize: 16,
+                fontWeight: FontWeight.bold)),
+      ]),
+      const SizedBox(height: 8),
+      Text(
+        'Ends in  ${_fmtDuration(_timeRemaining)}',
+        style: const TextStyle(color: Colors.green, fontSize: 13),
+      ),
+      const SizedBox(height: 16),
+
+      // JOIN SESSION button
+      SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TrainerContentPage(
+                trainer: widget.trainer,
+                activeBooking: widget.booking,
               ),
             ),
           ),
-        ]),
-      );
-    }
+          icon: const Icon(Icons.play_circle_fill,
+              color: Colors.black, size: 20),
+          label: const Text('Join Session',
+              style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: themeColor,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      ),
+      const SizedBox(height: 10),
+
+      // Mark as Done (secondary)
+      SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: _toggleDone,
+          icon: Icon(
+              isDone
+                  ? Icons.remove_circle_outline
+                  : Icons.check_circle_outline,
+              size: 16,
+              color: isDone ? Colors.orange : Colors.green),
+          label: Text(
+              isDone ? 'Unmark Attendance' : 'Mark Attendance',
+              style: TextStyle(
+                  color: isDone ? Colors.orange : Colors.green,
+                  fontSize: 13)),
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(
+                color: isDone
+                    ? Colors.orange.withOpacity(0.5)
+                    : Colors.green.withOpacity(0.5)),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      ),
+    ]),
+  );
+}
 
     // Upcoming — show countdown
     return Container(

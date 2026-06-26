@@ -30,18 +30,16 @@ class _TrainerContentPageState extends State<TrainerContentPage>
   List<Map<String, dynamic>> _dietPlans = [];
   List<Map<String, dynamic>> _guideSteps = [];
   Map<String, List<Map<String, dynamic>>> _dietItems = {};
-  Map<String, bool> _stepDoneMap = {}; // stepId -> isDone
+  Map<String, bool> _stepDoneMap = {};
   bool _isLoading = true;
+  bool _isInFeed = false;
+  bool _allStepsCompleted = false;
 
-  String get _today =>
-      DateTime.now().toIso8601String().substring(0, 10);
-
+  String get _today => DateTime.now().toIso8601String().substring(0, 10);
   String get _trainerId => widget.trainer['id'] as String;
-  String get _bookingId =>
-      widget.activeBooking?['id'] as String? ?? '';
+  String get _bookingId => widget.activeBooking?['id'] as String? ?? '';
   bool get _hasBooking => widget.activeBooking != null;
 
-  // For diet tab toggle
   String _selectedPlanType = 'budget';
 
   @override
@@ -73,7 +71,7 @@ class _TrainerContentPageState extends State<TrainerContentPage>
       itemsMap[plan['id'] as String] = items;
     }
 
-    // Load today's guide logs
+    // Load today's guide logs — MUST happen before using doneMap
     final logs = await SupabaseService.getTrainerGuideLogsForDate(
       trainerId: _trainerId,
       date: _today,
@@ -81,6 +79,17 @@ class _TrainerContentPageState extends State<TrainerContentPage>
     final Map<String, bool> doneMap = {};
     for (final log in logs) {
       doneMap[log['step_id'] as String] = log['is_done'] as bool? ?? false;
+    }
+
+    // Now safe to use doneMap
+    final bool allDone = _hasBooking &&
+        steps.isNotEmpty &&
+        steps.every((s) => doneMap[s['id'] as String] == true);
+
+    // Feed check only if booked
+    bool isInFeed = false;
+    if (_hasBooking && _bookingId.isNotEmpty) {
+      isInFeed = await SupabaseService.isTrainerContentInFeed(_bookingId);
     }
 
     if (mounted) {
@@ -91,8 +100,36 @@ class _TrainerContentPageState extends State<TrainerContentPage>
         _guideSteps = steps;
         _dietItems = itemsMap;
         _stepDoneMap = doneMap;
+        _isInFeed = isInFeed;
+        _allStepsCompleted = allDone;
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _toggleFeed() async {
+    if (!_hasBooking || _bookingId.isEmpty) return;
+    try {
+      if (_isInFeed) {
+        await SupabaseService.removeTrainerContentFromFeed(
+            bookingId: _bookingId);
+      } else {
+        await SupabaseService.addTrainerContentToFeed(
+          trainerId: _trainerId,
+          bookingId: _bookingId,
+        );
+      }
+      setState(() => _isInFeed = !_isInFeed);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Failed. Try again.'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
     }
   }
 
@@ -104,7 +141,6 @@ class _TrainerContentPageState extends State<TrainerContentPage>
     final stepId = step['id'] as String;
     final stepNumber = step['step_number'] as int;
 
-    // Lock check — can only do steps in order
     if (!_isStepUnlocked(stepNumber)) {
       _showLockedDialog(stepNumber);
       return;
@@ -120,6 +156,25 @@ class _TrainerContentPageState extends State<TrainerContentPage>
         isDone: !isDone,
       );
       setState(() => _stepDoneMap[stepId] = !isDone);
+
+      // Check if all steps now done
+      final allDone = _guideSteps.isNotEmpty &&
+          _guideSteps
+              .every((s) => _stepDoneMap[s['id'] as String] == true);
+      if (allDone && !_allStepsCompleted) {
+        await SupabaseService.markAllStepsCompleted(bookingId: _bookingId);
+        setState(() => _allStepsCompleted = true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content:
+                const Text('🎉 All steps completed! Trainer notified.'),
+            backgroundColor: Colors.green.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ));
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -133,7 +188,6 @@ class _TrainerContentPageState extends State<TrainerContentPage>
     }
   }
 
-  // Step N is unlocked if all previous steps are done (or it's step 1)
   bool _isStepUnlocked(int stepNumber) {
     if (stepNumber == 1) return true;
     for (final step in _guideSteps) {
@@ -166,8 +220,8 @@ class _TrainerContentPageState extends State<TrainerContentPage>
         content: Text(
           'Complete Step ${stepNumber - 1} first to unlock this step.',
           textAlign: TextAlign.center,
-          style:
-              const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+          style: const TextStyle(
+              color: Colors.white70, fontSize: 14, height: 1.5),
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
@@ -209,8 +263,8 @@ class _TrainerContentPageState extends State<TrainerContentPage>
         content: const Text(
           'You need an active booking with this trainer to track your progress.',
           textAlign: TextAlign.center,
-          style:
-              TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+          style: TextStyle(
+              color: Colors.white70, fontSize: 14, height: 1.5),
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
@@ -232,6 +286,8 @@ class _TrainerContentPageState extends State<TrainerContentPage>
     );
   }
 
+  // ── BUILD ─────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final accent = _accent(context);
@@ -243,7 +299,7 @@ class _TrainerContentPageState extends State<TrainerContentPage>
         child: Column(children: [
           // Header
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
+            padding: const EdgeInsets.fromLTRB(8, 4, 12, 8),
             child: Row(children: [
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
@@ -253,7 +309,8 @@ class _TrainerContentPageState extends State<TrainerContentPage>
                   backgroundColor: Colors.black54,
                   elevation: 0,
                 ),
-                child: const Icon(Icons.arrow_back, color: Colors.white),
+                child:
+                    const Icon(Icons.arrow_back, color: Colors.white),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -264,7 +321,7 @@ class _TrainerContentPageState extends State<TrainerContentPage>
                     trainer['name'] ?? 'Trainer',
                     style: TextStyle(
                         color: accent,
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -272,14 +329,15 @@ class _TrainerContentPageState extends State<TrainerContentPage>
                   Text(
                     trainer['training_type'] ?? '',
                     style: TextStyle(
-                        color: context.subtextColor, fontSize: 12),
+                        color: context.subtextColor, fontSize: 11),
                   ),
                 ]),
               ),
+
               // Booking status badge
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 5),
+                    horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: _hasBooking
                       ? Colors.green.withOpacity(0.15)
@@ -297,19 +355,63 @@ class _TrainerContentPageState extends State<TrainerContentPage>
                         ? Icons.check_circle
                         : Icons.lock_outline,
                     color: _hasBooking ? Colors.green : Colors.grey,
-                    size: 13,
+                    size: 12,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     _hasBooking ? 'Active' : 'Not Booked',
                     style: TextStyle(
                       color: _hasBooking ? Colors.green : Colors.grey,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ]),
               ),
+
+              // Add to Feed button (only if booked)
+              if (_hasBooking) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: _toggleFeed,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _isInFeed
+                          ? Colors.red.withOpacity(0.15)
+                          : themeColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: _isInFeed
+                            ? Colors.red.withOpacity(0.4)
+                            : themeColor.withOpacity(0.4),
+                      ),
+                    ),
+                    child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                      Icon(
+                        _isInFeed
+                            ? Icons.remove_circle_outline
+                            : Icons.add_circle_outline,
+                        color: _isInFeed ? Colors.red : themeColor,
+                        size: 12,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _isInFeed ? 'Remove' : 'Add Feed',
+                        style: TextStyle(
+                          color:
+                              _isInFeed ? Colors.red : themeColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ]),
+                  ),
+                ),
+              ],
             ]),
           ),
 
@@ -369,7 +471,8 @@ class _TrainerContentPageState extends State<TrainerContentPage>
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
       itemCount: _videos.length,
-      itemBuilder: (_, i) => _buildVideoCard(context, _videos[i], accent),
+      itemBuilder: (_, i) =>
+          _buildVideoCard(context, _videos[i], accent),
     );
   }
 
@@ -385,8 +488,8 @@ class _TrainerContentPageState extends State<TrainerContentPage>
         color: context.cardBgColor,
         borderRadius: BorderRadius.circular(18),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Thumbnail
+      child:
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         GestureDetector(
           onTap: () => _openVideoPlayer(context, video),
           child: Stack(children: [
@@ -406,12 +509,11 @@ class _TrainerContentPageState extends State<TrainerContentPage>
                 ),
               ),
             ),
-            // Play button overlay
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(18)),
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(18)),
                   color: Colors.black38,
                 ),
                 child: const Center(
@@ -420,7 +522,6 @@ class _TrainerContentPageState extends State<TrainerContentPage>
                 ),
               ),
             ),
-            // Duration badge
             Positioned(
               bottom: 10,
               right: 10,
@@ -442,7 +543,6 @@ class _TrainerContentPageState extends State<TrainerContentPage>
             ),
           ]),
         ),
-        // Info
         Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -482,12 +582,14 @@ class _TrainerContentPageState extends State<TrainerContentPage>
 
   Widget _buildImagesTab(BuildContext context, Color accent) {
     if (_images.isEmpty) {
-      return _buildEmpty(context, Icons.image_not_supported, 'No guides yet');
+      return _buildEmpty(
+          context, Icons.image_not_supported, 'No guides yet');
     }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
       itemCount: _images.length,
-      itemBuilder: (_, i) => _buildImageCard(context, _images[i], accent),
+      itemBuilder: (_, i) =>
+          _buildImageCard(context, _images[i], accent),
     );
   }
 
@@ -515,7 +617,8 @@ class _TrainerContentPageState extends State<TrainerContentPage>
               errorBuilder: (_, __, ___) => Container(
                 height: 200,
                 color: const Color(0xFF2C2C2C),
-                child: const Icon(Icons.image, color: Colors.white38, size: 60),
+                child: const Icon(Icons.image,
+                    color: Colors.white38, size: 60),
               ),
             ),
           ),
@@ -560,21 +663,22 @@ class _TrainerContentPageState extends State<TrainerContentPage>
 
   Widget _buildDietTab(BuildContext context, Color accent) {
     if (_dietPlans.isEmpty) {
-      return _buildEmpty(context, Icons.restaurant_menu, 'No diet plans yet');
+      return _buildEmpty(
+          context, Icons.restaurant_menu, 'No diet plans yet');
     }
 
-    final budgetPlan = _dietPlans
-        .where((p) => p['plan_type'] == 'budget')
-        .toList();
-    final premiumPlan = _dietPlans
-        .where((p) => p['plan_type'] == 'premium')
-        .toList();
+    final budgetPlan =
+        _dietPlans.where((p) => p['plan_type'] == 'budget').toList();
+    final premiumPlan =
+        _dietPlans.where((p) => p['plan_type'] == 'premium').toList();
     final activePlan =
         _selectedPlanType == 'budget' ? budgetPlan : premiumPlan;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
         // Toggle
         Container(
           padding: const EdgeInsets.all(4),
@@ -584,7 +688,8 @@ class _TrainerContentPageState extends State<TrainerContentPage>
           ),
           child: Row(children: [
             _dietToggle(context, 'budget', '🏠  Budget Plan', accent),
-            _dietToggle(context, 'premium', '⭐  Premium Plan', accent),
+            _dietToggle(
+                context, 'premium', '⭐  Premium Plan', accent),
           ]),
         ),
         const SizedBox(height: 16),
@@ -596,12 +701,12 @@ class _TrainerContentPageState extends State<TrainerContentPage>
             final planId = plan['id'] as String;
             final items = _dietItems[planId] ?? [];
             final cost =
-                (plan['estimated_cost_per_day'] as num?)?.toDouble() ?? 0;
+                (plan['estimated_cost_per_day'] as num?)?.toDouble() ??
+                    0;
 
             return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-              // Plan header
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -632,11 +737,13 @@ class _TrainerContentPageState extends State<TrainerContentPage>
                           height: 1.4)),
                   const SizedBox(height: 8),
                   Row(children: [
-                    Icon(Icons.attach_money,
-                        color: _selectedPlanType == 'budget'
-                            ? Colors.green
-                            : Colors.amber,
-                        size: 16),
+                    Icon(
+                      Icons.attach_money,
+                      color: _selectedPlanType == 'budget'
+                          ? Colors.green
+                          : Colors.amber,
+                      size: 16,
+                    ),
                     Text(
                       'Est. \$${cost.toStringAsFixed(2)} / day',
                       style: TextStyle(
@@ -651,8 +758,6 @@ class _TrainerContentPageState extends State<TrainerContentPage>
                 ]),
               ),
               const SizedBox(height: 16),
-
-              // Meals grouped
               ..._buildMealGroups(context, items, accent),
             ]);
           }),
@@ -697,12 +802,12 @@ class _TrainerContentPageState extends State<TrainerContentPage>
       groups.putIfAbsent(meal, () => []).add(item);
     }
 
-    return order
-        .where((m) => groups.containsKey(m))
-        .map((meal) {
+    return order.where((m) => groups.containsKey(m)).map((meal) {
       final mealItems = groups[meal]!;
       final totalCals = mealItems.fold<int>(
-          0, (sum, i) => sum + ((i['calories'] as num?)?.toInt() ?? 0));
+          0,
+          (sum, i) =>
+              sum + ((i['calories'] as num?)?.toInt() ?? 0));
 
       return Container(
         margin: const EdgeInsets.only(bottom: 14),
@@ -710,8 +815,9 @@ class _TrainerContentPageState extends State<TrainerContentPage>
           color: context.cardBgColor,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Meal header
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
             child: Row(
@@ -732,7 +838,6 @@ class _TrainerContentPageState extends State<TrainerContentPage>
             ]),
           ),
           const Divider(height: 1, color: Colors.white10),
-          // Items
           ...mealItems.map((item) => Padding(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
                 child: Row(
@@ -772,13 +877,15 @@ class _TrainerContentPageState extends State<TrainerContentPage>
                               fontSize: 11),
                         ),
                       ]),
-                      if ((item['quantity'] as String?)?.isNotEmpty ==
+                      if ((item['quantity'] as String?)
+                              ?.isNotEmpty ==
                           true)
                         Text(item['quantity'] as String,
                             style: TextStyle(
                                 color: context.subtextColor,
                                 fontSize: 11)),
-                      if ((item['notes'] as String?)?.isNotEmpty == true)
+                      if ((item['notes'] as String?)?.isNotEmpty ==
+                          true)
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
                           child: Text(
@@ -802,11 +909,16 @@ class _TrainerContentPageState extends State<TrainerContentPage>
 
   String _mealEmoji(String meal) {
     switch (meal) {
-      case 'Breakfast': return '🌅';
-      case 'Lunch': return '☀️';
-      case 'Dinner': return '🌙';
-      case 'Snack': return '🍎';
-      default: return '🍽️';
+      case 'Breakfast':
+        return '🌅';
+      case 'Lunch':
+        return '☀️';
+      case 'Dinner':
+        return '🌙';
+      case 'Snack':
+        return '🍎';
+      default:
+        return '🍽️';
     }
   }
 
@@ -814,11 +926,11 @@ class _TrainerContentPageState extends State<TrainerContentPage>
 
   Widget _buildStepsTab(BuildContext context, Color accent) {
     if (_guideSteps.isEmpty) {
-      return _buildEmpty(context, Icons.list_alt, 'No guide steps yet');
+      return _buildEmpty(
+          context, Icons.list_alt, 'No guide steps yet');
     }
 
-    final doneCount =
-        _stepDoneMap.values.where((v) => v).length;
+    final doneCount = _stepDoneMap.values.where((v) => v).length;
     final total = _guideSteps.length;
 
     return ListView(
@@ -833,7 +945,8 @@ class _TrainerContentPageState extends State<TrainerContentPage>
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
               Text('Today\'s Progress',
                   style: TextStyle(
@@ -864,16 +977,53 @@ class _TrainerContentPageState extends State<TrainerContentPage>
                 const SizedBox(width: 6),
                 Text(
                   'Book a session to track progress',
-                  style: TextStyle(
-                      color: Colors.orange, fontSize: 12),
+                  style:
+                      TextStyle(color: Colors.orange, fontSize: 12),
                 ),
               ]),
             ],
           ]),
         ),
 
-        ..._guideSteps.map((step) =>
-            _buildStepCard(context, step, accent)),
+        // Completion banner
+        if (_allStepsCompleted) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(14),
+              border:
+                  Border.all(color: Colors.green.withOpacity(0.4)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.emoji_events,
+                  color: Colors.green, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  const Text('Program Complete!',
+                      style: TextStyle(
+                          color: Colors.green,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold)),
+                  Text(
+                    'Your trainer has been notified of your completion.',
+                    style: TextStyle(
+                        color: Colors.green.withOpacity(0.8),
+                        fontSize: 12),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+        ],
+
+        ..._guideSteps
+            .map((step) => _buildStepCard(context, step, accent)),
       ],
     );
   }
@@ -909,13 +1059,12 @@ class _TrainerContentPageState extends State<TrainerContentPage>
             width: isDone ? 1.5 : 1,
           ),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          // Step header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
             child: Row(children: [
-              // Step number circle
               Container(
                 width: 36,
                 height: 36,
@@ -971,7 +1120,6 @@ class _TrainerContentPageState extends State<TrainerContentPage>
                     ]),
                 ]),
               ),
-              // Done/locked indicator
               if (isDone)
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -1010,7 +1158,6 @@ class _TrainerContentPageState extends State<TrainerContentPage>
             ]),
           ),
 
-          // Image + description (only if unlocked)
           if (isUnlocked) ...[
             if ((step['image_url'] as String?)?.isNotEmpty == true)
               ClipRRect(
@@ -1020,7 +1167,8 @@ class _TrainerContentPageState extends State<TrainerContentPage>
                   height: 160,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  errorBuilder: (_, __, ___) =>
+                      const SizedBox.shrink(),
                 ),
               ),
             Padding(
@@ -1102,8 +1250,8 @@ class _VideoPlayerPageState extends State<_VideoPlayerPage> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: Text(widget.title,
-            style: const TextStyle(fontSize: 15)),
+        title:
+            Text(widget.title, style: const TextStyle(fontSize: 15)),
       ),
       body: Center(
         child: _initialized
