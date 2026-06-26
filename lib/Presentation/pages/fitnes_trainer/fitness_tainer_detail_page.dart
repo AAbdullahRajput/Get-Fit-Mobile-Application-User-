@@ -543,47 +543,6 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
 
         const SizedBox(height: 20),
 
-        // ── View Training Content button ──────────────
-        Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              final activeBooking = _myBookings
-                  .where((b) =>
-                      b['status'] != 'cancelled' &&
-                      b['status'] != 'attended')
-                  .toList();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TrainerContentPage(
-                    trainer: widget.trainer,
-                    activeBooking: activeBooking.isNotEmpty
-                        ? activeBooking.first
-                        : null,
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.play_lesson_outlined,
-                color: Colors.black, size: 20),
-            label: const Text(
-              'View Training Content',
-              style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: themeColor,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25)),
-            ),
-          ),
-        ),
-
         // ── Book appointment button ───────────────────
         ReuseableButton(
           title: 'Book an Appointment',
