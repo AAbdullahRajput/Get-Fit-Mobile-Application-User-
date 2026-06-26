@@ -153,69 +153,126 @@ class _TrainerBookingDetailPageState extends State<TrainerBookingDetailPage> {
   }
 
   Future<void> _cancelBooking() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF2C2C2C),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Column(children: [
-          Icon(Icons.cancel_outlined, color: Colors.redAccent, size: 48),
-          SizedBox(height: 12),
-          Text('Cancel Booking',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold)),
-        ]),
-        content: const Text(
-          'Are you sure you want to cancel this session? This cannot be undone.',
+  final price = (widget.booking['price'] as num?)?.toDouble() ?? 0.0;
+  final last4 = widget.booking['payment_card_last4'] as String? ?? '';
+
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      backgroundColor: const Color(0xFF2C2C2C),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Column(children: [
+        Icon(Icons.cancel_outlined, color: Colors.redAccent, size: 48),
+        SizedBox(height: 12),
+        Text('Cancel Booking',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold)),
+      ]),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text(
+          'Are you sure you want to cancel this session?',
           textAlign: TextAlign.center,
-          style: TextStyle(
-              color: Colors.white70, fontSize: 14, height: 1.5),
+          style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
         ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep It',
-                style: TextStyle(color: Colors.white54)),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.green.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.green.withOpacity(0.3)),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+          child: Row(children: [
+            const Icon(Icons.replay_circle_filled, color: Colors.green, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '\$${price.toStringAsFixed(2)} will be refunded to your card${last4.isNotEmpty ? ' ending in ••••$last4' : ''} within 5–7 business days.',
+                style: const TextStyle(color: Colors.green, fontSize: 12, height: 1.4),
+              ),
             ),
-            child: const Text('Yes, Cancel',
-                style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
+          ]),
+        ),
+      ]),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Keep It',
+              style: TextStyle(color: Colors.white54)),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.redAccent,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
           ),
-        ],
-      ),
-    );
+          child: const Text('Yes, Cancel',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
+      ],
+    ),
+  );
 
-    if (confirm != true) return;
+  if (confirm != true) return;
 
-    try {
-      await SupabaseService.cancelTrainerSlotBooking(_bookingId);
-      if (mounted) {
-        Navigator.pop(context, true); // pop with refresh signal
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Failed to cancel. Try again.'),
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ));
-      }
+  try {
+    await SupabaseService.cancelTrainerSlotBooking(_bookingId);
+    if (mounted) {
+      // Show refund success
+      await showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: const Color(0xFF2C2C2C),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Column(children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 48),
+            SizedBox(height: 12),
+            Text('Booking Cancelled',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+          ]),
+          content: Text(
+            'Your booking has been cancelled. \$${price.toStringAsFixed(2)} will be refunded to your card${last4.isNotEmpty ? ' ending in ••••$last4' : ''} within 5–7 business days.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('OK',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+      Navigator.pop(context, true);
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Failed to cancel. Try again.'),
+        backgroundColor: Colors.red.shade700,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
     }
   }
+}
 
   // ── Build ─────────────────────────────────────
 

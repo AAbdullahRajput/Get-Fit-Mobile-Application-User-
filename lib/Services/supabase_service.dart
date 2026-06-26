@@ -2162,4 +2162,195 @@ static Future<void> cancelTrainerSlotBooking(String bookingId) async {
   }
 }
 
+// ─────────────────────────────────────────────
+// TRAINER CONTENT PAGE
+// ─────────────────────────────────────────────
+
+static Future<List<Map<String, dynamic>>> getTrainerVideos(String trainerId) async {
+  try {
+    debugPrint('\x1B[33m[API] GET trainer_content_videos | trainer: $trainerId\x1B[0m');
+    final data = await client
+        .from('trainer_content_videos')
+        .select()
+        .eq('trainer_id', trainerId)
+        .eq('is_active', true)
+        .order('order_number', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | Videos: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTrainerVideos | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getTrainerImages(String trainerId) async {
+  try {
+    debugPrint('\x1B[33m[API] GET trainer_content_images | trainer: $trainerId\x1B[0m');
+    final data = await client
+        .from('trainer_content_images')
+        .select()
+        .eq('trainer_id', trainerId)
+        .eq('is_active', true)
+        .order('order_number', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | Images: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTrainerImages | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getTrainerDietPlans(String trainerId) async {
+  try {
+    debugPrint('\x1B[33m[API] GET trainer_diet_plans | trainer: $trainerId\x1B[0m');
+    final data = await client
+        .from('trainer_diet_plans')
+        .select()
+        .eq('trainer_id', trainerId)
+        .eq('is_active', true)
+        .order('order_number', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | DietPlans: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTrainerDietPlans | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getTrainerDietItems(String planId) async {
+  try {
+    debugPrint('\x1B[33m[API] GET trainer_diet_items | plan: $planId\x1B[0m');
+    final data = await client
+        .from('trainer_diet_items')
+        .select()
+        .eq('plan_id', planId)
+        .order('order_number', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | DietItems: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTrainerDietItems | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getTrainerGuideSteps(String trainerId) async {
+  try {
+    debugPrint('\x1B[33m[API] GET trainer_guide_steps | trainer: $trainerId\x1B[0m');
+    final data = await client
+        .from('trainer_guide_steps')
+        .select()
+        .eq('trainer_id', trainerId)
+        .eq('is_active', true)
+        .order('step_number', ascending: true);
+    debugPrint('\x1B[32m[API] 200 OK | GuideSteps: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTrainerGuideSteps | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<Map<String, dynamic>?> getTrainerGuideLog({
+  required String stepId,
+  required String date,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return null;
+    final data = await client
+        .from('trainer_guide_logs')
+        .select()
+        .eq('user_id', userId)
+        .eq('step_id', stepId)
+        .eq('scheduled_date', date)
+        .maybeSingle();
+    return data;
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTrainerGuideLog | $e\x1B[0m');
+    return null;
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getTrainerGuideLogsForDate({
+  required String trainerId,
+  required String date,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+    final data = await client
+        .from('trainer_guide_logs')
+        .select()
+        .eq('user_id', userId)
+        .eq('trainer_id', trainerId)
+        .eq('scheduled_date', date);
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getTrainerGuideLogsForDate | $e\x1B[0m');
+    return [];
+  }
+}
+
+static Future<void> upsertTrainerGuideLog({
+  required String stepId,
+  required String trainerId,
+  required String bookingId,
+  required String date,
+  required bool isDone,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+    debugPrint('\x1B[33m[API] UPSERT trainer_guide_logs | step: $stepId | done: $isDone\x1B[0m');
+    await client.from('trainer_guide_logs').upsert({
+      'user_id': userId,
+      'trainer_id': trainerId,
+      'step_id': stepId,
+      'booking_id': bookingId,
+      'scheduled_date': date,
+      'is_done': isDone,
+      'completed_at': isDone ? DateTime.now().toIso8601String() : null,
+    }, onConflict: 'user_id,step_id,scheduled_date');
+    debugPrint('\x1B[32m[API] 200 OK | Guide log upserted\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | upsertTrainerGuideLog | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+// ─────────────────────────────────────────────
+// BOOKINGS PAGE — all bookings combined
+// ─────────────────────────────────────────────
+
+static Future<Map<String, dynamic>> getAllMyBookings() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return {};
+
+    // Trainer slot bookings
+    final trainerBookings = await client
+        .from('trainer_slot_bookings')
+        .select('*, fitness_trainers(name, image_url, training_type)')
+        .eq('user_id', userId)
+        .order('booking_date', ascending: false);
+
+    // Yoga session bookings
+    final yogaBookings = await client
+        .from('yoga_session_bookings')
+        .select('*, yoga_instructors(name, image_url, specialty)')
+        .eq('user_id', userId)
+        .order('start_date', ascending: false);
+
+    debugPrint('\x1B[32m[API] 200 OK | AllBookings | trainer: ${trainerBookings.length} yoga: ${yogaBookings.length}\x1B[0m');
+
+    return {
+      'trainer': List<Map<String, dynamic>>.from(trainerBookings),
+      'yoga': List<Map<String, dynamic>>.from(yogaBookings),
+    };
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getAllMyBookings | $e\x1B[0m');
+    return {'trainer': [], 'yoga': []};
+  }
+}
+
 }
