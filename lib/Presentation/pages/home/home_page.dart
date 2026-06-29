@@ -761,7 +761,7 @@ void dispose() {
                                                   ? const Color.fromARGB(
                                                       255, 210, 231, 16)
                                                   : themeColor)),
-                                      Text("2000 Days",
+                                      Text("/2000 Days",
                                           style: TextStyle(
                                               fontSize: 11,
                                               color: isDark
