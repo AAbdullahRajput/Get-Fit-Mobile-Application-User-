@@ -308,12 +308,79 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                                       onTap: () => setState(
                                           () => _selectedCardIndex = i - 1),
                                       onLongPress: () async {
-                                        final edited = await Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                                builder: (_) =>
-                                                    EditCardPage(card: card)));
-                                        if (edited == true) _loadCards();
+                                        final action = await showDialog<String>(
+                                          context: context,
+                                          builder: (_) => AlertDialog(
+                                            backgroundColor: const Color(0xFF2C2C2C),
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(20)),
+                                            title: const Text('Card Options',
+                                                style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold)),
+                                            content: Text(
+                                              '•••• •••• •••• ${card['last4']}',
+                                              style: const TextStyle(color: Colors.white70),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(context, 'edit'),
+                                                child: const Text('Edit',
+                                                    style: TextStyle(color: themeColor)),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(context, 'delete'),
+                                                child: const Text('Delete',
+                                                    style: TextStyle(color: Colors.redAccent)),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(context, 'cancel'),
+                                                child: const Text('Cancel',
+                                                    style: TextStyle(color: Colors.white54)),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (action == 'edit') {
+                                          final edited = await Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                  builder: (_) => EditCardPage(card: card)));
+                                          if (edited == true) _loadCards();
+                                        } else if (action == 'delete') {
+                                          final confirm = await showDialog<bool>(
+                                            context: context,
+                                            builder: (_) => AlertDialog(
+                                              backgroundColor: const Color(0xFF2C2C2C),
+                                              shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(20)),
+                                              title: const Text('Delete Card?',
+                                                  style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.bold)),
+                                              content: Text(
+                                                'Remove •••• •••• •••• ${card['last4']} from your account?',
+                                                style: const TextStyle(color: Colors.white70),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(context, false),
+                                                  child: const Text('Cancel',
+                                                      style: TextStyle(color: Colors.white54)),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(context, true),
+                                                  child: const Text('Delete',
+                                                      style: TextStyle(color: Colors.redAccent)),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                          if (confirm == true) {
+                                            await SupabaseService.deleteUserCard(card['id']);
+                                            _loadCards();
+                                          }
+                                        }
                                       },
                                       child: AnimatedContainer(
                                         duration:
