@@ -1721,11 +1721,12 @@ class _FitnessTabContentState extends State<_FitnessTabContent> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 4, vertical: 6),
                           child: GestureDetector(
-                            onTap: () => Navigator.of(context).push(
-    MaterialPageRoute(
-        builder: (_) =>
-            FitnessTrainerDetailPage(
-                trainer: t))).then((_) => _load()),
+                            onTap: () async {
+  await Navigator.of(context).push(
+      MaterialPageRoute(
+          builder: (_) => FitnessTrainerDetailPage(trainer: t)));
+  if (mounted) _load();
+},
                             child: Container(
                               decoration: BoxDecoration(
                                   color: Theme.of(context).cardColor,

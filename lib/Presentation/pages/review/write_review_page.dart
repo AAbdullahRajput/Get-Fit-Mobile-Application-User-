@@ -46,29 +46,86 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
   }
 
   Future<void> _submit() async {
-    final text = _controller.text.trim();
-    setState(() => _isSubmitting = true);
-    try {
-      await SupabaseService.submitReview(
-        trainerId: widget.trainerId,
-        rating: _rating,
-        reviewText: text,
-      );
-      widget.onSubmitted?.call();
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Failed to submit review'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ));
-      }
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+  final text = _controller.text.trim();
+  setState(() => _isSubmitting = true);
+  try {
+    await SupabaseService.submitReview(
+      trainerId: widget.trainerId,
+      rating: _rating,
+      reviewText: text,
+    );
+    widget.onSubmitted?.call();
+    if (!mounted) return;
+
+    // Show success dialog
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.cardBgColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            CircleAvatar(
+              radius: 32,
+              backgroundColor: themeColor.withOpacity(0.15),
+              child: const Icon(Icons.check_circle_rounded,
+                  color: themeColor, size: 40),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              widget.existing != null ? 'Review Updated!' : 'Review Sent!',
+              style: TextStyle(
+                color: context.textColor,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              widget.existing != null
+                  ? 'Your review for ${widget.trainerName} has been updated.'
+                  : 'Thanks for reviewing ${widget.trainerName}!',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.subtextColor, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeColor,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Done',
+                    style: TextStyle(
+                        color: Colors.black, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (mounted) Navigator.pop(context);
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Failed to submit review'),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
     }
+  } finally {
+    if (mounted) setState(() => _isSubmitting = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {
