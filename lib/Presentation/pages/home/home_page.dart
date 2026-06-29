@@ -2063,20 +2063,22 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final availableHeight = screenHeight - keyboardHeight - 80;
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: EdgeInsets.fromLTRB(
-          16, 40, 16, MediaQuery.of(context).viewInsets.bottom + 40),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.85),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 40),
+      child: SizedBox(
+        height: availableHeight.clamp(300.0, screenHeight * 0.88),
         child: Container(
           decoration: BoxDecoration(
             color: context.bgColor,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: MainAxisSize.max,
             children: [
               // Search bar
               Padding(
@@ -2187,20 +2189,16 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
                                                 t['training_type'] ?? '',
                                             badge: t['rating']?.toString(),
                                             onTap: () {
-                                              Navigator.pop(context);
+                                              final nav = Navigator.of(context);
+                                              nav.pop();
                                               widget.onTabSwitch(1);
                                               Future.delayed(
-                                                  const Duration(
-                                                      milliseconds: 300),
+                                                  const Duration(milliseconds: 300),
                                                   () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        FitnessTrainerDetailPage(
-                                                            trainer: t),
-                                                  ),
-                                                );
+                                                nav.push(MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      FitnessTrainerDetailPage(trainer: t),
+                                                ));
                                               });
                                             },
                                           )),
@@ -2223,20 +2221,16 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
                                             subtitle: i['specialty'] ?? '',
                                             badge: i['rating']?.toString(),
                                             onTap: () {
-                                              Navigator.pop(context);
+                                              final nav = Navigator.of(context);
+                                              nav.pop();
                                               widget.onTabSwitch(2);
                                               Future.delayed(
-                                                  const Duration(
-                                                      milliseconds: 300),
+                                                  const Duration(milliseconds: 300),
                                                   () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        YogaInstructorDetailPage(
-                                                            instructor: i),
-                                                  ),
-                                                );
+                                                nav.push(MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      YogaInstructorDetailPage(instructor: i),
+                                                ));
                                               });
                                             },
                                           )),
@@ -2280,20 +2274,16 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
                                                 y['time_slot'] ?? '',
                                             badge: y['level'],
                                             onTap: () {
-                                              Navigator.pop(context);
+                                              final nav = Navigator.of(context);
+                                              nav.pop();
                                               widget.onTabSwitch(2);
                                               Future.delayed(
-                                                  const Duration(
-                                                      milliseconds: 300),
+                                                  const Duration(milliseconds: 300),
                                                   () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        YogaDetailPage(
-                                                            yoga: y),
-                                                  ),
-                                                );
+                                                nav.push(MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      YogaDetailPage(yoga: y),
+                                                ));
                                               });
                                             },
                                           )),
@@ -2352,57 +2342,64 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: context.cardBgColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
               child: imageUrl.isNotEmpty
                   ? Image.network(imageUrl,
-                      width: 46,
-                      height: 46,
+                      width: 62,
+                      height: 62,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => _imgFallback())
                   : _imgFallback(),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           color: context.textColor,
-                          fontSize: 13,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Text(subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          color: context.subtextColor, fontSize: 11)),
+                          color: context.subtextColor, fontSize: 12)),
+                  if (badge != null) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: themeColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(badge,
+                          style: const TextStyle(
+                              color: themeColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ],
               ),
             ),
-            if (badge != null)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(badge,
-                    style: const TextStyle(
-                        color: themeColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold)),
-              ),
-            const SizedBox(width: 6),
-            const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
+            const SizedBox(width: 8),
+            const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
           ],
         ),
       ),
@@ -2410,10 +2407,13 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
   }
 
   Widget _imgFallback() => Container(
-        width: 46,
-        height: 46,
-        color: const Color(0xff3a3a3a),
-        child: const Icon(Icons.image, color: Colors.white38, size: 20),
+        width: 62,
+        height: 62,
+        decoration: BoxDecoration(
+          color: const Color(0xff3a3a3a),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(Icons.image, color: Colors.white38, size: 26),
       );
 }
 
