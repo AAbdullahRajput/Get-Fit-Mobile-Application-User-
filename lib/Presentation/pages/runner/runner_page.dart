@@ -884,4 +884,4 @@ class _ShimmerBoxState extends State<_ShimmerBox> with SingleTickerProviderState
   void dispose() { _ctrl.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) => FadeTransition(opacity: _anim, child: widget.child);
-}
+}1
