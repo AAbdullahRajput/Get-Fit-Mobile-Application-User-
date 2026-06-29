@@ -7,6 +7,8 @@ import 'package:get_fit/Presentation/pages/gym/gym_exercises/chest/chest_exercis
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/back/back_exercises_screen.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/arms/arms_exercises_screen.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_exercises/core/core_exercises_screen.dart';
+import 'package:get_fit/Presentation/pages/setting/setting_home_page.dart';
+import 'package:get_fit/Presentation/pages/setting/notifications_page.dart';
 import 'package:flutter/foundation.dart';
 
 Color _accent(BuildContext context) {
@@ -54,7 +56,7 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
     }
   }
 
- @override
+  @override
   void initState() {
     super.initState();
     _loadExercises();
@@ -95,25 +97,41 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
     _loadExercises();
   }
 
+  void _openSearch(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final availableHeight = screenHeight - keyboardHeight - 80;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (_) => _GymSearchDialog(
+        exercises: _exercises,
+        availableHeight: availableHeight.clamp(300.0, screenHeight * 0.88),
+        onNavigate: _navigateToCategoryScreen,
+      ),
+    );
+  }
+
   void _navigateToCategoryScreen(String category) {
-    switch(category) {
+    switch (category) {
       case 'Chest':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const ChestExercisesScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const ChestExercisesScreen()));
         break;
       case 'Back':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const BackExercisesScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const BackExercisesScreen()));
         break;
       case 'Shoulders':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const ShouldersExercisesScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const ShouldersExercisesScreen()));
         break;
       case 'Legs':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const LegsExercisesScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const LegsExercisesScreen()));
         break;
       case 'Arms':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const ArmsExercisesScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const ArmsExercisesScreen()));
         break;
-        case 'Core':
-        Navigator.push(context,MaterialPageRoute(builder: (context) => const CoreExercisesScreen(),),);
+      case 'Core':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CoreExercisesScreen()));
         break;
       default:
         _showComingSoon(category);
@@ -182,14 +200,14 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
   Widget build(BuildContext context) {
     super.build(context);
     final isDark = context.isDark;
-    
+
     return Scaffold(
       backgroundColor: context.bgColor,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // ── Header ──
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
@@ -203,29 +221,51 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: themeColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.local_fire_department, color: Colors.black, size: 16),
-                        SizedBox(width: 4),
-                        Text(
-                          '5 Day Streak',
-                          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+                  Row(
+                    children: [
+                      InkWell(
+                        onTap: () => _openSearch(context),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(Icons.search,
+                              color: isDark ? themeColor : Colors.black, size: 26),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NotificationsPage()),
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(Icons.notifications,
+                              color: isDark ? themeColor : Colors.black, size: 26),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const SettingHomePage()),
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(Icons.settings,
+                              color: isDark ? themeColor : Colors.black, size: 26),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
 
-            // Category Filter
+            // ── Category Filter ──
             SizedBox(
               height: 35,
               child: ListView.builder(
@@ -264,7 +304,7 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
             ),
             const SizedBox(height: 16),
 
-            // Exercise count
+            // ── Exercise count ──
             Padding(
               padding: const EdgeInsets.only(left: 20),
               child: Text(
@@ -273,8 +313,8 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
               ),
             ),
             const SizedBox(height: 12),
-            
-            // Exercise Cards
+
+            // ── Exercise Cards ──
             Expanded(
               child: RefreshIndicator(
                 color: _accent(context),
@@ -283,76 +323,87 @@ class _GymPageState extends State<GymPage> with AutomaticKeepAliveClientMixin {
                 child: _isLoading
                     ? _buildSkeleton(context)
                     : ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: _exercises.length + 1,
-                          itemBuilder: (context, index) {
-                            if (index == _exercises.length) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 20),
-                                child: Column(
-                                  children: [
-                                    if (_isLoadingMore)
-                                      Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 16),
-                                          child: Center(child: SizedBox(
-                                            width: 28, height: 28,
-                                            child: CircularProgressIndicator(color: _accent(context), strokeWidth: 2.5),
-                                          )),
-                                        ),
-                                    if (!_isLoadingMore && _hasMore)
-                                      OutlinedButton(
-                                        onPressed: _loadMore,
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: _accent(context),
-side: BorderSide(color: _accent(context)),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                          padding: const EdgeInsets.symmetric(vertical: 14),
-                                          minimumSize: const Size(double.infinity, 0),
-                                        ),
-                                        child: const Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.expand_more, size: 18),
-                                            SizedBox(width: 6),
-                                            Text('Show More', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                                          ],
-                                        ),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: _exercises.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == _exercises.length) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 20),
+                              child: Column(
+                                children: [
+                                  if (_isLoadingMore)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      child: Center(child: SizedBox(
+                                        width: 28, height: 28,
+                                        child: CircularProgressIndicator(
+                                            color: _accent(context), strokeWidth: 2.5),
+                                      )),
+                                    ),
+                                  if (!_isLoadingMore && _hasMore)
+                                    OutlinedButton(
+                                      onPressed: _loadMore,
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: _accent(context),
+                                        side: BorderSide(color: _accent(context)),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12)),
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        minimumSize: const Size(double.infinity, 0),
                                       ),
-                                    if (!_isLoadingMore && _hasMore && _hasLess) const SizedBox(height: 8),
-                                    if (!_isLoadingMore && _hasLess)
-                                      OutlinedButton(
-                                        onPressed: _loadExercises,
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.grey,
-                                          side: const BorderSide(color: Colors.grey),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                          padding: const EdgeInsets.symmetric(vertical: 14),
-                                          minimumSize: const Size(double.infinity, 0),
-                                        ),
-                                        child: const Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.expand_less, size: 18),
-                                            SizedBox(width: 6),
-                                            Text('Show Less', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                                          ],
-                                        ),
+                                      child: const Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.expand_more, size: 18),
+                                          SizedBox(width: 6),
+                                          Text('Show More',
+                                              style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold)),
+                                        ],
                                       ),
-                                    if (!_isLoadingMore && !_hasMore && !_hasLess)
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 8),
-                                        child: Text('All exercises loaded',
-                                            style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                                    ),
+                                  if (!_isLoadingMore && _hasMore && _hasLess)
+                                    const SizedBox(height: 8),
+                                  if (!_isLoadingMore && _hasLess)
+                                    OutlinedButton(
+                                      onPressed: _loadExercises,
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.grey,
+                                        side: const BorderSide(color: Colors.grey),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12)),
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        minimumSize: const Size(double.infinity, 0),
                                       ),
-                                  ],
-                                ),
-                              );
-                            }
-                            final e = _exercises[index];
-                            return _exerciseCard(context, e);
-                          },
-                        ),
+                                      child: const Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.expand_less, size: 18),
+                                          SizedBox(width: 6),
+                                          Text('Show Less',
+                                              style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                    ),
+                                  if (!_isLoadingMore && !_hasMore && !_hasLess)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      child: Text('All exercises loaded',
+                                          style: TextStyle(
+                                              color: Colors.grey.shade500, fontSize: 13)),
+                                    ),
+                                ],
+                              ),
+                            );
+                          }
+                          final e = _exercises[index];
+                          return _exerciseCard(context, e);
+                        },
+                      ),
               ),
             ),
           ],
@@ -382,7 +433,6 @@ side: BorderSide(color: _accent(context)),
   }
 
   Widget _exerciseCard(BuildContext context, Map<String, dynamic> exercise) {
-    final isDark = context.isDark;
     final category = exercise['category'] ?? '';
     final level = exercise['level'] ?? '';
     final title = exercise['title'] ?? '';
@@ -417,12 +467,14 @@ side: BorderSide(color: _accent(context)),
                     if (progress == null) return child;
                     return Container(
                       color: context.cardBgColor,
-                      child: const Center(child: CircularProgressIndicator(color: Colors.black)),
+                      child: const Center(
+                          child: CircularProgressIndicator(color: Colors.black)),
                     );
                   },
                   errorBuilder: (context, error, stack) => Container(
                     color: context.cardBgColor,
-                    child: Icon(Icons.fitness_center, color: _accent(context), size: 48),
+                    child: Icon(Icons.fitness_center,
+                        color: _accent(context), size: 48),
                   ),
                 ),
               ),
@@ -432,7 +484,10 @@ side: BorderSide(color: _accent(context)),
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.black.withOpacity(0.4), Colors.black],
+                      colors: [
+                        Colors.black.withOpacity(0.4),
+                        Colors.black
+                      ],
                     ),
                   ),
                 ),
@@ -447,33 +502,55 @@ side: BorderSide(color: _accent(context)),
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: _levelColor(level).withOpacity(0.85),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Text(level, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                            child: Text(level,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold)),
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Text(category, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                            child: Text(category,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text(title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      Text(title,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text(description, style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      Text(description,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Text('View $category Exercises →', style: TextStyle(color: _accent(context), fontSize: 12, fontWeight: FontWeight.w500)),
+                          Text('View $category Exercises →',
+                              style: TextStyle(
+                                  color: _accent(context),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500)),
                         ],
                       ),
                     ],
@@ -487,6 +564,313 @@ side: BorderSide(color: _accent(context)),
     );
   }
 }
+
+// ─────────────────────────────────────────────
+// GYM SEARCH DIALOG
+// ─────────────────────────────────────────────
+
+class _GymSearchDialog extends StatefulWidget {
+  final List<Map<String, dynamic>> exercises;
+  final double availableHeight;
+  final void Function(String category) onNavigate;
+
+  const _GymSearchDialog({
+    required this.exercises,
+    required this.availableHeight,
+    required this.onNavigate,
+  });
+
+  @override
+  State<_GymSearchDialog> createState() => _GymSearchDialogState();
+}
+
+class _GymSearchDialogState extends State<_GymSearchDialog> {
+  final _controller = TextEditingController();
+  List<Map<String, dynamic>> _results = [];
+  bool _isLoading = false;
+  bool _hasSearched = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() { _results = []; _hasSearched = false; });
+      return;
+    }
+    setState(() => _isLoading = true);
+    final q = query.trim().toLowerCase();
+
+    // Search from already-loaded exercises first, then fetch more
+    final allExercises = await SupabaseService.getGymExercises(pageSize: 100);
+    final filtered = allExercises.where((e) =>
+        (e['title'] ?? '').toString().toLowerCase().contains(q) ||
+        (e['category'] ?? '').toString().toLowerCase().contains(q) ||
+        (e['level'] ?? '').toString().toLowerCase().contains(q) ||
+        (e['description'] ?? '').toString().toLowerCase().contains(q)).toList();
+
+    if (mounted) {
+      setState(() {
+        _results = filtered;
+        _isLoading = false;
+        _hasSearched = true;
+      });
+    }
+  }
+
+  Color _levelColor(String level) {
+    switch (level) {
+      case 'Beginner': return Colors.green;
+      case 'Intermediate': return Colors.orange;
+      case 'Advanced': return Colors.red;
+      default: return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 40),
+      child: SizedBox(
+        height: widget.availableHeight,
+        child: Container(
+          decoration: BoxDecoration(
+            color: context.bgColor,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: context.cardBgColor,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: TextField(
+                          controller: _controller,
+                          autofocus: true,
+                          style: TextStyle(color: context.textColor),
+                          decoration: InputDecoration(
+                            hintText: 'Search exercises, categories...',
+                            hintStyle: TextStyle(
+                                color: context.subtextColor, fontSize: 13),
+                            prefixIcon:
+                                const Icon(Icons.search, color: themeColor),
+                            border: InputBorder.none,
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onChanged: _search,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Text('Cancel',
+                          style: TextStyle(
+                              color: themeColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Divider(height: 1),
+
+              Flexible(
+                child: _isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.all(32),
+                        child: CircularProgressIndicator(
+                            color: themeColor, strokeWidth: 2),
+                      )
+                    : !_hasSearched
+                        ? Padding(
+                            padding: const EdgeInsets.all(28),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.fitness_center,
+                                    color: themeColor, size: 44),
+                                const SizedBox(height: 10),
+                                Text('Search gym exercises',
+                                    style: TextStyle(
+                                        color: context.subtextColor,
+                                        fontSize: 14)),
+                                const SizedBox(height: 6),
+                                Text('By name, category, or difficulty',
+                                    style: TextStyle(
+                                        color:
+                                            context.subtextColor.withOpacity(0.6),
+                                        fontSize: 12)),
+                              ],
+                            ),
+                          )
+                        : _results.isEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.all(28),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.search_off,
+                                        color: context.subtextColor, size: 44),
+                                    const SizedBox(height: 10),
+                                    Text('No exercises found',
+                                        style: TextStyle(
+                                            color: context.subtextColor,
+                                            fontSize: 14)),
+                                  ],
+                                ),
+                              )
+                            : SingleChildScrollView(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(5),
+                                        decoration: BoxDecoration(
+                                          color: themeColor.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(7),
+                                        ),
+                                        child: const Icon(Icons.sports_gymnastics,
+                                            color: themeColor, size: 14),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text('${_results.length} results',
+                                          style: TextStyle(
+                                              color: context.textColor,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold)),
+                                    ]),
+                                    const SizedBox(height: 12),
+                                    ..._results.map((e) {
+                                      final category = e['category'] ?? '';
+                                      final level = e['level'] ?? '';
+                                      final title = e['title'] ?? '';
+                                      final imageUrl = e['image_url'] ?? '';
+
+                                      return GestureDetector(
+                                        onTap: () {
+                                          final nav = Navigator.of(context);
+                                          nav.pop();
+                                          widget.onNavigate(category);
+                                        },
+                                        child: Container(
+                                          margin: const EdgeInsets.only(bottom: 10),
+                                          padding: const EdgeInsets.all(14),
+                                          decoration: BoxDecoration(
+                                            color: context.cardBgColor,
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                child: imageUrl.isNotEmpty
+                                                    ? Image.network(imageUrl,
+                                                        width: 62,
+                                                        height: 62,
+                                                        fit: BoxFit.cover,
+                                                        errorBuilder: (_, __, ___) =>
+                                                            _imgFallback(context))
+                                                    : _imgFallback(context),
+                                              ),
+                                              const SizedBox(width: 14),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Text(title,
+                                                        maxLines: 1,
+                                                        overflow:
+                                                            TextOverflow.ellipsis,
+                                                        style: TextStyle(
+                                                            color:
+                                                                context.textColor,
+                                                            fontSize: 15,
+                                                            fontWeight:
+                                                                FontWeight.bold)),
+                                                    const SizedBox(height: 4),
+                                                    Text(category,
+                                                        style: TextStyle(
+                                                            color: context
+                                                                .subtextColor,
+                                                            fontSize: 12)),
+                                                    const SizedBox(height: 6),
+                                                    Container(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 3),
+                                                      decoration: BoxDecoration(
+                                                        color: _levelColor(level)
+                                                            .withOpacity(0.15),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                                6),
+                                                      ),
+                                                      child: Text(level,
+                                                          style: TextStyle(
+                                                              color:
+                                                                  _levelColor(level),
+                                                              fontSize: 10,
+                                                              fontWeight:
+                                                                  FontWeight.bold)),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              const Icon(Icons.arrow_forward_ios,
+                                                  size: 14, color: Colors.grey),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
+                              ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _imgFallback(BuildContext context) => Container(
+        width: 62,
+        height: 62,
+        decoration: BoxDecoration(
+          color: const Color(0xff3a3a3a),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(Icons.fitness_center, color: Colors.white38, size: 26),
+      );
+}
+
+// ─────────────────────────────────────────────
+// SHIMMER
+// ─────────────────────────────────────────────
 
 class _ShimmerWidget extends StatefulWidget {
   final Widget child;
