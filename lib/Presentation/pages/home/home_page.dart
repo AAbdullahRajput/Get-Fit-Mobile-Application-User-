@@ -230,17 +230,32 @@ class _OverviewTabState extends State<_OverviewTab> {
 
   // ── Fetch trainer slot bookings (upcoming + confirmed only) ──
   Future<void> _fetchTrainerBookings() async {
-    setState(() => _loadingTrainer = true);
-    try {
-      final res = await SupabaseService.getUpcomingTrainerBookings();
-      if (mounted) setState(() {
-        _trainerBookings = res;
-        _loadingTrainer = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _loadingTrainer = false);
-    }
+  setState(() => _loadingTrainer = true);
+  try {
+    final res = await SupabaseService.getUpcomingTrainerBookings();
+    final now = DateTime.now();
+    // Filter out slots whose end time has already passed today
+    final filtered = res.where((booking) {
+      try {
+        final dateStr = booking['booking_date'] as String;
+        final endStr = booking['end_time'] as String;
+        final parts = endStr.split(':');
+        final d = DateTime.parse(dateStr);
+        final end = DateTime(d.year, d.month, d.day,
+            int.parse(parts[0]), int.parse(parts[1]));
+        return now.isBefore(end); // only keep if not ended yet
+      } catch (_) {
+        return true;
+      }
+    }).toList();
+    if (mounted) setState(() {
+      _trainerBookings = filtered;
+      _loadingTrainer = false;
+    });
+  } catch (_) {
+    if (mounted) setState(() => _loadingTrainer = false);
   }
+}
 
   // ── Fetch yoga session bookings ──
   Future<void> _fetchYogaBookings() async {
