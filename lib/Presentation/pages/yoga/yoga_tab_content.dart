@@ -7,6 +7,7 @@ import 'package:get_fit/Presentation/pages/yoga/widgets/yoga_instructor_card.dar
 import 'package:get_fit/Presentation/pages/yoga/yoga_instructor_detail_page.dart';
 import 'package:get_fit/Presentation/pages/yoga/yoga_detail_page.dart';
 import 'package:get_fit/Presentation/pages/setting/setting_home_page.dart';
+import 'package:get_fit/Presentation/pages/setting/notifications_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
@@ -127,7 +128,10 @@ class _YogaTabContentState extends State<YogaTabContent> {
               icon: Icon(Icons.search, color: iconColor, size: 28),
             ),
             IconButton(
-              onPressed: () {},
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsPage()),
+              ),
               icon: Icon(Icons.notifications, color: iconColor, size: 28),
             ),
             IconButton(
@@ -369,20 +373,22 @@ class _YogaSearchDialogState extends State<_YogaSearchDialog> {
   Widget build(BuildContext context) {
     final hasResults = _classResults.isNotEmpty || _instructorResults.isNotEmpty;
 
+    final screenHeight = MediaQuery.of(context).size.height;
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final availableHeight = screenHeight - keyboardHeight - 80;
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: EdgeInsets.fromLTRB(16, 40, 16, MediaQuery.of(context).viewInsets.bottom + 40),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 40),
+      child: SizedBox(
+        height: availableHeight.clamp(300.0, screenHeight * 0.88),
         child: Container(
           decoration: BoxDecoration(
             color: context.bgColor,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: MainAxisSize.max,
           children: [
             // Search bar
             Padding(
@@ -487,14 +493,12 @@ class _YogaSearchDialogState extends State<_YogaSearchDialog> {
                                     const SizedBox(height: 10),
                                     ..._classResults.map((yoga) => GestureDetector(
                                           onTap: () {
-                                            Navigator.pop(context);
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) =>
-                                                    YogaDetailPage(yoga: yoga),
-                                              ),
-                                            );
+                                            final nav = Navigator.of(context);
+                                            nav.pop();
+                                            nav.push(MaterialPageRoute(
+                                              builder: (_) =>
+                                                  YogaDetailPage(yoga: yoga),
+                                            ));
                                           },
                                           child: Container(
                                             margin: const EdgeInsets.only(bottom: 10),
@@ -601,16 +605,13 @@ class _YogaSearchDialogState extends State<_YogaSearchDialog> {
                                     ..._instructorResults
                                         .map((instructor) => GestureDetector(
                                               onTap: () {
-                                                Navigator.pop(context);
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        YogaInstructorDetailPage(
-                                                            instructor:
-                                                                instructor),
-                                                  ),
-                                                );
+                                                final nav = Navigator.of(context);
+                                                nav.pop();
+                                                nav.push(MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      YogaInstructorDetailPage(
+                                                          instructor: instructor),
+                                                ));
                                               },
                                               child: Container(
                                                 margin: const EdgeInsets.only(
