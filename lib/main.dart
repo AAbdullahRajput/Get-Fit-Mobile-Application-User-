@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:get_fit/Presentation/pages/home/home_page.dart';
 import 'package:get_fit/Presentation/pages/launch/launch_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
@@ -33,7 +32,7 @@ class MainApp extends StatelessWidget {
           theme: lightTheme,
           darkTheme: darkTheme,
           themeMode: mode,
-          home: SupabaseService.isLoggedIn ? const HomePage() : const LaunchPage(),
+          home: const LaunchPage(),
         );
       },
     );
