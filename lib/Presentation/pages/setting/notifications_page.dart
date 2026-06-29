@@ -162,18 +162,28 @@ class _NotificationsPageState extends State<NotificationsPage>
 
   void _showSnack(String msg) {
     if (!mounted) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
-        backgroundColor: context.cardBgColor,
+        content: Text(
+          msg,
+          style: TextStyle(
+            color: isDark ? Colors.black : Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
+        backgroundColor: isDark ? themeColor : Colors.black,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       ),
     );
   }
 
   void _showPermissionDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -189,8 +199,9 @@ class _NotificationsPageState extends State<NotificationsPage>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child:
-                Text('Cancel', style: TextStyle(color: context.subtextColor)),
+            child: Text('Cancel',
+                style: TextStyle(
+                    color: isDark ? Colors.white54 : Colors.black54)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -213,6 +224,8 @@ class _NotificationsPageState extends State<NotificationsPage>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: context.bgColor,
       body: Stack(
@@ -225,19 +238,47 @@ class _NotificationsPageState extends State<NotificationsPage>
                   : _buildContent(context),
             ),
           ),
+
+          // ── Back button ──
           SafeArea(
             child: Align(
               alignment: Alignment.topLeft,
               child: Padding(
                 padding: const EdgeInsets.all(8),
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(10),
-                    backgroundColor: Colors.black54,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF2C2C2C)
+                          : Colors.black,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.arrow_back,
+                      color: isDark ? themeColor : Colors.white,
+                      size: 20,
+                    ),
                   ),
-                  child: const Icon(Icons.arrow_back, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Title ──
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: Text(
+                  'Notifications',
+                  style: TextStyle(
+                    color: isDark ? themeColor : Colors.black,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -248,9 +289,11 @@ class _NotificationsPageState extends State<NotificationsPage>
   }
 
   Widget _buildContent(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final items = [
       _NotifItem(
-        icon: Icons.notifications_active_outlined,
+        icon: Icons.notifications,
         iconColor: themeColor,
         title: 'General Notification',
         subtitle: 'Allow Get Fit to send you notifications',
@@ -259,7 +302,7 @@ class _NotificationsPageState extends State<NotificationsPage>
         enabled: true,
       ),
       _NotifItem(
-        icon: Icons.volume_up_outlined,
+        icon: Icons.volume_up,
         iconColor: Colors.blue,
         title: 'Sound',
         subtitle: _dndMode
@@ -270,7 +313,7 @@ class _NotificationsPageState extends State<NotificationsPage>
         enabled: _generalNotification && !_dndMode,
       ),
       _NotifItem(
-        icon: Icons.do_not_disturb_on_outlined,
+        icon: Icons.do_not_disturb_on,
         iconColor: Colors.orange,
         title: 'Do Not Disturb',
         subtitle: 'Silence all notifications temporarily',
@@ -288,7 +331,7 @@ class _NotificationsPageState extends State<NotificationsPage>
         enabled: _generalNotification,
       ),
       _NotifItem(
-        icon: Icons.lock_outline,
+        icon: Icons.lock,
         iconColor: Colors.teal,
         title: 'Lock Screen',
         subtitle: 'Show notifications on lock screen',
@@ -297,7 +340,7 @@ class _NotificationsPageState extends State<NotificationsPage>
         enabled: _generalNotification,
       ),
       _NotifItem(
-        icon: Icons.alarm_outlined,
+        icon: Icons.alarm,
         iconColor: Colors.red,
         title: 'Reminder',
         subtitle: 'Get reminded before upcoming yoga & trainer classes',
@@ -310,6 +353,7 @@ class _NotificationsPageState extends State<NotificationsPage>
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
+        // ── Warning banner ──
         if (!_generalNotification)
           Container(
             margin: const EdgeInsets.only(bottom: 16),
@@ -320,74 +364,102 @@ class _NotificationsPageState extends State<NotificationsPage>
               border: Border.all(color: Colors.orange.withOpacity(0.4)),
             ),
             child: Row(children: [
-              const Icon(Icons.info_outline, color: Colors.orange, size: 18),
+              const Icon(Icons.info, color: Colors.orange, size: 18),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Enable General Notification to unlock all settings.',
-                  style:
-                      TextStyle(color: Colors.orange.shade700, fontSize: 13),
+                  style: TextStyle(
+                      color: isDark
+                          ? Colors.orange.shade300
+                          : Colors.orange.shade800,
+                      fontSize: 13),
                 ),
               ),
             ]),
           ),
-        ...items.map((item) => _buildTile(context, item)),
+
+        ...items.map((item) => _buildTile(context, item, isDark)),
       ],
     );
   }
 
-  Widget _buildTile(BuildContext context, _NotifItem item) {
+  Widget _buildTile(BuildContext context, _NotifItem item, bool isDark) {
+    final isActive = item.value && item.enabled;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: context.cardBgColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: item.value && item.enabled
-              ? themeColor.withOpacity(0.3)
-              : Colors.transparent,
+          color: isActive
+              ? themeColor.withOpacity(isDark ? 0.4 : 0.3)
+              : (isDark
+                  ? Colors.grey.shade800.withOpacity(0.3)
+                  : Colors.grey.shade200),
+          width: isActive ? 1.5 : 1,
         ),
       ),
       child: ListTile(
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         leading: Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(9),
           decoration: BoxDecoration(
-            color: (item.enabled ? item.iconColor : Colors.grey)
-                .withOpacity(0.12),
+            color: item.enabled
+                ? item.iconColor.withOpacity(isDark ? 0.18 : 0.12)
+                : (isDark
+                    ? Colors.grey.shade800
+                    : Colors.grey.shade200),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
             item.icon,
-            color: item.enabled ? item.iconColor : Colors.grey,
+            color: item.enabled
+                ? item.iconColor
+                : (isDark ? Colors.grey.shade600 : Colors.grey.shade400),
             size: 22,
           ),
         ),
         title: Text(
           item.title,
           style: TextStyle(
-            color: item.enabled ? context.textColor : context.subtextColor,
+            color: item.enabled
+                ? (isDark ? Colors.white : Colors.black)
+                : (isDark ? Colors.grey.shade600 : Colors.grey.shade400),
             fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
         ),
-        subtitle: Text(
-          item.subtitle,
-          style: TextStyle(color: context.subtextColor, fontSize: 12),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Text(
+            item.subtitle,
+            style: TextStyle(
+              color: item.enabled
+                  ? (isDark ? Colors.grey.shade400 : Colors.grey.shade600)
+                  : (isDark ? Colors.grey.shade700 : Colors.grey.shade400),
+              fontSize: 12,
+            ),
+          ),
         ),
         trailing: Switch(
           value: item.value,
           onChanged: item.onChanged,
-          activeColor: themeColor,
+          activeColor: isDark ? Colors.black : Colors.white,
+          activeTrackColor: themeColor,
+          inactiveThumbColor:
+              isDark ? Colors.grey.shade600 : Colors.grey.shade400,
           inactiveTrackColor:
-              context.isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+              isDark ? Colors.grey.shade800 : Colors.grey.shade300,
         ),
       ),
     );
   }
 
   Widget _buildSkeleton(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       itemCount: 6,
@@ -397,9 +469,9 @@ class _NotificationsPageState extends State<NotificationsPage>
           child: Container(
             height: 72,
             decoration: BoxDecoration(
-              color: context.isDark
-                  ? const Color(0xff3a3a3a)
-                  : Colors.grey.shade300,
+              color: isDark
+                  ? const Color(0xff2c2c2c)
+                  : Colors.grey.shade200,
               borderRadius: BorderRadius.circular(14),
             ),
           ),
@@ -450,7 +522,10 @@ class _ShimmerWidgetState extends State<_ShimmerWidget>
         CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
   @override
-  void dispose() { _controller.dispose(); super.dispose(); }
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) =>
       FadeTransition(opacity: _animation, child: widget.child);

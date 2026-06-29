@@ -130,9 +130,10 @@ class YogaBookingConfirmationPage extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Pop all the way back to root
-                    Navigator.of(context)
-                        .popUntil((route) => route.isFirst);
+                    int count = 0;
+                    Navigator.of(context).popUntil((route) {
+                      return count++ >= 2;
+                    });
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: themeColor,

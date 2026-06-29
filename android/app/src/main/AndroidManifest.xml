@@ -4,9 +4,12 @@
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.health.READ_STEPS"/>
+    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
 
     <application
-        android:label="get_fit"
+        android:label="GET FIT"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
@@ -26,6 +29,10 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <activity
+            android:name="androidx.health.connect.client.permission.HealthPermissionActivity"
+            android:exported="true"/>
 
         <receiver
             android:exported="false"
@@ -51,6 +58,7 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <package android:name="com.google.android.apps.healthdata"/>
     </queries>
 
 </manifest>
