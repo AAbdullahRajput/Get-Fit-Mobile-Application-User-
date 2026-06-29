@@ -574,10 +574,11 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
     );
   }
 
-  Widget _statColumn(BuildContext context, String value, String label) {
+ Widget _statColumn(BuildContext context, dynamic value, String label) {
+
     return Column(
       children: [
-        Text(value,
+        Text(value?.toString() ?? '-',
             style: TextStyle(
                 color: context.textColor,
                 fontSize: 22,
@@ -602,7 +603,7 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
             builder: (_) => ReviewsPage(
               trainerId: trainer['id'],
               trainerName: trainer['name'] ?? '',
-              rating: trainer['rating'].toString(),
+              rating: trainer['rating']?.toString() ?? '0.0',
               onReviewChanged: _loadData,
             ),
           ),

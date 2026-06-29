@@ -1722,10 +1722,10 @@ class _FitnessTabContentState extends State<_FitnessTabContent> {
                               horizontal: 4, vertical: 6),
                           child: GestureDetector(
                             onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        FitnessTrainerDetailPage(
-                                            trainer: t))),
+    MaterialPageRoute(
+        builder: (_) =>
+            FitnessTrainerDetailPage(
+                trainer: t))).then((_) => _load()),
                             child: Container(
                               decoration: BoxDecoration(
                                   color: Theme.of(context).cardColor,

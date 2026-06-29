@@ -414,11 +414,6 @@ class SupabaseService {
         'rating': rating,
         'review_text': reviewText,
       }, onConflict: 'trainer_id,user_id');
-      final reviews = await getTrainerReviews(trainerId);
-      if (reviews.isNotEmpty) {
-        final avg = reviews.map((r) => (r['rating'] as num).toDouble()).reduce((a, b) => a + b) / reviews.length;
-        await client.from('fitness_trainers').update({'rating': double.parse(avg.toStringAsFixed(1))}).eq('id', trainerId);
-      }
       debugPrint('\x1B[32m[API] 200 OK | Review submitted\x1B[0m');
     } catch (e) {
       debugPrint('\x1B[31m[API] ERROR | submitReview | $e\x1B[0m');
@@ -495,13 +490,6 @@ class SupabaseService {
           .delete()
           .eq('trainer_id', trainerId)
           .eq('user_id', userId);
-      final reviews = await getTrainerReviews(trainerId);
-      if (reviews.isEmpty) {
-        await client.from('fitness_trainers').update({'rating': 0.0}).eq('id', trainerId);
-      } else {
-        final avg = reviews.map((r) => (r['rating'] as num).toDouble()).reduce((a, b) => a + b) / reviews.length;
-        await client.from('fitness_trainers').update({'rating': double.parse(avg.toStringAsFixed(1))}).eq('id', trainerId);
-      }
       debugPrint('\x1B[32m[API] 200 OK | Review deleted\x1B[0m');
     } catch (e) {
       debugPrint('\x1B[31m[API] ERROR | deleteReview | $e\x1B[0m');
