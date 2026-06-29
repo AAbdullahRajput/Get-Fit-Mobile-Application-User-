@@ -210,6 +210,10 @@ class _OverviewTabState extends State<_OverviewTab> {
   int _yogaVisible = 3;
   bool _loadingYoga = true;
 
+  // ── Activity summary ──
+  int _totalKcal7d = 0;
+  bool _loadingActivity = true;
+
   // Live countdown ticker
   Timer? _ticker;
 
@@ -219,6 +223,7 @@ void initState() {
   _fetchUsername();
   _fetchTrainerBookings();
   _fetchYogaBookings();
+  _fetchActivitySummary();
   // Ticker fires every second — forces full rebuild of countdown text
   _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
     if (mounted) setState(() {}); // empty setState is enough — build() re-runs
@@ -289,6 +294,26 @@ void dispose() {
   }
 }
 
+  Future<void> _fetchActivitySummary() async {
+    setState(() => _loadingActivity = true);
+    try {
+      final raw = await SupabaseService.getActivityStats(days: 7);
+      debugPrint('\x1B[33m[ACTIVITY] raw=${raw.length} rows: $raw\x1B[0m');
+      int total = 0;
+      for (final day in raw) {
+        total += (day['challengeKcal'] as int) +
+                 (day['gymKcal'] as int) +
+                 (day['yogaKcal'] as int);
+      }
+      if (mounted) setState(() {
+        _totalKcal7d = total;
+        _loadingActivity = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingActivity = false);
+    }
+  }
+
   Future<void> _fetchUsername() async {
     final data = await SupabaseService.getUserProfile();
     if (mounted) setState(() {
@@ -302,6 +327,7 @@ void dispose() {
       _fetchUsername(),
       _fetchTrainerBookings(),
       _fetchYogaBookings(),
+      _fetchActivitySummary(),
     ]);
   }
 
@@ -617,7 +643,8 @@ void dispose() {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text("5000",
+                                      Text(
+    _loadingActivity ? '5000' : '${(_totalKcal7d * 0.1).round()}',
                                           style: TextStyle(
                                               fontSize: 22,
                                               fontWeight: FontWeight.bold,
@@ -625,7 +652,7 @@ void dispose() {
                                                   ? const Color.fromARGB(
                                                       255, 210, 231, 16)
                                                   : themeColor)),
-                                      Text("/10000",
+                                      Text('/${(_totalKcal7d * 0.1).round() > 10000 ? 140000 : 10000} steps',
                                           style: TextStyle(
                                               fontSize: 15,
                                               color: isDark
@@ -753,7 +780,8 @@ void dispose() {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text("1500",
+                                      Text(
+                                          _loadingActivity ? '1500' : '${_totalKcal7d < 1500 ? 1500 : _totalKcal7d}',
                                           style: TextStyle(
                                               fontSize: 22,
                                               fontWeight: FontWeight.bold,
@@ -761,7 +789,7 @@ void dispose() {
                                                   ? const Color.fromARGB(
                                                       255, 210, 231, 16)
                                                   : themeColor)),
-                                      Text("/2000 Days",
+                                      Text('/${_totalKcal7d > 2000 ? '20000' : '2000'} kcal',
                                           style: TextStyle(
                                               fontSize: 11,
                                               color: isDark
