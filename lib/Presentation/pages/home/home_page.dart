@@ -385,26 +385,26 @@ class _OverviewTabState extends State<_OverviewTab> {
 
   /// Countdown string for a yoga booking (start_date is date only)
   String? _yogaCountdown(String? startDate) {
-    if (startDate == null) return null;
-    try {
-      final d = DateTime.parse(startDate);
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final startDay = DateTime(d.year, d.month, d.day);
-      if (startDay.isAfter(today)) return null; // future days, show timeLeft badge instead
-      if (startDay.isBefore(today)) return 'Started';
-      // same day
-      final diff = d.difference(now);
-      if (diff.isNegative) return 'Today';
-      final h = diff.inHours;
-      final m = diff.inMinutes % 60;
-      final s = diff.inSeconds % 60;
-      if (h > 0) return '${h}h ${m}m';
-      return '${m}m ${s}s';
-    } catch (_) {
-      return null;
+  if (startDate == null) return null;
+  try {
+    final d = DateTime.parse(startDate);
+    final now = DateTime.now();
+    final todayClean = DateTime(now.year, now.month, now.day);
+    final startDay = DateTime(d.year, d.month, d.day);
+    final daysUntil = startDay.difference(todayClean).inDays;
+    if (daysUntil > 0) {
+      // Future day — show days remaining
+      return '${daysUntil}d away';
     }
+    if (daysUntil == 0) {
+      // Today — show live countdown
+      return 'Today';
+    }
+    return null; // past, shouldn't be here after filtering
+  } catch (_) {
+    return null;
   }
+}
 
   String _fmtTime(String t) {
     final parts = t.split(':');
