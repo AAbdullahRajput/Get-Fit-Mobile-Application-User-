@@ -789,7 +789,7 @@ class _TrainerBookingDetailPageState
               Icon(Icons.work_outline, color: accent, size: 13),
               const SizedBox(width: 4),
               Text(
-                '${trainer['experience']} exp',
+                '${trainer['experience'] ?? 'N/A'} exp',
                 style: TextStyle(
                     color: context.subtextColor, fontSize: 12),
               ),

@@ -199,8 +199,8 @@ void initState() {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox(
-                height: 420,
-                child: RefreshIndicator(
+  height: MediaQuery.of(context).size.height - 350,
+  child: RefreshIndicator(
                   color: context.subtextColor,
                   backgroundColor: context.cardBgColor,
                   displacement: 100,
@@ -333,37 +333,104 @@ void initState() {
             : ThemeMode.dark;
         break;
       case 'Logout':
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: context.bgColor,
-            title: Text('Logout', style: TextStyle(color: context.textColor)),
-            content: Text('Are you sure you want to logout?',
-                style: TextStyle(color: context.subtextColor)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Cancel',
-                    style: TextStyle(color: context.subtextColor)),
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: context.bgColor,
+      title: Text('Logout', style: TextStyle(color: context.textColor)),
+      content: Text('Are you sure you want to logout?',
+          style: TextStyle(color: context.subtextColor)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel', style: TextStyle(color: context.subtextColor)),
+        ),
+        TextButton(
+          onPressed: () async {
+            Navigator.pop(context); // close confirm dialog
+
+            // Show loading
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                backgroundColor: context.bgColor,
+                content: Row(
+                  children: [
+                    CircularProgressIndicator(color: themeColor),
+                    const SizedBox(width: 16),
+                    Text('Signing out...', style: TextStyle(color: context.textColor)),
+                  ],
+                ),
               ),
-              TextButton(
-                onPressed: () async {
-                  await SupabaseService.signOut();
-                  if (!context.mounted) return;
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (context) => const LoginPage()),
-                    (route) => false,
-                  );
-                },
-                child: Text('Logout',
-                    style: TextStyle(
-                        color: context.isDark ? themeColor : Colors.red)),
+            );
+
+            await SupabaseService.signOut();
+
+            if (!context.mounted) return;
+            Navigator.pop(context); // close loading dialog
+
+            // Show success
+            await showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                backgroundColor: context.bgColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: themeColor.withOpacity(0.15),
+                      child: const Icon(Icons.check_circle, color: themeColor, size: 36),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Logged Out',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: context.textColor)),
+                    const SizedBox(height: 8),
+                    Text('You have been securely signed out.\nYour session has been cleared.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: context.subtextColor, fontSize: 13)),
+                  ],
+                ),
+                actions: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeColor,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('OK', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        );
-        break;
+            );
+
+            if (!context.mounted) return;
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const LoginPage()),
+              (route) => false,
+            );
+          },
+          child: Text('Logout',
+              style: TextStyle(color: context.isDark ? themeColor : Colors.red)),
+        ),
+      ],
+    ),
+  );
+  break;
     }
   }
 }

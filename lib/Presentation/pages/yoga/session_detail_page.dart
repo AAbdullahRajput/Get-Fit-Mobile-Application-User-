@@ -208,8 +208,12 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   Widget build(BuildContext context) {
     final session = widget.booking['instructor_sessions'] as Map<String, dynamic>?;
     final title = session?['title'] as String? ?? 'Session';
-    final sessionStart = session?['session_start'] as String? ?? '';
-    final sessionEnd = session?['session_end'] as String? ?? '';
+    final sessionStart = session?['session_start'] as String? 
+    ?? session?['start_date'] as String? 
+    ?? widget.booking['start_date'] as String? ?? '';
+final sessionEnd = session?['session_end'] as String? 
+    ?? session?['end_date'] as String? 
+    ?? widget.booking['expires_at'] as String? ?? '';
     final accent = _accent(context);
     final isExpired = _isSessionExpired();
 

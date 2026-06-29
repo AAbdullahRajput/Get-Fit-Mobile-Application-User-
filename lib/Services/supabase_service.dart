@@ -458,9 +458,9 @@ class SupabaseService {
       debugPrint('\x1B[33m[API] GET /rest/v1/trainer_appointments\x1B[0m');
       final data = await client
           .from('trainer_appointments')
-          .select('*, fitness_trainers(name, image_url, training_type)')
-          .eq('user_id', userId)
-          .order('appointment_date', ascending: true);
+          .select('*, fitness_trainers(id, name, image_url, training_type)')
+.eq('user_id', userId)
+.order('appointment_date', ascending: true);
       debugPrint('\x1B[32m[API] 200 OK | Appointments: ${data.length}\x1B[0m');
       return List<Map<String, dynamic>>.from(data);
     } catch (e) {
@@ -580,7 +580,8 @@ class SupabaseService {
       final today = DateTime.now().toIso8601String().substring(0, 10);
       final res = await client
           .from('trainer_appointments')
-          .select('*, fitness_trainers(name, training_type, image_url)')
+          .select('*, fitness_trainers(id, name, training_type, image_url)')
+
           .eq('user_id', userId)
           .gte('appointment_date', today)
           .order('appointment_date')
@@ -2063,9 +2064,9 @@ static Future<List<Map<String, dynamic>>> getMyTrainerSlotBookings() async {
     if (userId == null) return [];
     final data = await client
         .from('trainer_slot_bookings')
-        .select('*, fitness_trainers(name, image_url, training_type), trainer_weekly_slots(day_of_week, duration_minutes)')
-        .eq('user_id', userId)
-        .order('booking_date', ascending: true);
+        .select('*, fitness_trainers(id, name, image_url, training_type), trainer_weekly_slots(day_of_week, duration_minutes)')
+.eq('user_id', userId)
+.order('booking_date', ascending: true);
     debugPrint('\x1B[32m[API] 200 OK | MySlotBookings: ${data.length}\x1B[0m');
     return List<Map<String, dynamic>>.from(data);
   } catch (e) {
@@ -2082,9 +2083,9 @@ static Future<List<Map<String, dynamic>>> getUpcomingTrainerBookings() async {
     final today = DateTime.now().toIso8601String().substring(0, 10);
     final data = await client
         .from('trainer_slot_bookings')
-        .select('*, fitness_trainers(name, image_url, training_type)')
-        .eq('user_id', userId)
-        .eq('status', 'confirmed')
+.select('*, fitness_trainers(id, name, image_url, training_type, rating, experience, phone_number)')
+.eq('user_id', userId)
+.eq('status', 'confirmed')
         .gte('booking_date', today)
         .order('booking_date', ascending: true)
         .order('start_time', ascending: true);
@@ -2330,9 +2331,9 @@ static Future<Map<String, dynamic>> getAllMyBookings() async {
     // Trainer slot bookings
     final trainerBookings = await client
         .from('trainer_slot_bookings')
-        .select('*, fitness_trainers(name, image_url, training_type)')
-        .eq('user_id', userId)
-        .order('booking_date', ascending: false);
+        .select('*, fitness_trainers(id, name, image_url, training_type, rating, experience, phone_number)')
+.eq('user_id', userId)
+.order('booking_date', ascending: true);
 
     // Yoga session bookings
     final yogaBookings = await client
