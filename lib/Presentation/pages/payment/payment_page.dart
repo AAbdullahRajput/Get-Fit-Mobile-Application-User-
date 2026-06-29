@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get_fit/Presentation/pages/payment/add_card_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/payment/edit_card_page.dart';
 import 'package:get_fit/Presentation/pages/booking/booking_confirmation_page.dart';
+
 Color _accent(BuildContext context) {
   return context.isDark ? themeColor : const Color(0xFF6B7A00);
 }
 
-// REPLACE the class declaration and fields:
 class AppointmentPaymentPage extends StatefulWidget {
   final String trainerId;
   final String trainerName;
@@ -71,156 +72,141 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
     }
   }
 
-  // REPLACE _confirmBooking entirely:
-Future<void> _confirmBooking() async {
-  if (_cards.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: const Text('Please add a payment card first.',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      backgroundColor: Colors.redAccent,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
-    return;
-  }
-
-  setState(() => _isBooking = true);
-
-  final selectedCard = _cards[_selectedCardIndex];
-
-  try {
-    await SupabaseService.bookTrainerSlot(
-      trainerId: widget.trainerId,
-      weeklySlotId: widget.weeklySlotId,
-      bookingDate: widget.date,
-      startTime: widget.startTime,
-      endTime: widget.endTime,
-      price: widget.sessionPrice,
-      paymentCardLast4: selectedCard['last4'] ?? '',
-      notes: widget.notes,
-    );
-
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BookingConfirmationPage(
-          trainerName: widget.trainerName,
-          trainerType: widget.trainerType,
-          trainerRating: widget.trainerRating,
-          trainerAvatarUrl: widget.trainerAvatarUrl,
-          displayDate: widget.displayDate,
-          time: widget.time,
-        ),
-      ),
-    );
-  } catch (e) {
-    if (!mounted) return;
-    setState(() => _isBooking = false);
-
-    final msg = e.toString().contains('already_booked')
-        ? 'You already have this slot booked for this date.'
-        : e.toString().contains('slot_full')
-            ? 'This slot just filled up. Please go back and pick another time.'
-            : 'Booking failed. Please try again.';
-
+  void _showDialog({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String message,
+  }) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF2C2C2C),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Column(children: [
-          Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
-          SizedBox(height: 12),
-          Text('Booking Failed',
+        title: Column(children: [
+          Icon(icon, color: iconColor, size: 48),
+          const SizedBox(height: 12),
+          Text(title,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold)),
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
         ]),
-        content: Text(msg,
+        content: Text(message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-                color: Colors.white70, fontSize: 14, height: 1.5)),
+            style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5)),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 32, vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+              backgroundColor: iconColor,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('OK',
+            child: Text('OK',
                 style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
+                    color: iconColor == themeColor ? Colors.black : Colors.white,
+                    fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
-}
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF2C2C2C),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Column(children: [
-          Icon(Icons.check_circle_outline, color: themeColor, size: 56),
-          SizedBox(height: 8),
-          Text('Appointment Booked!',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-        ]),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(widget.trainerName,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: themeColor, fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text('${widget.displayDate}  •  ${widget.time}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 14)),
-          const SizedBox(height: 12),
-          const Text('Pending confirmation from the trainer.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white38, fontSize: 12)),
-        ]),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-              decoration: BoxDecoration(color: themeColor, borderRadius: BorderRadius.circular(12)),
-              child: const Text('Done',
-                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
-            ),
+  Future<void> _confirmBooking() async {
+    setState(() => _isBooking = true);
+
+    try {
+      // 1. Create PaymentIntent on backend
+      final clientSecret =
+          await SupabaseService.createPaymentIntent(widget.sessionPrice);
+
+      // 2. Init Stripe payment sheet
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'GetFit',
+          style: ThemeMode.dark,
+        ),
+      );
+
+      // 3. Present Stripe payment sheet
+      await Stripe.instance.presentPaymentSheet();
+
+      // 4. Payment succeeded — book the slot
+      await SupabaseService.bookTrainerSlot(
+        trainerId: widget.trainerId,
+        weeklySlotId: widget.weeklySlotId,
+        bookingDate: widget.date,
+        startTime: widget.startTime,
+        endTime: widget.endTime,
+        price: widget.sessionPrice,
+        paymentCardLast4: _cards.isNotEmpty
+            ? (_cards[_selectedCardIndex]['last4'] ?? '')
+            : '',
+        notes: widget.notes,
+      );
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BookingConfirmationPage(
+            trainerName: widget.trainerName,
+            trainerType: widget.trainerType,
+            trainerRating: widget.trainerRating,
+            trainerAvatarUrl: widget.trainerAvatarUrl,
+            displayDate: widget.displayDate,
+            time: widget.time,
           ),
-        ],
-      ),
-    );
+        ),
+      );
+    } on StripeException catch (e) {
+      if (!mounted) return;
+      setState(() => _isBooking = false);
+      if (e.error.code == FailureCode.Canceled) return;
+      _showDialog(
+        icon: Icons.credit_card_off_outlined,
+        iconColor: Colors.redAccent,
+        title: 'Payment Failed',
+        message: e.error.localizedMessage ?? 'Payment was not completed.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isBooking = false);
+      final msg = e.toString();
+      if (msg.contains('already_booked')) {
+        _showDialog(
+          icon: Icons.event_busy,
+          iconColor: Colors.orangeAccent,
+          title: 'Already Booked',
+          message: 'You already have this slot booked for this date.',
+        );
+      } else if (msg.contains('slot_full')) {
+        _showDialog(
+          icon: Icons.people_outline,
+          iconColor: Colors.orangeAccent,
+          title: 'Slot Full',
+          message: 'This slot just filled up. Please go back and pick another time.',
+        );
+      } else {
+        _showDialog(
+          icon: Icons.wifi_off_outlined,
+          iconColor: Colors.redAccent,
+          title: 'Booking Failed',
+          message: 'Something went wrong. Please try again.',
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final selectedCard = _cards.isNotEmpty ? _cards[_selectedCardIndex] : null;
-
     return Scaffold(
       backgroundColor: context.bgColor,
       body: SafeArea(
         child: Column(
           children: [
-            // Top bar
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
               child: Row(
@@ -237,7 +223,10 @@ Future<void> _confirmBooking() async {
                   ),
                   const SizedBox(width: 8),
                   Text('Payment',
-    style: TextStyle(color: _accent(context), fontSize: 22, fontWeight: FontWeight.bold)),
+                      style: TextStyle(
+                          color: _accent(context),
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -248,139 +237,194 @@ Future<void> _confirmBooking() async {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Payment Method
                     Text('Payment Method',
-                        style: TextStyle(color: context.textColor, fontSize: 17, fontWeight: FontWeight.bold)),
+                        style: TextStyle(
+                            color: context.textColor,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 14),
 
-                    // Card selector
                     _loadingCards
                         ? Center(child: CircularProgressIndicator(color: _accent(context)))
-                        :
-                    SizedBox(
-                      height: 140,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _cards.length + 1,
-                        itemBuilder: (ctx, i) {
-                          if (i == 0) {
-                            return GestureDetector(
-                              onTap: () async {
-                                final added = await Navigator.push(context,
-                                    MaterialPageRoute(builder: (_) => const AddCardPage()));
-                                if (added == true) _loadCards();
-                              },
-                              child: Container(
-                                width: 80,
-                                margin: const EdgeInsets.only(right: 12),
-                                decoration: BoxDecoration(
-                                  color: context.cardBgColor,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.white12),
-                                ),
-                                child: const Icon(Icons.add, color: Colors.white54, size: 32),
-                              ),
-                            );
-                          }
-                          final card = _cards[i - 1];
-                          final isSelected = _selectedCardIndex == i - 1;
-                          return GestureDetector(
-                            onTap: () => setState(() => _selectedCardIndex = i - 1),
-                            onLongPress: () async {
-                              final edited = await Navigator.push(context,
-                                  MaterialPageRoute(
-                                    builder: (_) => EditCardPage(card: card),
-                                  ));
-                              if (edited == true) _loadCards();
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              width: 200,
-                              margin: const EdgeInsets.only(right: 12),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: _cardGradient(card['card_network'] ?? ''),
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isSelected ? themeColor : Colors.transparent,
-                                  width: 2.5,
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  // Top row: chip + network
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        : _cards.isEmpty
+                            ? GestureDetector(
+                                onTap: () async {
+                                  final added = await Navigator.push(context,
+                                      MaterialPageRoute(builder: (_) => const AddCardPage()));
+                                  if (added == true) _loadCards();
+                                },
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: context.cardBgColor,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                        color: themeColor.withOpacity(0.3)),
+                                  ),
+                                  child: const Column(
                                     children: [
-                                      const Icon(Icons.sim_card, color: Colors.amber, size: 22),
-                                      _buildNetworkBadge(card['card_network'] ?? ''),
+                                      Icon(Icons.add_card, color: themeColor, size: 36),
+                                      SizedBox(height: 8),
+                                      Text('Tap to add a payment card',
+                                          style: TextStyle(
+                                              color: themeColor,
+                                              fontWeight: FontWeight.bold)),
                                     ],
                                   ),
-                                  // Card number
-                                  Text(
-                                    '•••• •••• •••• ${card['last4']}',
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        letterSpacing: 2,
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                  // Name + expiry
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          const Text('Name',
-                                              style: TextStyle(color: Colors.white54, fontSize: 9)),
-                                          Text(card['holder_name'] ?? '',
+                                ),
+                              )
+                            : SizedBox(
+                                height: 140,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: _cards.length + 1,
+                                  itemBuilder: (ctx, i) {
+                                    if (i == 0) {
+                                      return GestureDetector(
+                                        onTap: () async {
+                                          final added = await Navigator.push(context,
+                                              MaterialPageRoute(
+                                                  builder: (_) => const AddCardPage()));
+                                          if (added == true) _loadCards();
+                                        },
+                                        child: Container(
+                                          width: 80,
+                                          margin: const EdgeInsets.only(right: 12),
+                                          decoration: BoxDecoration(
+                                            color: context.cardBgColor,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(color: Colors.white12),
+                                          ),
+                                          child: const Icon(Icons.add,
+                                              color: Colors.white54, size: 32),
+                                        ),
+                                      );
+                                    }
+                                    final card = _cards[i - 1];
+                                    final isSelected = _selectedCardIndex == i - 1;
+                                    return GestureDetector(
+                                      onTap: () =>
+                                          setState(() => _selectedCardIndex = i - 1),
+                                      onLongPress: () async {
+                                        final edited = await Navigator.push(context,
+                                            MaterialPageRoute(
+                                                builder: (_) => EditCardPage(card: card)));
+                                        if (edited == true) _loadCards();
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
+                                        width: 200,
+                                        margin: const EdgeInsets.only(right: 12),
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: _cardGradient(
+                                                card['card_network'] ?? ''),
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? themeColor
+                                                : Colors.transparent,
+                                            width: 2.5,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                const Icon(Icons.sim_card,
+                                                    color: Colors.amber, size: 22),
+                                                _buildNetworkBadge(
+                                                    card['card_network'] ?? ''),
+                                              ],
+                                            ),
+                                            Text(
+                                              '•••• •••• •••• ${card['last4']}',
                                               style: const TextStyle(
-                                                  color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-                                        ],
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  letterSpacing: 2,
+                                                  fontWeight: FontWeight.w600),
+                                            ),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text('Name',
+                                                        style: TextStyle(
+                                                            color: Colors.white54,
+                                                            fontSize: 9)),
+                                                    Text(card['holder_name'] ?? '',
+                                                        style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 11,
+                                                            fontWeight:
+                                                                FontWeight.w600)),
+                                                  ],
+                                                ),
+                                                Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.end,
+                                                  children: [
+                                                    const Text('Expires',
+                                                        style: TextStyle(
+                                                            color: Colors.white54,
+                                                            fontSize: 9)),
+                                                    Text(card['expiry'] ?? '',
+                                                        style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 11,
+                                                            fontWeight:
+                                                                FontWeight.w600)),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          const Text('Expired Date',
-                                              style: TextStyle(color: Colors.white54, fontSize: 9)),
-                                          Text(card['expiry'] ?? '',
-                                              style: const TextStyle(
-                                                  color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+
                     const SizedBox(height: 24),
-
-                    // Order Details
                     Text('Order Details',
-                        style: TextStyle(color: context.textColor, fontSize: 17, fontWeight: FontWeight.bold)),
-                    Divider(color: context.isDark ? Colors.white12 : Colors.grey.shade200, height: 20),
+                        style: TextStyle(
+                            color: context.textColor,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold)),
+                    Divider(
+                        color: context.isDark
+                            ? Colors.white12
+                            : Colors.grey.shade200,
+                        height: 20),
 
-                    // Trainer row
                     Row(
                       children: [
                         CircleAvatar(
                           radius: 26,
                           backgroundColor: themeColor,
                           backgroundImage: widget.trainerAvatarUrl.isNotEmpty
-                              ? NetworkImage(widget.trainerAvatarUrl) : null,
+                              ? NetworkImage(widget.trainerAvatarUrl)
+                              : null,
                           child: widget.trainerAvatarUrl.isEmpty
-                              ? const Icon(Icons.person, color: Colors.black, size: 28) : null,
+                              ? const Icon(Icons.person,
+                                  color: Colors.black, size: 28)
+                              : null,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -393,13 +437,16 @@ Future<void> _confirmBooking() async {
                                       fontSize: 17,
                                       fontWeight: FontWeight.bold)),
                               Text(widget.trainerType,
-                                  style: TextStyle(color: context.subtextColor, fontSize: 13)),
+                                  style: TextStyle(
+                                      color: context.subtextColor,
+                                      fontSize: 13)),
                             ],
                           ),
                         ),
                         if (widget.trainerRating > 0)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: themeColor,
                               borderRadius: BorderRadius.circular(10),
@@ -414,34 +461,52 @@ Future<void> _confirmBooking() async {
                           ),
                       ],
                     ),
-                    Divider(color: context.isDark ? Colors.white12 : Colors.grey.shade200, height: 24),
 
-                    // Date
-                    Text('Date', style: TextStyle(color: context.subtextColor, fontSize: 20)),
-                    const SizedBox(height: 8),
+                    Divider(
+                        color: context.isDark
+                            ? Colors.white12
+                            : Colors.grey.shade200,
+                        height: 24),
+                    Text('Date',
+                        style: TextStyle(
+                            color: context.subtextColor, fontSize: 16)),
+                    const SizedBox(height: 6),
                     Text(widget.displayDate,
                         style: TextStyle(
-                            color: context.textColor, fontSize: 20, fontWeight: FontWeight.w600)),
-                    Divider(color: context.isDark ? Colors.white12 : Colors.grey.shade200, height: 24),
+                            color: context.textColor,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600)),
 
-                    // Time
-                    Text('Time', style: TextStyle(color: context.subtextColor, fontSize: 20)),
-                    const SizedBox(height: 8),
+                    Divider(
+                        color: context.isDark
+                            ? Colors.white12
+                            : Colors.grey.shade200,
+                        height: 24),
+                    Text('Time',
+                        style: TextStyle(
+                            color: context.subtextColor, fontSize: 16)),
+                    const SizedBox(height: 6),
                     Text(widget.time,
                         style: TextStyle(
-                            color: context.textColor, fontSize: 20, fontWeight: FontWeight.w600)),
-                    Divider(color: context.isDark ? Colors.white12 : Colors.grey.shade200, height: 24),
+                            color: context.textColor,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600)),
 
-                    // Estimated Cost
+                    Divider(
+                        color: context.isDark
+                            ? Colors.white12
+                            : Colors.grey.shade200,
+                        height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('Estimated Cost',
-                            style: TextStyle(color: context.subtextColor, fontSize: 15)),
-                        Text('\$ ${widget.sessionPrice.toStringAsFixed(2)}',
                             style: TextStyle(
-                                color: context.textColor,
-                                fontSize: 20,
+                                color: context.subtextColor, fontSize: 15)),
+                        Text('\$${widget.sessionPrice.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                                color: themeColor,
+                                fontSize: 22,
                                 fontWeight: FontWeight.bold)),
                       ],
                     ),
@@ -455,11 +520,15 @@ Future<void> _confirmBooking() async {
                           backgroundColor: themeColor,
                           disabledBackgroundColor: Colors.grey,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
                         ),
                         child: _isBooking
-                            ? const SizedBox(width: 22, height: 22,
-                                child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2.5, color: Colors.black))
                             : const Text('Confirm & Book',
                                 style: TextStyle(
                                     color: Colors.black,
@@ -474,7 +543,7 @@ Future<void> _confirmBooking() async {
           ],
         ),
       ),
-   );
+    );
   }
 
   Widget _buildNetworkBadge(String network) {
@@ -488,27 +557,22 @@ Future<void> _confirmBooking() async {
                 fontStyle: FontStyle.italic,
                 letterSpacing: 2));
       case 'Mastercard':
-        return Row(
-          children: [
-            Container(
-              width: 22, height: 22,
+        return Row(children: [
+          Container(
+              width: 22,
+              height: 22,
               decoration: const BoxDecoration(
-                color: Color(0xFFEB001B),
-                shape: BoxShape.circle,
-              ),
-            ),
-            Transform.translate(
-              offset: const Offset(-8, 0),
-              child: Container(
-                width: 22, height: 22,
+                  color: Color(0xFFEB001B), shape: BoxShape.circle)),
+          Transform.translate(
+            offset: const Offset(-8, 0),
+            child: Container(
+                width: 22,
+                height: 22,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF79E1B).withOpacity(0.9),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ],
-        );
+                    color: const Color(0xFFF79E1B).withOpacity(0.9),
+                    shape: BoxShape.circle)),
+          ),
+        ]);
       case 'Amex':
         return const Text('AMEX',
             style: TextStyle(

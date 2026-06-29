@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get_fit/Presentation/pages/payment/add_card_page.dart';
 import 'package:get_fit/Presentation/pages/payment/edit_card_page.dart';
 import 'package:get_fit/Presentation/pages/yoga/yoga_booking_confirmation_page.dart';
@@ -12,18 +13,18 @@ class YogaPaymentPage extends StatefulWidget {
   final int numSessions;
   final double totalPrice;
   final String notes;
-final List<String> selectedSessionIds;
+  final List<String> selectedSessionIds;
 
   const YogaPaymentPage({
-  super.key,
-  required this.instructor,
-  required this.startDate,
-  required this.displayDate,
-  required this.numSessions,
-  required this.totalPrice,
-  required this.notes,
-  required this.selectedSessionIds,
-});
+    super.key,
+    required this.instructor,
+    required this.startDate,
+    required this.displayDate,
+    required this.numSessions,
+    required this.totalPrice,
+    required this.notes,
+    required this.selectedSessionIds,
+  });
 
   @override
   State<YogaPaymentPage> createState() => _YogaPaymentPageState();
@@ -121,34 +122,33 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
   }
 
   Future<void> _confirmBooking() async {
-    if (_cards.isEmpty) {
-      _showDialog(
-        icon: Icons.credit_card_off_outlined,
-        iconColor: Colors.orangeAccent,
-        title: 'No Payment Method',
-        message:
-            'Please add a payment card before confirming your booking.',
-        buttonText: 'Add Card',
-        onPressed: () async {
-          final added = await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AddCardPage()));
-          if (added == true) _loadCards();
-        },
-      );
-      return;
-    }
-
     setState(() => _isBooking = true);
 
     try {
+      // 1. Create PaymentIntent on backend
+      final clientSecret =
+          await SupabaseService.createPaymentIntent(widget.totalPrice);
+
+      // 2. Init Stripe payment sheet
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'GetFit',
+          style: ThemeMode.dark,
+        ),
+      );
+
+      // 3. Present Stripe payment sheet
+      await Stripe.instance.presentPaymentSheet();
+
+      // 4. Payment succeeded — book the sessions
       await SupabaseService.bookInstructorSessions(
-  instructorId: widget.instructor['id'],
-  sessionIds: widget.selectedSessionIds,
-  sessionCount: widget.numSessions,
-  totalPrice: widget.totalPrice,
-  notes: widget.notes,
-);
+        instructorId: widget.instructor['id'],
+        sessionIds: widget.selectedSessionIds,
+        sessionCount: widget.numSessions,
+        totalPrice: widget.totalPrice,
+        notes: widget.notes,
+      );
 
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -162,6 +162,16 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
           ),
         ),
       );
+    } on StripeException catch (e) {
+      if (!mounted) return;
+      setState(() => _isBooking = false);
+      if (e.error.code == FailureCode.Canceled) return;
+      _showDialog(
+        icon: Icons.credit_card_off_outlined,
+        iconColor: Colors.redAccent,
+        title: 'Payment Failed',
+        message: e.error.localizedMessage ?? 'Payment was not completed.',
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isBooking = false);
@@ -173,7 +183,6 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
           title: 'Already Booked',
           message:
               'You already have a booking on ${widget.displayDate}. Please go back and choose a different date.',
-          buttonText: 'OK',
         );
       } else {
         _showDialog(
@@ -182,7 +191,6 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
           title: 'Booking Failed',
           message:
               'Something went wrong while processing your booking. Please try again.',
-          buttonText: 'Try Again',
         );
       }
     }
@@ -218,7 +226,6 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                 ],
               ),
             ),
-
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -231,7 +238,6 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                             fontSize: 17,
                             fontWeight: FontWeight.bold)),
                     const SizedBox(height: 14),
-
                     _loadingCards
                         ? const Center(
                             child: CircularProgressIndicator(
@@ -308,35 +314,51 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                                       onTap: () => setState(
                                           () => _selectedCardIndex = i - 1),
                                       onLongPress: () async {
-                                        final action = await showDialog<String>(
+                                        final action =
+                                            await showDialog<String>(
                                           context: context,
                                           builder: (_) => AlertDialog(
-                                            backgroundColor: const Color(0xFF2C2C2C),
+                                            backgroundColor:
+                                                const Color(0xFF2C2C2C),
                                             shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(20)),
+                                                borderRadius:
+                                                    BorderRadius.circular(20)),
                                             title: const Text('Card Options',
                                                 style: TextStyle(
                                                     color: Colors.white,
-                                                    fontWeight: FontWeight.bold)),
+                                                    fontWeight:
+                                                        FontWeight.bold)),
                                             content: Text(
                                               '•••• •••• •••• ${card['last4']}',
-                                              style: const TextStyle(color: Colors.white70),
+                                              style: const TextStyle(
+                                                  color: Colors.white70),
                                             ),
                                             actions: [
                                               TextButton(
-                                                onPressed: () => Navigator.pop(context, 'edit'),
+                                                onPressed: () =>
+                                                    Navigator.pop(
+                                                        context, 'edit'),
                                                 child: const Text('Edit',
-                                                    style: TextStyle(color: themeColor)),
+                                                    style: TextStyle(
+                                                        color: themeColor)),
                                               ),
                                               TextButton(
-                                                onPressed: () => Navigator.pop(context, 'delete'),
+                                                onPressed: () =>
+                                                    Navigator.pop(
+                                                        context, 'delete'),
                                                 child: const Text('Delete',
-                                                    style: TextStyle(color: Colors.redAccent)),
+                                                    style: TextStyle(
+                                                        color:
+                                                            Colors.redAccent)),
                                               ),
                                               TextButton(
-                                                onPressed: () => Navigator.pop(context, 'cancel'),
+                                                onPressed: () =>
+                                                    Navigator.pop(
+                                                        context, 'cancel'),
                                                 child: const Text('Cancel',
-                                                    style: TextStyle(color: Colors.white54)),
+                                                    style: TextStyle(
+                                                        color:
+                                                            Colors.white54)),
                                               ),
                                             ],
                                           ),
@@ -345,39 +367,56 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                                           final edited = await Navigator.push(
                                               context,
                                               MaterialPageRoute(
-                                                  builder: (_) => EditCardPage(card: card)));
+                                                  builder: (_) =>
+                                                      EditCardPage(
+                                                          card: card)));
                                           if (edited == true) _loadCards();
                                         } else if (action == 'delete') {
-                                          final confirm = await showDialog<bool>(
+                                          final confirm =
+                                              await showDialog<bool>(
                                             context: context,
                                             builder: (_) => AlertDialog(
-                                              backgroundColor: const Color(0xFF2C2C2C),
+                                              backgroundColor:
+                                                  const Color(0xFF2C2C2C),
                                               shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(20)),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          20)),
                                               title: const Text('Delete Card?',
                                                   style: TextStyle(
                                                       color: Colors.white,
-                                                      fontWeight: FontWeight.bold)),
+                                                      fontWeight:
+                                                          FontWeight.bold)),
                                               content: Text(
                                                 'Remove •••• •••• •••• ${card['last4']} from your account?',
-                                                style: const TextStyle(color: Colors.white70),
+                                                style: const TextStyle(
+                                                    color: Colors.white70),
                                               ),
                                               actions: [
                                                 TextButton(
-                                                  onPressed: () => Navigator.pop(context, false),
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                          context, false),
                                                   child: const Text('Cancel',
-                                                      style: TextStyle(color: Colors.white54)),
+                                                      style: TextStyle(
+                                                          color:
+                                                              Colors.white54)),
                                                 ),
                                                 TextButton(
-                                                  onPressed: () => Navigator.pop(context, true),
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                          context, true),
                                                   child: const Text('Delete',
-                                                      style: TextStyle(color: Colors.redAccent)),
+                                                      style: TextStyle(
+                                                          color: Colors
+                                                              .redAccent)),
                                                 ),
                                               ],
                                             ),
                                           );
                                           if (confirm == true) {
-                                            await SupabaseService.deleteUserCard(card['id']);
+                                            await SupabaseService
+                                                .deleteUserCard(card['id']);
                                             _loadCards();
                                           }
                                         }
@@ -486,8 +525,6 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                                 ),
                               ),
                     const SizedBox(height: 24),
-
-                    // Order details
                     Text('Order Details',
                         style: TextStyle(
                             color: context.textColor,
@@ -498,7 +535,6 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                             ? Colors.white12
                             : Colors.grey.shade200,
                         height: 20),
-
                     Row(
                       children: [
                         CircleAvatar(
@@ -506,12 +542,14 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                           backgroundColor: themeColor,
                           backgroundImage:
                               (widget.instructor['image_url'] ?? '').isNotEmpty
-                                  ? NetworkImage(widget.instructor['image_url'])
+                                  ? NetworkImage(
+                                      widget.instructor['image_url'])
                                   : null,
-                          child: (widget.instructor['image_url'] ?? '').isEmpty
-                              ? const Icon(Icons.self_improvement,
-                                  color: Colors.black, size: 28)
-                              : null,
+                          child:
+                              (widget.instructor['image_url'] ?? '').isEmpty
+                                  ? const Icon(Icons.self_improvement,
+                                      color: Colors.black, size: 28)
+                                  : null,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -538,7 +576,8 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            double.parse(widget.instructor['rating'].toString())
+                            double.parse(
+                                    widget.instructor['rating'].toString())
                                 .toStringAsFixed(1),
                             style: const TextStyle(
                                 color: Colors.black,
@@ -553,7 +592,6 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                             ? Colors.white12
                             : Colors.grey.shade200,
                         height: 24),
-
                     Text('Start Date',
                         style: TextStyle(
                             color: context.subtextColor, fontSize: 16)),
@@ -568,7 +606,6 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                             ? Colors.white12
                             : Colors.grey.shade200,
                         height: 24),
-
                     Text('Sessions',
                         style: TextStyle(
                             color: context.subtextColor, fontSize: 16)),
@@ -583,7 +620,6 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                             ? Colors.white12
                             : Colors.grey.shade200,
                         height: 24),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -598,7 +634,6 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                       ],
                     ),
                     const SizedBox(height: 36),
-
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(

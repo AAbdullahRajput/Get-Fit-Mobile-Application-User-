@@ -2437,4 +2437,20 @@ static Future<List<Map<String, dynamic>>> getTrainerFeedItems() async {
   }
 }
 
+static Future<String> createPaymentIntent(double amount) async {
+  try {
+    debugPrint('\x1B[33m[STRIPE] Creating PaymentIntent | amount: $amount\x1B[0m');
+    final response = await client.functions.invoke(
+      'create-payment-intent',
+      body: {'amount': amount, 'currency': 'usd'},
+    );
+    final clientSecret = response.data['clientSecret'] as String;
+    debugPrint('\x1B[32m[STRIPE] PaymentIntent created\x1B[0m');
+    return clientSecret;
+  } catch (e) {
+    debugPrint('\x1B[31m[STRIPE] ERROR | createPaymentIntent | $e\x1B[0m');
+    rethrow;
+  }
+}
+
 }

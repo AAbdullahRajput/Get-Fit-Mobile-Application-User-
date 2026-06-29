@@ -112,9 +112,10 @@ class BookingConfirmationPage extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).pop(); // close dialog
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  },
+  Navigator.of(context).pop(); // close dialog
+  Navigator.of(context).pop(); // ConfirmationPage
+  Navigator.of(context).pop(); // PaymentPage
+},
                   style: ElevatedButton.styleFrom(
                     backgroundColor: themeColor,
                     padding: const EdgeInsets.symmetric(vertical: 14),
