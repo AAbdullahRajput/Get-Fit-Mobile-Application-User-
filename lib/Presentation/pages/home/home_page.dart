@@ -10,6 +10,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Presentation/pages/fitnes_trainer/trainer_booking_detail_page.dart';
 import 'package:get_fit/Presentation/pages/yoga/session_detail_page.dart';
+import 'package:get_fit/Presentation/pages/setting/notifications_page.dart';
+import 'package:get_fit/Presentation/pages/yoga/yoga_detail_page.dart';
+import 'package:get_fit/Presentation/pages/yoga/yoga_instructor_detail_page.dart';
 
 Color _accent(BuildContext context) {
   return context.isDark ? themeColor : const Color(0xFF6B7A00);
@@ -478,11 +481,25 @@ void dispose() {
                     ),
                     Row(
                       children: [
-                        Icon(Icons.search,
-                            color: isDark ? themeColor : Colors.black),
+                        InkWell(
+                          onTap: () => showDialog(
+                            context: context,
+                            barrierColor: Colors.black87,
+                            builder: (_) => _GlobalSearchDialog(
+                              onTabSwitch: widget.onTabSwitch,
+                            ),
+                          ),
+                          child: Icon(Icons.search,
+                              color: isDark ? themeColor : Colors.black),
+                        ),
                         const SizedBox(width: 10),
-                        Icon(Icons.notifications,
-                            color: isDark ? themeColor : Colors.black),
+                        InkWell(
+                          onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => const NotificationsPage())),
+                          child: Icon(Icons.notifications,
+                              color: isDark ? themeColor : Colors.black),
+                        ),
                         const SizedBox(width: 10),
                         InkWell(
                           onTap: () => Navigator.of(context).push(
@@ -1642,13 +1659,46 @@ class _FitnessTabContentState extends State<_FitnessTabContent> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Fitness Trainers',
-                  style: TextStyle(
-                      color: isDark ? themeColor : Colors.black,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Fitness Trainers',
+                    style: TextStyle(
+                        color: isDark ? themeColor : Colors.black,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: () => showDialog(
+                        context: context,
+                        barrierColor: Colors.black87,
+                        builder: (_) => _GlobalSearchDialog(
+                          onTabSwitch: (_) {},
+                        ),
+                      ),
+                      child: Icon(Icons.search,
+                          color: isDark ? themeColor : Colors.black),
+                    ),
+                    const SizedBox(width: 10),
+                    InkWell(
+                      onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const NotificationsPage())),
+                      child: Icon(Icons.notifications,
+                          color: isDark ? themeColor : Colors.black),
+                    ),
+                    const SizedBox(width: 10),
+                    InkWell(
+                      onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const SettingHomePage())),
+                      child: Icon(Icons.settings,
+                          color: isDark ? themeColor : Colors.black),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -1925,6 +1975,446 @@ class _FitnessTabContentState extends State<_FitnessTabContent> {
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────
+// GLOBAL SEARCH DIALOG
+// ─────────────────────────────────────────────
+class _GlobalSearchDialog extends StatefulWidget {
+  final Function(int) onTabSwitch;
+  const _GlobalSearchDialog({required this.onTabSwitch});
+
+  @override
+  State<_GlobalSearchDialog> createState() => _GlobalSearchDialogState();
+}
+
+class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
+  final _controller = TextEditingController();
+  bool _isLoading = false;
+  bool _hasSearched = false;
+
+  List<Map<String, dynamic>> _trainers = [];
+  List<Map<String, dynamic>> _instructors = [];
+  List<Map<String, dynamic>> _exercises = [];
+  List<Map<String, dynamic>> _yogaClasses = [];
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _trainers = [];
+        _instructors = [];
+        _exercises = [];
+        _yogaClasses = [];
+        _hasSearched = false;
+      });
+      return;
+    }
+    setState(() => _isLoading = true);
+    final q = query.trim().toLowerCase();
+
+    final results = await Future.wait([
+      SupabaseService.getTrainers(pageSize: 20),
+      SupabaseService.getYogaInstructors(pageSize: 20),
+      SupabaseService.getGymExercises(pageSize: 20),
+      SupabaseService.searchYogaClasses(q),
+    ]);
+
+    final trainers = (results[0] as List<Map<String, dynamic>>)
+        .where((t) =>
+            (t['name'] ?? '').toString().toLowerCase().contains(q) ||
+            (t['training_type'] ?? '').toString().toLowerCase().contains(q))
+        .toList();
+
+    final instructors = (results[1] as List<Map<String, dynamic>>)
+        .where((i) =>
+            (i['name'] ?? '').toString().toLowerCase().contains(q) ||
+            (i['specialty'] ?? '').toString().toLowerCase().contains(q))
+        .toList();
+
+    final exercises = (results[2] as List<Map<String, dynamic>>)
+        .where((e) =>
+            (e['title'] ?? '').toString().toLowerCase().contains(q) ||
+            (e['category'] ?? '').toString().toLowerCase().contains(q))
+        .toList();
+
+    if (mounted) {
+      setState(() {
+        _trainers = trainers;
+        _instructors = instructors;
+        _exercises = exercises;
+        _yogaClasses = results[3] as List<Map<String, dynamic>>;
+        _isLoading = false;
+        _hasSearched = true;
+      });
+    }
+  }
+
+  bool get _hasResults =>
+      _trainers.isNotEmpty ||
+      _instructors.isNotEmpty ||
+      _exercises.isNotEmpty ||
+      _yogaClasses.isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.fromLTRB(
+          16, 40, 16, MediaQuery.of(context).viewInsets.bottom + 40),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85),
+        child: Container(
+          decoration: BoxDecoration(
+            color: context.bgColor,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: context.cardBgColor,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: TextField(
+                          controller: _controller,
+                          autofocus: true,
+                          style: TextStyle(color: context.textColor),
+                          decoration: InputDecoration(
+                            hintText: 'Search trainers, exercises, yoga...',
+                            hintStyle: TextStyle(
+                                color: context.subtextColor, fontSize: 13),
+                            prefixIcon:
+                                const Icon(Icons.search, color: themeColor),
+                            border: InputBorder.none,
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onChanged: _search,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Text('Cancel',
+                          style: TextStyle(
+                              color: themeColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Divider(height: 1),
+
+              Flexible(
+                child: _isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.all(32),
+                        child: CircularProgressIndicator(
+                            color: themeColor, strokeWidth: 2),
+                      )
+                    : !_hasSearched
+                        ? Padding(
+                            padding: const EdgeInsets.all(28),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.search,
+                                    color: themeColor, size: 44),
+                                const SizedBox(height: 10),
+                                Text('Search the entire app',
+                                    style: TextStyle(
+                                        color: context.subtextColor,
+                                        fontSize: 14)),
+                                const SizedBox(height: 6),
+                                Text(
+                                    'Trainers • Yoga • Gym Exercises • Classes',
+                                    style: TextStyle(
+                                        color: context.subtextColor
+                                            .withOpacity(0.6),
+                                        fontSize: 12)),
+                              ],
+                            ),
+                          )
+                        : !_hasResults
+                            ? Padding(
+                                padding: const EdgeInsets.all(28),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.search_off,
+                                        color: context.subtextColor, size: 44),
+                                    const SizedBox(height: 10),
+                                    Text('No results found',
+                                        style: TextStyle(
+                                            color: context.subtextColor,
+                                            fontSize: 14)),
+                                  ],
+                                ),
+                              )
+                            : SingleChildScrollView(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // TRAINERS
+                                    if (_trainers.isNotEmpty) ...[
+                                      _sectionHeader(context,
+                                          Icons.fitness_center, 'Trainers', 1),
+                                      const SizedBox(height: 8),
+                                      ..._trainers.take(3).map((t) =>
+                                          _resultTile(
+                                            context,
+                                            imageUrl: t['image_url'] ?? '',
+                                            title: t['name'] ?? '',
+                                            subtitle:
+                                                t['training_type'] ?? '',
+                                            badge: t['rating']?.toString(),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              widget.onTabSwitch(1);
+                                              Future.delayed(
+                                                  const Duration(
+                                                      milliseconds: 300),
+                                                  () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        FitnessTrainerDetailPage(
+                                                            trainer: t),
+                                                  ),
+                                                );
+                                              });
+                                            },
+                                          )),
+                                      const SizedBox(height: 16),
+                                    ],
+
+                                    // YOGA INSTRUCTORS
+                                    if (_instructors.isNotEmpty) ...[
+                                      _sectionHeader(
+                                          context,
+                                          Icons.self_improvement,
+                                          'Yoga Instructors',
+                                          2),
+                                      const SizedBox(height: 8),
+                                      ..._instructors.take(3).map((i) =>
+                                          _resultTile(
+                                            context,
+                                            imageUrl: i['image_url'] ?? '',
+                                            title: i['name'] ?? '',
+                                            subtitle: i['specialty'] ?? '',
+                                            badge: i['rating']?.toString(),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              widget.onTabSwitch(2);
+                                              Future.delayed(
+                                                  const Duration(
+                                                      milliseconds: 300),
+                                                  () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        YogaInstructorDetailPage(
+                                                            instructor: i),
+                                                  ),
+                                                );
+                                              });
+                                            },
+                                          )),
+                                      const SizedBox(height: 16),
+                                    ],
+
+                                    // GYM EXERCISES
+                                    if (_exercises.isNotEmpty) ...[
+                                      _sectionHeader(context,
+                                          Icons.sports_gymnastics, 'Gym Exercises', 3),
+                                      const SizedBox(height: 8),
+                                      ..._exercises.take(3).map((e) =>
+                                          _resultTile(
+                                            context,
+                                            imageUrl: e['image_url'] ?? '',
+                                            title: e['title'] ?? '',
+                                            subtitle: e['category'] ?? '',
+                                            badge: e['level'],
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              widget.onTabSwitch(3);
+                                            },
+                                          )),
+                                      const SizedBox(height: 16),
+                                    ],
+
+                                    // YOGA CLASSES
+                                    if (_yogaClasses.isNotEmpty) ...[
+                                      _sectionHeader(
+                                          context,
+                                          Icons.class_,
+                                          'Yoga Classes',
+                                          2),
+                                      const SizedBox(height: 8),
+                                      ..._yogaClasses.take(3).map((y) =>
+                                          _resultTile(
+                                            context,
+                                            imageUrl: y['image_url'] ?? '',
+                                            title: y['title'] ?? '',
+                                            subtitle:
+                                                y['time_slot'] ?? '',
+                                            badge: y['level'],
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              widget.onTabSwitch(2);
+                                              Future.delayed(
+                                                  const Duration(
+                                                      milliseconds: 300),
+                                                  () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        YogaDetailPage(
+                                                            yoga: y),
+                                                  ),
+                                                );
+                                              });
+                                            },
+                                          )),
+                                    ],
+                                  ],
+                                ),
+                              ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionHeader(
+      BuildContext context, IconData icon, String label, int tabIndex) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: themeColor.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: Icon(icon, color: themeColor, size: 14),
+        ),
+        const SizedBox(width: 8),
+        Text(label,
+            style: TextStyle(
+                color: context.textColor,
+                fontSize: 13,
+                fontWeight: FontWeight.bold)),
+        const Spacer(),
+        GestureDetector(
+          onTap: () {
+            Navigator.pop(context);
+            widget.onTabSwitch(tabIndex);
+          },
+          child: Text('See all',
+              style: TextStyle(
+                  color: themeColor, fontSize: 12, fontWeight: FontWeight.w600)),
+        ),
+      ],
+    );
+  }
+
+  Widget _resultTile(
+    BuildContext context, {
+    required String imageUrl,
+    required String title,
+    required String subtitle,
+    String? badge,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: context.cardBgColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: imageUrl.isNotEmpty
+                  ? Image.network(imageUrl,
+                      width: 46,
+                      height: 46,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _imgFallback())
+                  : _imgFallback(),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: TextStyle(
+                          color: context.textColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 3),
+                  Text(subtitle,
+                      style: TextStyle(
+                          color: context.subtextColor, fontSize: 11)),
+                ],
+              ),
+            ),
+            if (badge != null)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(badge,
+                    style: const TextStyle(
+                        color: themeColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
+              ),
+            const SizedBox(width: 6),
+            const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _imgFallback() => Container(
+        width: 46,
+        height: 46,
+        color: const Color(0xff3a3a3a),
+        child: const Icon(Icons.image, color: Colors.white38, size: 20),
+      );
 }
 
 class _ShimmerWidget extends StatefulWidget {

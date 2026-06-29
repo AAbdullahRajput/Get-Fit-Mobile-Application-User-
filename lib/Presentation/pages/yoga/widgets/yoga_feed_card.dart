@@ -23,13 +23,43 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
     _loadFeed();
   }
 
-  Future<void> _loadFeed() async {
+   Future<void> _loadFeed() async {
     setState(() => _isLoading = true);
-    final yogaData = await SupabaseService.getUserFeedClasses();
+    final yogaRaw = await SupabaseService.getUserFeedClasses();
     final trainerData = await SupabaseService.getTrainerFeedItems();
+
+    // Enrich yoga items with class details
+    final List<Map<String, dynamic>> enrichedYoga = [];
+    for (final item in yogaRaw) {
+      final classId = item['class_id'] as String? ?? '';
+      if (classId.isEmpty) continue;
+      try {
+        final cls = await SupabaseService.client
+            .from('instructor_paid_classes')
+            .select()
+            .eq('id', classId)
+            .maybeSingle();
+        Map<String, dynamic>? instructor;
+        if (cls != null && cls['instructor_id'] != null) {
+          instructor = await SupabaseService.client
+              .from('yoga_instructors')
+              .select('name, specialty, image_url')
+              .eq('id', cls['instructor_id'])
+              .maybeSingle();
+        }
+        enrichedYoga.add({
+          ...item,
+          'instructor_paid_classes': cls,
+          'yoga_instructors': instructor,
+        });
+      } catch (_) {
+        enrichedYoga.add(item);
+      }
+    }
+
     if (mounted) {
       setState(() {
-        _yogaFeedItems = yogaData;
+        _yogaFeedItems = enrichedYoga;
         _trainerFeedItems = trainerData;
         _isLoading = false;
       });
@@ -227,12 +257,14 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
 
     return GestureDetector(
       onTap: () {
-        // Navigate to trainer content page with this booking
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => TrainerContentPage(
-              trainer: trainer,
+              trainer: {
+                ...trainer,
+                'id': item['trainer_id'] as String? ?? trainer['id'] ?? '',
+              },
               activeBooking: {'id': bookingId},
             ),
           ),

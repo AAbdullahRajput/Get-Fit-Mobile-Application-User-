@@ -36,7 +36,10 @@ class _TrainerContentPageState extends State<TrainerContentPage>
   bool _allStepsCompleted = false;
 
   String get _today => DateTime.now().toIso8601String().substring(0, 10);
-  String get _trainerId => widget.trainer['id'] as String;
+    String get _trainerId {
+    final id = widget.trainer['id'] ?? widget.trainer['trainer_id'];
+    return (id as String?) ?? '';
+  }
   String get _bookingId => widget.activeBooking?['id'] as String? ?? '';
   bool get _hasBooking => widget.activeBooking != null;
 
@@ -57,7 +60,10 @@ class _TrainerContentPageState extends State<TrainerContentPage>
 
   Future<void> _load() async {
     setState(() => _isLoading = true);
-
+    if (_trainerId.isEmpty) {
+      setState(() => _isLoading = false);
+      return;
+    }
     final videos = await SupabaseService.getTrainerVideos(_trainerId);
     final images = await SupabaseService.getTrainerImages(_trainerId);
     final dietPlans = await SupabaseService.getTrainerDietPlans(_trainerId);

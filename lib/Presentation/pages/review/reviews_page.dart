@@ -185,19 +185,43 @@ class _ReviewsPageState extends State<ReviewsPage> {
                         reviewText: text,
                       );
                       if (!mounted) return;
-                      Navigator.pop(sheetCtx);
+                       Navigator.pop(sheetCtx);
                       widget.onReviewChanged?.call();
                       _loadReviews();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Row(
+                            children: [
+                              const Icon(Icons.check_circle_outline, color: Colors.black, size: 20),
+                              const SizedBox(width: 10),
+                              Text(
+                                existing != null ? 'Review updated!' : 'Review submitted!',
+                                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          backgroundColor: themeColor,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ));
+                      }
                     } catch (e) {
                       setSheet(() => isSubmitting = false);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Failed to submit review'),
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Row(
+                            children: const [
+                              Icon(Icons.error_outline, color: Colors.white, size: 20),
+                              SizedBox(width: 10),
+                              Text('Failed to submit review',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
                           backgroundColor: Colors.redAccent,
                           behavior: SnackBarBehavior.floating,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      );
+                        ));
+                      }
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -243,15 +267,37 @@ class _ReviewsPageState extends State<ReviewsPage> {
                 await SupabaseService.deleteReview(trainerId: widget.trainerId);
                 widget.onReviewChanged?.call();
                 _loadReviews();
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Failed to delete review'),
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Row(
+                      children: const [
+                        Icon(Icons.delete_outline, color: Colors.white, size: 20),
+                        SizedBox(width: 10),
+                        Text('Review deleted',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
                     backgroundColor: Colors.redAccent,
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                );
+                  ));
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Row(
+                      children: const [
+                        Icon(Icons.error_outline, color: Colors.white, size: 20),
+                        SizedBox(width: 10),
+                        Text('Failed to delete review',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    backgroundColor: Colors.redAccent,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ));
+                }
               }
             },
             child: const Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),

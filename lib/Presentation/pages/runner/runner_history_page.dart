@@ -68,7 +68,8 @@ class _WeekGroup {
 
   String get label {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return '${months[weekStart.month-1]} ${weekStart.day} – ${months[weekEnd.month-1]} ${weekEnd.day}';
+        return '${months[weekStart.month-1]} ${weekStart.day} - ${months[weekEnd.month-1]} ${weekEnd.day}';
+
   }
 }
 
@@ -99,7 +100,7 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
     setState(() => _isLoading = true);
     SupabaseService.clearOldActivityHistory();
 
-    final raw = await SupabaseService.getFullActivityHistory(days: 90);
+    final raw = await SupabaseService.getFullActivityHistory(days: 10);
     final allDays = raw.map((m) => _HistoryDay(
   date:             DateTime.parse(m['date'] as String),
   challengeKcal:    m['challengeKcal'] as int,
@@ -159,7 +160,7 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('Get Fit — Activity Report',
+               pw.Text('Get Fit - Activity Report',
                 style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
               pw.Text(week.label, style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey600)),
             ],
@@ -255,7 +256,8 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
         rows.add(pw.Padding(
           padding: const pw.EdgeInsets.only(left: 12, top: 3),
           child: pw.Text(
-            'Round ${i+1}  •  ${r['kcal']} kcal  •  ${_fmtDuration(r['secs'] as int)}',
+                        'Round ${i+1}  |  ${r['kcal']} kcal  |  ${_fmtDuration(r['secs'] as int)}',
+
             style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
           ),
         ));
@@ -270,7 +272,8 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
         rows.add(pw.Padding(
           padding: const pw.EdgeInsets.only(left: 12, top: 3),
           child: pw.Text(
-            '${s['title']}  •  ${s['kcal']} kcal  •  ${_fmtDuration(s['secs'] as int)}',
+                        '${s['title']}  |  ${s['kcal']} kcal  |  ${_fmtDuration(s['secs'] as int)}',
+
             style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
           ),
         ));
@@ -285,7 +288,7 @@ if (day.yogaSessions.isNotEmpty) {
     rows.add(pw.Padding(
       padding: const pw.EdgeInsets.only(left: 12, top: 3),
       child: pw.Text(
-        '${s['title']}  •  ${s['kcal']} kcal  •  ${s['mins']} min',
+                '${s['title']}  |  ${s['kcal']} kcal  |  ${s['mins']} min',
         style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
       ),
     ));
@@ -306,7 +309,8 @@ if (day.yogaSessions.isNotEmpty) {
     padding: const pw.EdgeInsets.only(bottom: 4),
     child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
       pw.Text(label, style: const pw.TextStyle(fontSize: 11)),
-      pw.Text('$kcal kcal${count > 0 ? '  ($count sessions)' : ''}',
+            pw.Text('$kcal kcal${count > 0 ? ' ($count)' : ''}',
+
         style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
     ]),
   );

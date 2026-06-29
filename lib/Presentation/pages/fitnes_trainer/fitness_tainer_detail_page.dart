@@ -39,8 +39,24 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
     final reviews = await SupabaseService.getTrainerReviews(trainerId);
     final myReview = await SupabaseService.getMyReview(trainerId);
     final myBookings = await SupabaseService.getMyTrainerSlotBookings();
+    final now = DateTime.now();
     final trainerBookings = myBookings
-        .where((b) => b['trainer_id'] == trainerId)
+        .where((b) {
+          if (b['trainer_id'] != trainerId) return false;
+          final status = b['status'] as String? ?? '';
+          if (status == 'cancelled') return false;
+          // Hide expired+attended bookings
+          final date = b['booking_date'] as String? ?? '';
+          final endTime = b['end_time'] as String? ?? '23:59';
+          final dt = DateTime.tryParse(date);
+          if (dt != null) {
+            final parts = endTime.split(':');
+            final slotEnd = DateTime(dt.year, dt.month, dt.day,
+                int.parse(parts[0]), int.parse(parts[1]));
+            if (DateTime.now().isAfter(slotEnd)) return false;
+          }
+          return true;
+        })
         .toList();
 
     if (mounted) {
@@ -718,7 +734,52 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
   }
 
   Widget _buildMyBookingsSection(BuildContext context) {
-    if (_myBookings.isEmpty) return const SizedBox.shrink();
+    if (_myBookings.isEmpty) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const SizedBox(height: 28),
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.lock_outline, color: Colors.grey, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Text('Classes Locked',
+              style: TextStyle(
+                  color: context.textColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold)),
+        ]),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: context.cardBgColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.withOpacity(0.3)),
+          ),
+          child: Column(children: [
+            const Icon(Icons.lock, color: Colors.grey, size: 40),
+            const SizedBox(height: 12),
+            Text('No active bookings',
+                style: TextStyle(
+                    color: context.textColor,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Text(
+              'Book an appointment to unlock trainer content, videos, diet plans and more.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.subtextColor, fontSize: 13, height: 1.4),
+            ),
+          ]),
+        ),
+      ]);
+    }
     final accent = _accent(context);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -756,9 +817,20 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
             booking['status'] as String? ?? 'confirmed';
 
         final dt = DateTime.tryParse(date);
-        final isPast = dt != null &&
-            dt.isBefore(
-                DateTime.now().subtract(const Duration(days: 1)));
+        final endParts = endTime.split(':');
+        final slotEnd = dt != null
+            ? DateTime(dt.year, dt.month, dt.day,
+                int.parse(endParts[0]), int.parse(endParts[1]))
+            : null;
+        final startParts = startTime.split(':');
+        final slotStart = dt != null
+            ? DateTime(dt.year, dt.month, dt.day,
+                int.parse(startParts[0]), int.parse(startParts[1]))
+            : null;
+        final now = DateTime.now();
+        final isLive = slotStart != null && slotEnd != null &&
+            now.isAfter(slotStart) && now.isBefore(slotEnd);
+        final isPast = slotEnd != null && now.isAfter(slotEnd);
 
         Color statusColor;
         IconData statusIcon;
@@ -776,6 +848,10 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
           statusColor = Colors.grey;
           statusIcon = Icons.lock_clock;
           statusLabel = 'Expired';
+        } else if (isLive) {
+          statusColor = Colors.green;
+          statusIcon = Icons.radio_button_checked;
+          statusLabel = 'Live Now';
         } else {
           statusColor = accent;
           statusIcon = Icons.schedule;

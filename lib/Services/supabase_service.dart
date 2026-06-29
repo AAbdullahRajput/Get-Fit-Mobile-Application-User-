@@ -1405,12 +1405,31 @@ class SupabaseService {
     try {
       final userId = currentUser?.id;
       if (userId == null) return;
-      final cutoff = DateTime.now().subtract(const Duration(days: 60)).toIso8601String();
+      final cutoff = DateTime.now().subtract(const Duration(days: 10)).toIso8601String();
+      final cutoffDate = cutoff.substring(0, 10);
+
       await client
           .from('challenge_user_progress')
           .delete()
           .eq('user_id', userId)
           .lt('completed_at', cutoff);
+
+      try {
+        await client
+            .from('gym_workout_logs')
+            .delete()
+            .eq('user_id', userId)
+            .lt('completed_at', cutoff);
+      } catch (_) {}
+
+      try {
+        await client
+            .from('instructor_class_logs')
+            .delete()
+            .eq('user_id', userId)
+            .lt('scheduled_date', cutoffDate);
+      } catch (_) {}
+
       try {
         await client
             .from('workout_sessions')
@@ -1418,7 +1437,8 @@ class SupabaseService {
             .eq('user_id', userId)
             .lt('completed_at', cutoff);
       } catch (_) {}
-      debugPrint('\x1B[32m[API] clearOldActivityHistory done\x1B[0m');
+
+      debugPrint('\x1B[32m[API] clearOldActivityHistory done (10 days)\x1B[0m');
     } catch (e) {
       debugPrint('\x1B[31m[API] ERROR | clearOldActivityHistory | $e\x1B[0m');
     }
@@ -1534,27 +1554,9 @@ class SupabaseService {
       debugPrint('\x1B[33m[API] GET /rest/v1/user_feed_classes\x1B[0m');
       final data = await client
           .from('user_feed_classes')
-          .select('''
-            id,
-            class_id,
-            added_at,
-            instructor_paid_classes (
-              id,
-              title,
-              description,
-              image_url,
-              duration_minutes,
-              level,
-              class_type,
-              instructor_id
-            ),
-            yoga_instructors (
-              name,
-              specialty,
-              image_url
-            )
-          ''')
+          .select('id, class_id, added_at, content_type, trainer_id, booking_id, instructor_id')
           .eq('user_id', userId)
+          .eq('content_type', 'yoga')
           .order('added_at', ascending: false);
       debugPrint(
           '\x1B[32m[API] 200 OK | UserFeedClasses: ${data.length}\x1B[0m');
