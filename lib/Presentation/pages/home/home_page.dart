@@ -259,22 +259,31 @@ class _OverviewTabState extends State<_OverviewTab> {
 
   // ── Fetch yoga session bookings ──
   Future<void> _fetchYogaBookings() async {
-    setState(() => _loadingYoga = true);
-    try {
-      final res = await SupabaseService.getMyYogaBookings();
-      // Filter: only active/pending, not cancelled
-      final filtered = res
-          .where((b) =>
-              b['status'] != 'cancelled' && b['status'] != 'completed')
-          .toList();
-      if (mounted) setState(() {
-        _allYogaBookings = filtered;
-        _loadingYoga = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _loadingYoga = false);
-    }
+  setState(() => _loadingYoga = true);
+  try {
+    final res = await SupabaseService.getMyYogaBookings();
+    final today = DateTime.now();
+    final todayClean = DateTime(today.year, today.month, today.day);
+    final filtered = res.where((b) {
+      final status = b['status'] as String? ?? '';
+      if (status == 'cancelled' || status == 'completed') return false;
+      // Keep if start_date is today or future
+      try {
+        final d = DateTime.parse(b['start_date'] as String);
+        final startDay = DateTime(d.year, d.month, d.day);
+        return !startDay.isBefore(todayClean);
+      } catch (_) {
+        return true;
+      }
+    }).toList();
+    if (mounted) setState(() {
+      _allYogaBookings = filtered;
+      _loadingYoga = false;
+    });
+  } catch (_) {
+    if (mounted) setState(() => _loadingYoga = false);
   }
+}
 
   Future<void> _fetchUsername() async {
     final data = await SupabaseService.getUserProfile();
