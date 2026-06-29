@@ -211,22 +211,23 @@ class _OverviewTabState extends State<_OverviewTab> {
   Timer? _ticker;
 
   @override
-  void initState() {
-    super.initState();
-    _fetchUsername();
-    _fetchTrainerBookings();
-    _fetchYogaBookings();
-    _ticker =
-        Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
+void initState() {
+  super.initState();
+  _fetchUsername();
+  _fetchTrainerBookings();
+  _fetchYogaBookings();
+  // Ticker fires every second — forces full rebuild of countdown text
+  _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+    if (mounted) setState(() {}); // empty setState is enough — build() re-runs
+  });
+}
 
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
-  }
+@override
+void dispose() {
+  _ticker?.cancel();
+  _ticker = null;
+  super.dispose();
+}
 
   // ── Fetch trainer slot bookings (upcoming + confirmed only) ──
   Future<void> _fetchTrainerBookings() async {
@@ -1141,27 +1142,27 @@ class _OverviewTabState extends State<_OverviewTab> {
                                               fontSize: 11)),
                                     ]),
                                     // Countdown for today
-                                    if (countdown != null &&
-                                        isToday) ...[
-                                      const SizedBox(height: 4),
-                                      Row(children: [
-                                        const Icon(
-                                            Icons.timer_outlined,
-                                            size: 11,
-                                            color: Colors.orange),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          countdown == 'Today'
-                                              ? 'Today'
-                                              : 'In $countdown',
-                                          style: const TextStyle(
-                                              color: Colors.orange,
-                                              fontSize: 11,
-                                              fontWeight:
-                                                  FontWeight.bold),
-                                        ),
-                                      ]),
-                                    ],
+                                    if (countdown != null) ...[
+  const SizedBox(height: 4),
+  Row(children: [
+    Icon(
+      countdown == 'Today'
+          ? Icons.today_outlined
+          : Icons.calendar_today_outlined,
+      size: 11,
+      color: countdown == 'Today' ? Colors.green : Colors.orange,
+    ),
+    const SizedBox(width: 3),
+    Text(
+      countdown == 'Today' ? 'Starting Today!' : 'In $countdown',
+      style: TextStyle(
+        color: countdown == 'Today' ? Colors.green : Colors.orange,
+        fontSize: 11,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  ]),
+],
                                   ],
                                 ),
                               ),
