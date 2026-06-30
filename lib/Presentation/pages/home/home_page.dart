@@ -644,7 +644,9 @@ void dispose() {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-    _loadingActivity ? '5000' : '${(_totalKcal7d * 0.1).round()}',
+                                        _loadingActivity
+                                            ? '5000'
+                                            : '${(_totalKcal7d* 0.1).round() < 100 ? 5000 : (_totalKcal7d * 0.1).round()}',
                                           style: TextStyle(
                                               fontSize: 22,
                                               fontWeight: FontWeight.bold,

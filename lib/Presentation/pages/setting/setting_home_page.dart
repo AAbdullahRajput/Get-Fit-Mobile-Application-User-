@@ -333,8 +333,9 @@ void initState() {
             : ThemeMode.dark;
         break;
       case 'Logout':
+  final pageContext = context;
   showDialog(
-    context: context,
+    context: pageContext,
     builder: (context) => AlertDialog(
       backgroundColor: context.bgColor,
       title: Text('Logout', style: TextStyle(color: context.textColor)),
@@ -347,11 +348,13 @@ void initState() {
         ),
         TextButton(
           onPressed: () async {
+            debugPrint('🔴 LOGOUT STEP 1: button tapped');
             Navigator.pop(context); // close confirm dialog
+            debugPrint('🔴 LOGOUT STEP 2: confirm dialog popped');
 
             // Show loading
             showDialog(
-              context: context,
+              context: pageContext,
               barrierDismissible: false,
               builder: (context) => AlertDialog(
                 backgroundColor: context.bgColor,
@@ -364,64 +367,37 @@ void initState() {
                 ),
               ),
             );
+            debugPrint('🔴 LOGOUT STEP 3: loading dialog shown');
 
-            await SupabaseService.signOut();
+            try {
+              debugPrint('🔴 LOGOUT STEP 4: calling signOut()');
+              await SupabaseService.signOut().timeout(const Duration(seconds: 10));
+            } catch (e) {
+              if (!context.mounted) {
+                return;
+              }
+              Navigator.pop(context); // close loading dialog
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Logout failed: $e')),
+              );
+              return;
+            }
 
-            if (!context.mounted) return;
-            Navigator.pop(context); // close loading dialog
-
-            // Show success
-            await showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => AlertDialog(
-                backgroundColor: context.bgColor,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: themeColor.withOpacity(0.15),
-                      child: const Icon(Icons.check_circle, color: themeColor, size: 36),
-                    ),
-                    const SizedBox(height: 16),
-                    Text('Logged Out',
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: context.textColor)),
-                    const SizedBox(height: 8),
-                    Text('You have been securely signed out.\nYour session has been cleared.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: context.subtextColor, fontSize: 13)),
-                  ],
-                ),
-                actions: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: themeColor,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('OK', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-
-            if (!context.mounted) return;
-            Navigator.pushAndRemoveUntil(
-              context,
+            if (!pageContext.mounted) {
+              return;
+            }
+            Navigator.pop(pageContext); // close loading dialog
+            final navigator = Navigator.of(pageContext);
+            final messenger = ScaffoldMessenger.of(pageContext);
+            navigator.pushAndRemoveUntil(
               MaterialPageRoute(builder: (context) => const LoginPage()),
               (route) => false,
+            );
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text('You have been securely signed out. Your session has been cleared.'),
+                duration: Duration(seconds: 3),
+              ),
             );
           },
           child: Text('Logout',
