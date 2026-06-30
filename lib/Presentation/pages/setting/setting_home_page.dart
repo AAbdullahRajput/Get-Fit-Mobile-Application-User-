@@ -367,8 +367,6 @@ void initState() {
                 ),
               ),
             );
-            debugPrint('🔴 LOGOUT STEP 3: loading dialog shown');
-
             try {
               await SupabaseService.signOut().timeout(const Duration(seconds: 10));
             } catch (e) {
