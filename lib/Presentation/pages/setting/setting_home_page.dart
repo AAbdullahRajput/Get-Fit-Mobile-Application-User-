@@ -350,8 +350,6 @@ void initState() {
           onPressed: () async {
             debugPrint('🔴 LOGOUT STEP 1: button tapped');
             Navigator.pop(context); // close confirm dialog
-            debugPrint('🔴 LOGOUT STEP 2: confirm dialog popped');
-
             // Show loading
             showDialog(
               context: pageContext,
