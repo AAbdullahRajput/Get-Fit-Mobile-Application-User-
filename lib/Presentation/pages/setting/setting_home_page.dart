@@ -370,7 +370,6 @@ void initState() {
             debugPrint('🔴 LOGOUT STEP 3: loading dialog shown');
 
             try {
-              debugPrint('🔴 LOGOUT STEP 4: calling signOut()');
               await SupabaseService.signOut().timeout(const Duration(seconds: 10));
             } catch (e) {
               if (!context.mounted) {
