@@ -1,5 +1,3 @@
-// appointment_booking_page.dart — full replacement
-
 import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
@@ -33,28 +31,23 @@ class AppointmentBookingPage extends StatefulWidget {
 }
 
 class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
-  List<Map<String, dynamic>> _weeklySlots = [];
+  List<Map<String, dynamic>> _slots = [];
   bool _isLoading = true;
-
-  DateTime _focusedMonth = DateTime.now();
-  DateTime? _selectedDate;
   Map<String, dynamic>? _selectedSlot;
-
-  // slotId -> booking count for selected date
-  Map<String, int> _slotCounts = {};
-  // slotIds that the current user has already booked on selected date
-  Set<String> _userBookedSlotIds = {};
-  bool _loadingCounts = false;
-
   final TextEditingController _notesController = TextEditingController();
 
-  // days that have slots (1=Mon..7=Sun)
-  Set<int> get _activeDays =>
-      _weeklySlots.map((s) => s['day_of_week'] as int).toSet();
+  late DateTime _todayClean;
+  late DateTime _focusedMonth;
+  late DateTime _maxMonth; // 2 months ahead cap
+  DateTime? _selectedDate;
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _todayClean = DateTime(now.year, now.month, now.day);
+    _focusedMonth = DateTime(now.year, now.month, 1);
+    _maxMonth = DateTime(now.year, now.month + 2, 1);
     _load();
   }
 
@@ -66,68 +59,31 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
 
   Future<void> _load() async {
     setState(() => _isLoading = true);
-    final slots = await SupabaseService.getTrainerWeeklySlots(widget.trainerId);
+    final slots =
+        await SupabaseService.getTrainerCalendarSlots(widget.trainerId);
     if (!mounted) return;
     setState(() {
-      _weeklySlots = slots;
+      _slots = slots;
+      _selectedSlot = null;
       _isLoading = false;
     });
-    // Auto-select today if today has available slots
-    _tryAutoSelectToday();
+    _tryAutoSelectFirstAvailable();
   }
 
-  void _tryAutoSelectToday() {
-    final today = DateTime.now();
-    final todayClean = DateTime(today.year, today.month, today.day);
-    if (_activeDays.contains(today.weekday)) {
-      setState(() {
-        _selectedDate = todayClean;
-        _focusedMonth = todayClean;
-      });
-      _loadSlotCounts(todayClean);
-    }
-  }
-
-  Future<void> _loadSlotCounts(DateTime date) async {
+  void _tryAutoSelectFirstAvailable() {
+    if (_slots.isEmpty) return;
+    final availableOnly = _slots.where((s) => s['status'] == 'available');
+    final dates = availableOnly.isNotEmpty
+        ? (availableOnly.map((s) => s['slot_date'] as String).toSet().toList()
+          ..sort())
+        : (_groupedByDate.keys.toList()..sort());
+    if (dates.isEmpty) return;
+    final firstDate = DateTime.parse(dates.first);
     setState(() {
-      _loadingCounts = true;
-      _selectedSlot = null;
-      _userBookedSlotIds = {};
-    });
-    final dateStr = _fmt(date);
-    final slotsForDay = _slotsForDay(date.weekday);
-
-    final Map<String, int> counts = {};
-    final Set<String> userBooked = {};
-
-    await Future.wait(slotsForDay.map((slot) async {
-      final slotId = slot['id'] as String;
-      final count = await SupabaseService.getSlotBookingCount(
-        weeklySlotId: slotId,
-        date: dateStr,
-      );
-      counts[slotId] = count;
-
-      final alreadyBooked = await SupabaseService.hasBookedSlot(
-        weeklySlotId: slotId,
-        date: dateStr,
-      );
-      if (alreadyBooked) userBooked.add(slotId);
-    }));
-
-    if (!mounted) return;
-    setState(() {
-      _slotCounts = counts;
-      _userBookedSlotIds = userBooked;
-      _loadingCounts = false;
+      _selectedDate = firstDate;
+      _focusedMonth = DateTime(firstDate.year, firstDate.month, 1);
     });
   }
-
-  List<Map<String, dynamic>> _slotsForDay(int weekday) =>
-      _weeklySlots.where((s) => s['day_of_week'] == weekday).toList();
-
-  String _fmt(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   String _fmtTime(String t) {
     final parts = t.split(':');
@@ -138,7 +94,11 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     return '$h12:$m $period';
   }
 
-  String _fmtDisplayDate(DateTime d) {
+  String _fmt(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  String _fmtDisplayDate(String dateStr) {
+    final d = DateTime.parse(dateStr);
     const months = ['Jan','Feb','Mar','Apr','May','Jun',
                     'Jul','Aug','Sep','Oct','Nov','Dec'];
     const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -150,48 +110,27 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     'July','August','September','October','November','December'
   ][m - 1];
 
-  bool _isPast(DateTime date) {
-    final today = DateTime.now();
-    return date.isBefore(DateTime(today.year, today.month, today.day));
+  Map<String, List<Map<String, dynamic>>> get _groupedByDate {
+    final map = <String, List<Map<String, dynamic>>>{};
+    for (final slot in _slots) {
+      final date = slot['slot_date'] as String;
+      map.putIfAbsent(date, () => []).add(slot);
+    }
+    return map;
   }
 
-  bool _isToday(DateTime date) {
-    final today = DateTime.now();
-    return date.year == today.year &&
-        date.month == today.month &&
-        date.day == today.day;
-  }
+  bool get _canGoPrevMonth =>
+      DateTime(_focusedMonth.year, _focusedMonth.month - 1, 1)
+              .isBefore(DateTime(_todayClean.year, _todayClean.month, 1)) ==
+          false;
 
-  /// Returns true if this slot's end time has already passed today.
-  /// Only relevant when the selected date is today.
-  bool _isSlotTimeExpired(Map<String, dynamic> slot) {
-    if (_selectedDate == null || !_isToday(_selectedDate!)) return false;
-    final now = DateTime.now();
-    final parts = (slot['end_time'] as String).split(':');
-    final slotEnd = DateTime(
-      now.year, now.month, now.day,
-      int.parse(parts[0]),
-      int.parse(parts[1]),
-    );
-    return now.isAfter(slotEnd);
-  }
-
-  /// Returns true if this slot's start time has already passed today
-  /// (but end hasn't — slot is "in progress", still lock it for new bookings).
-  bool _isSlotStartPast(Map<String, dynamic> slot) {
-    if (_selectedDate == null || !_isToday(_selectedDate!)) return false;
-    final now = DateTime.now();
-    final parts = (slot['start_time'] as String).split(':');
-    final slotStart = DateTime(
-      now.year, now.month, now.day,
-      int.parse(parts[0]),
-      int.parse(parts[1]),
-    );
-    return now.isAfter(slotStart);
-  }
+  bool get _canGoNextMonth =>
+      DateTime(_focusedMonth.year, _focusedMonth.month + 1, 1)
+          .isBefore(DateTime(_maxMonth.year, _maxMonth.month + 1, 1));
 
   void _proceed() {
-    if (_selectedDate == null || _selectedSlot == null) return;
+    if (_selectedSlot == null) return;
+    final slot = _selectedSlot!;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -199,30 +138,30 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
           trainerId: widget.trainerId,
           trainerName: widget.trainerName,
           trainerType: widget.trainerType,
-          date: _fmt(_selectedDate!),
-          displayDate: _fmtDisplayDate(_selectedDate!),
+          date: slot['slot_date'] as String,
+          displayDate: _fmtDisplayDate(slot['slot_date'] as String),
           time:
-              '${_fmtTime(_selectedSlot!['start_time'] as String)} → ${_fmtTime(_selectedSlot!['end_time'] as String)}',
+              '${_fmtTime(slot['start_time'] as String)} → ${_fmtTime(slot['end_time'] as String)}',
           notes: _notesController.text.trim(),
-          sessionPrice: (_selectedSlot!['price'] as num).toDouble(),
+          sessionPrice: (slot['price'] as num).toDouble(),
           trainerRating: widget.trainerRating,
           trainerAvatarUrl: widget.trainerAvatarUrl,
-          weeklySlotId: _selectedSlot!['id'] as String,
-          startTime: _selectedSlot!['start_time'] as String,
-          endTime: _selectedSlot!['end_time'] as String,
+          slotId: slot['id'] as String,
+          startTime: slot['start_time'] as String,
+          endTime: slot['end_time'] as String,
         ),
       ),
-    );
+    ).then((_) => _load());
   }
 
   @override
   Widget build(BuildContext context) {
     final accent = _accent(context);
+
     return Scaffold(
       backgroundColor: context.bgColor,
       body: SafeArea(
         child: Column(children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
             child: Row(children: [
@@ -248,78 +187,82 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
           Expanded(
             child: _isLoading
                 ? Center(child: CircularProgressIndicator(color: accent))
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildTrainerCard(context, accent),
-                          const SizedBox(height: 20),
-                          _buildDayChips(context, accent),
-                          const SizedBox(height: 20),
-                          _buildCalendar(context, accent),
-                          const SizedBox(height: 20),
-                          if (_selectedDate != null) ...[
-                            _buildSlotsSection(context, accent),
+                : RefreshIndicator(
+                    color: accent,
+                    backgroundColor: context.cardBgColor,
+                    onRefresh: _load,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildTrainerCard(context, accent),
                             const SizedBox(height: 20),
-                          ],
-                          Text('Notes (Optional)',
-                              style: TextStyle(
-                                  color: context.textColor,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: context.cardBgColor,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: TextField(
-                              controller: _notesController,
-                              maxLines: 3,
-                              style: TextStyle(
-                                  color: context.textColor, fontSize: 14),
-                              decoration: InputDecoration(
-                                hintText:
-                                    'Any goals, health concerns, preferences...',
-                                hintStyle:
-                                    TextStyle(color: context.subtextColor),
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.all(14),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 28),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: (_selectedDate == null ||
-                                      _selectedSlot == null)
-                                  ? null
-                                  : _proceed,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: themeColor,
-                                disabledBackgroundColor: Colors.grey.shade700,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30)),
-                              ),
-                              child: Text(
-                                _selectedSlot == null
-                                    ? 'Select a date and time slot'
-                                    : 'Proceed to Payment  •  \$${(_selectedSlot!['price'] as num).toStringAsFixed(2)}',
+                            _buildCalendar(context, accent),
+                            const SizedBox(height: 20),
+                            if (_selectedDate != null) ...[
+                              _buildSlotsSection(context, accent),
+                              const SizedBox(height: 20),
+                            ],
+                            Text('Notes (Optional)',
                                 style: TextStyle(
-                                  color: _selectedSlot == null
-                                      ? Colors.grey.shade400
-                                      : Colors.black,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
+                                    color: context.textColor,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: context.cardBgColor,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: TextField(
+                                controller: _notesController,
+                                maxLines: 3,
+                                style: TextStyle(
+                                    color: context.textColor, fontSize: 14),
+                                decoration: InputDecoration(
+                                  hintText:
+                                      'Any goals, health concerns, preferences...',
+                                  hintStyle:
+                                      TextStyle(color: context.subtextColor),
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.all(14),
                                 ),
                               ),
                             ),
-                          ),
-                        ]),
+                            const SizedBox(height: 28),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed:
+                                    _selectedSlot == null ? null : _proceed,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: themeColor,
+                                  disabledBackgroundColor:
+                                      Colors.grey.shade700,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(30)),
+                                ),
+                                child: Text(
+                                  _selectedSlot == null
+                                      ? 'Select a date and time slot'
+                                      : 'Proceed to Payment  •  \$${(_selectedSlot!['price'] as num).toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    color: _selectedSlot == null
+                                        ? Colors.grey.shade400
+                                        : Colors.black,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ]),
+                    ),
                   ),
           ),
         ]),
@@ -360,10 +303,11 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                     color: context.subtextColor, fontSize: 13)),
             const SizedBox(height: 4),
             Row(children: [
-              Icon(Icons.calendar_month, color: accent, size: 13),
+              Icon(Icons.event_available, color: accent, size: 13),
               const SizedBox(width: 4),
               Text(
-                '${_activeDays.length} day${_activeDays.length == 1 ? '' : 's'}/week  •  ${_weeklySlots.length} slots available',
+                '${_slots.where((s) => s['status'] == 'available').length} slot'
+                '${_slots.where((s) => s['status'] == 'available').length == 1 ? '' : 's'} available',
                 style: TextStyle(
                     color: accent,
                     fontSize: 12,
@@ -390,68 +334,12 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     );
   }
 
-  Widget _buildDayChips(BuildContext context, Color accent) {
-    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Available Days',
-          style: TextStyle(
-              color: context.textColor,
-              fontSize: 16,
-              fontWeight: FontWeight.bold)),
-      const SizedBox(height: 10),
-      Wrap(
-        spacing: 8,
-        children: List.generate(7, (i) {
-          final day = i + 1;
-          final isActive = _activeDays.contains(day);
-          final slotCount =
-              _weeklySlots.where((s) => s['day_of_week'] == day).length;
-          return Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: isActive
-                  ? themeColor.withOpacity(0.15)
-                  : context.cardBgColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isActive
-                    ? themeColor
-                    : context.isDark
-                        ? Colors.white12
-                        : Colors.black12,
-              ),
-            ),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Text(
-                dayNames[i],
-                style: TextStyle(
-                  color: isActive ? themeColor : context.subtextColor,
-                  fontSize: 12,
-                  fontWeight:
-                      isActive ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-              if (isActive) ...[
-                const SizedBox(height: 2),
-                Text(
-                  '$slotCount slot${slotCount == 1 ? '' : 's'}',
-                  style: TextStyle(color: accent, fontSize: 10),
-                ),
-              ],
-            ]),
-          );
-        }),
-      ),
-    ]);
-  }
-
   Widget _buildCalendar(BuildContext context, Color accent) {
-    final firstDay =
-        DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+    final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysInMonth =
         DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
     final startOffset = firstDay.weekday - 1;
+    final grouped = _groupedByDate;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -464,9 +352,14 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               GestureDetector(
-                onTap: () => setState(() => _focusedMonth =
-                    DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
-                child: Icon(Icons.chevron_left, color: context.textColor),
+                onTap: !_canGoPrevMonth
+                    ? null
+                    : () => setState(() => _focusedMonth =
+                        DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
+                child: Icon(Icons.chevron_left,
+                    color: !_canGoPrevMonth
+                        ? context.subtextColor.withOpacity(0.3)
+                        : context.textColor),
               ),
               Text(
                 '${_monthName(_focusedMonth.month)} ${_focusedMonth.year}',
@@ -476,12 +369,20 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                     fontWeight: FontWeight.bold),
               ),
               GestureDetector(
-                onTap: () => setState(() => _focusedMonth =
-                    DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
-                child: Icon(Icons.chevron_right, color: context.textColor),
+                onTap: !_canGoNextMonth
+                    ? null
+                    : () => setState(() => _focusedMonth =
+                        DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
+                child: Icon(Icons.chevron_right,
+                    color: !_canGoNextMonth
+                        ? context.subtextColor.withOpacity(0.3)
+                        : context.textColor),
               ),
             ]),
-        const SizedBox(height: 16),
+        const SizedBox(height: 4),
+        Text('You can book up to 2 months in advance',
+            style: TextStyle(color: context.subtextColor, fontSize: 11)),
+        const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
@@ -497,13 +398,13 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
               .toList(),
         ),
         const SizedBox(height: 8),
-        _buildCalendarGrid(daysInMonth, startOffset, accent),
+        _buildCalendarGrid(daysInMonth, startOffset, accent, grouped),
       ]),
     );
   }
 
-  Widget _buildCalendarGrid(
-      int daysInMonth, int startOffset, Color accent) {
+  Widget _buildCalendarGrid(int daysInMonth, int startOffset, Color accent,
+      Map<String, List<Map<String, dynamic>>> grouped) {
     final cells = <Widget>[];
 
     for (int i = 0; i < startOffset; i++) {
@@ -511,30 +412,24 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     }
 
     for (int day = 1; day <= daysInMonth; day++) {
-      final date =
-          DateTime(_focusedMonth.year, _focusedMonth.month, day);
-      final hasSlots = _activeDays.contains(date.weekday);
-      final isPast = _isPast(date);
-      final isToday = _isToday(date);
+      final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+      final dateKey = _fmt(date);
+      final hasSlots = grouped.containsKey(dateKey);
+      final isPast = date.isBefore(_todayClean);
+      final beyondLimit = date.isAfter(
+          DateTime(_maxMonth.year, _maxMonth.month + 1, 0));
+      final isToday = date.year == _todayClean.year &&
+          date.month == _todayClean.month &&
+          date.day == _todayClean.day;
       final isSelected = _selectedDate != null &&
           _selectedDate!.year == date.year &&
           _selectedDate!.month == date.month &&
           _selectedDate!.day == date.day;
 
-      // For today: check if ALL slots for this day have passed
-      final bool allSlotsExpiredToday = isToday &&
-          hasSlots &&
-          _slotsForDay(date.weekday).every(_isSlotStartPast);
-
-      final bool tappable = !isPast && !allSlotsExpiredToday && hasSlots;
+      final tappable = !isPast && !beyondLimit && hasSlots;
 
       cells.add(GestureDetector(
-        onTap: !tappable
-            ? null
-            : () {
-                setState(() => _selectedDate = date);
-                _loadSlotCounts(date);
-              },
+        onTap: !tappable ? null : () => setState(() => _selectedDate = date),
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -555,11 +450,9 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                   style: TextStyle(
                     color: isSelected
                         ? Colors.black
-                        : (!tappable && !isToday)
+                        : !tappable
                             ? context.subtextColor.withOpacity(0.3)
-                            : allSlotsExpiredToday
-                                ? context.subtextColor.withOpacity(0.3)
-                                : context.textColor,
+                            : context.textColor,
                     fontWeight: isSelected || isToday || hasSlots
                         ? FontWeight.bold
                         : FontWeight.normal,
@@ -568,7 +461,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                 ),
               ),
             ),
-            if (hasSlots && !isPast && !isSelected && !allSlotsExpiredToday)
+            if (tappable && !isSelected)
               Positioned(
                 bottom: 2,
                 left: 0,
@@ -608,372 +501,125 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   }
 
   Widget _buildSlotsSection(BuildContext context, Color accent) {
-    final slots = _slotsForDay(_selectedDate!.weekday);
+    final dateKey = _fmt(_selectedDate!);
+    final slots = _groupedByDate[dateKey] ?? [];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(
-        'Available Slots  —  ${_fmtDisplayDate(_selectedDate!)}',
+        'Available Slots  —  ${_fmtDisplayDate(dateKey)}',
         style: TextStyle(
             color: context.textColor,
             fontSize: 16,
             fontWeight: FontWeight.bold),
       ),
       const SizedBox(height: 12),
-      if (_loadingCounts)
-        Center(
-            child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: CircularProgressIndicator(color: accent),
-        ))
+      if (slots.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Center(
+            child: Text('No slots on this date',
+                style: TextStyle(color: context.subtextColor, fontSize: 13)),
+          ),
+        )
       else
-        ...slots.map((slot) => _buildSlotCard(context, slot, accent)),
+        ...(slots
+              ..sort((a, b) => (a['start_time'] as String)
+                  .compareTo(b['start_time'] as String)))
+            .map((slot) => _buildSlotCard(context, slot, accent)),
     ]);
   }
 
   Widget _buildSlotCard(
       BuildContext context, Map<String, dynamic> slot, Color accent) {
     final slotId = slot['id'] as String;
-    final maxCapacity = slot['max_capacity'] as int;
-    final booked = _slotCounts[slotId] ?? 0;
-    final remaining = maxCapacity - booked;
-    final isFull = remaining <= 0;
+    final status = slot['status'] as String? ?? 'available';
+    final isBooked = status != 'available';
     final isSelected = _selectedSlot?['id'] == slotId;
     final price = (slot['price'] as num).toDouble();
     final startTime = _fmtTime(slot['start_time'] as String);
     final endTime = _fmtTime(slot['end_time'] as String);
-    final duration = slot['duration_minutes'] as int;
-
-    // ── New state checks ──────────────────────────────────
-    final bool isExpired = _isSlotTimeExpired(slot);   // end time passed
-    final bool isInProgress = !isExpired && _isSlotStartPast(slot); // started but not ended
-    final bool isAlreadyBooked = _userBookedSlotIds.contains(slotId);
-    // A slot is locked if full, expired, or in-progress
-    final bool isLocked = isFull || isExpired || isInProgress;
-    // ─────────────────────────────────────────────────────
-
-    Color capacityColor;
-    String capacityLabel;
-    if (isFull) {
-      capacityColor = Colors.red;
-      capacityLabel = 'Full';
-    } else if (remaining <= 3) {
-      capacityColor = Colors.orange;
-      capacityLabel = '$remaining spot${remaining == 1 ? '' : 's'} left';
-    } else {
-      capacityColor = Colors.green;
-      capacityLabel = '$remaining spots left';
-    }
-
-    // Overlay color/icon for locked states
-    Color? lockedBorderColor;
-    String? lockedLabel;
-    Color? lockedLabelColor;
-    IconData? lockedIcon;
-
-    if (isAlreadyBooked) {
-      lockedBorderColor = themeColor.withOpacity(0.6);
-      lockedLabel = 'Booked';
-      lockedLabelColor = themeColor;
-      lockedIcon = Icons.check_circle_outline;
-    } else if (isExpired) {
-      lockedBorderColor = Colors.grey.withOpacity(0.3);
-      lockedLabel = 'Expired';
-      lockedLabelColor = Colors.grey;
-      lockedIcon = Icons.lock_clock;
-    } else if (isInProgress) {
-      lockedBorderColor = Colors.orange.withOpacity(0.4);
-      lockedLabel = 'In Progress';
-      lockedLabelColor = Colors.orange;
-      lockedIcon = Icons.timelapse;
-    } else if (isFull) {
-      lockedBorderColor = Colors.red.withOpacity(0.3);
-      lockedLabel = 'Full';
-      lockedLabelColor = Colors.red;
-      lockedIcon = Icons.event_busy;
-    }
-
-    final bool fullyDisabled = isLocked || isAlreadyBooked;
 
     return GestureDetector(
-      onTap: fullyDisabled
-          ? () {
-              if (isAlreadyBooked) {
-                _showAlreadyBookedDialog();
-              } else if (isExpired || isInProgress) {
-                _showExpiredDialog(isInProgress);
-              } else if (isFull) {
-                _showFullDialog();
-              }
-            }
-          : () => setState(() => _selectedSlot = slot),
+      onTap: isBooked
+          ? null
+          : () => setState(() {
+                _selectedSlot = isSelected ? null : slot;
+              }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: fullyDisabled
-              ? context.cardBgColor.withOpacity(isAlreadyBooked ? 0.85 : 0.5)
+          color: isBooked
+              ? (context.isDark ? Colors.white10 : Colors.black12)
               : isSelected
                   ? themeColor.withOpacity(0.12)
                   : context.cardBgColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: fullyDisabled
-                ? (lockedBorderColor ?? Colors.grey.withOpacity(0.3))
+            color: isBooked
+                ? Colors.transparent
                 : isSelected
                     ? themeColor
                     : context.isDark
                         ? Colors.white12
                         : Colors.black12,
-            width: isSelected || isAlreadyBooked ? 2 : 1,
+            width: isSelected ? 2 : 1,
           ),
         ),
         child: Row(children: [
-          // Time block
-          Opacity(
-            opacity: fullyDisabled ? 0.45 : 1.0,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          Text(
+            '$startTime → $endTime',
+            style: TextStyle(
+              color: isBooked ? context.subtextColor : context.textColor,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              decoration: isBooked ? TextDecoration.lineThrough : null,
+            ),
+          ),
+          const Spacer(),
+          if (isBooked)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? themeColor
-                    : context.isDark
-                        ? Colors.white10
-                        : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.redAccent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text(startTime,
-                    style: TextStyle(
-                      color: isSelected ? Colors.black : context.textColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    )),
-                Text('↓',
-                    style: TextStyle(
-                        color: isSelected
-                            ? Colors.black54
-                            : context.subtextColor,
-                        fontSize: 11)),
-                Text(endTime,
-                    style: TextStyle(
-                      color: isSelected ? Colors.black : context.textColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    )),
-              ]),
-            ),
-          ),
-          const SizedBox(width: 14),
-
-          // Info
-          Expanded(
-            child: Opacity(
-              opacity: fullyDisabled ? 0.55 : 1.0,
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Row(children: [
-                  Icon(Icons.timer_outlined,
-                      color: isSelected ? themeColor : accent, size: 13),
-                  const SizedBox(width: 4),
-                  Text('$duration min',
-                      style: TextStyle(
-                          color: context.subtextColor, fontSize: 12)),
-                ]),
-                const SizedBox(height: 6),
-                Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                    Row(children: [
-                      Icon(Icons.people_outline,
-                          color: capacityColor, size: 13),
-                      const SizedBox(width: 4),
-                      Text(capacityLabel,
-                          style: TextStyle(
-                              color: capacityColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600)),
-                    ]),
-                    Text('$booked/$maxCapacity',
-                        style: TextStyle(
-                            color: context.subtextColor, fontSize: 11)),
-                  ]),
-                  const SizedBox(height: 4),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: booked / maxCapacity,
-                      minHeight: 5,
-                      backgroundColor: context.isDark
-                          ? Colors.white12
-                          : Colors.grey.shade200,
-                      valueColor:
-                          AlwaysStoppedAnimation(capacityColor),
-                    ),
-                  ),
-                ]),
-              ]),
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // Price + status badge
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              child: const Text('Booked',
+                  style: TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold)),
+            )
+          else ...[
             Text(
               '\$${price.toStringAsFixed(0)}',
               style: TextStyle(
-                color: fullyDisabled
-                    ? context.subtextColor
-                    : isSelected
-                        ? themeColor
-                        : accent,
-                fontSize: 18,
+                color: isSelected ? themeColor : accent,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 6),
-            if (lockedLabel != null)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: (lockedLabelColor ?? Colors.grey).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                      color:
-                          (lockedLabelColor ?? Colors.grey).withOpacity(0.4)),
+            const SizedBox(width: 10),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: isSelected ? themeColor : Colors.transparent,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? themeColor : context.subtextColor,
+                  width: 2,
                 ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(lockedIcon,
-                      color: lockedLabelColor, size: 10),
-                  const SizedBox(width: 3),
-                  Text(lockedLabel,
-                      style: TextStyle(
-                          color: lockedLabelColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold)),
-                ]),
-              )
-            else
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  color:
-                      isSelected ? themeColor : Colors.transparent,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isSelected
-                        ? themeColor
-                        : context.subtextColor,
-                    width: 2,
-                  ),
-                ),
-                child: isSelected
-                    ? const Icon(Icons.check,
-                        color: Colors.black, size: 16)
-                    : null,
               ),
-          ]),
+              child: isSelected
+                  ? const Icon(Icons.check, color: Colors.black, size: 15)
+                  : null,
+            ),
+          ],
         ]),
       ),
-    );
-  }
-
-  // ── Dialogs ──────────────────────────────────────────────
-
-  void _showFullDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => _buildInfoDialog(
-        icon: Icons.event_busy,
-        iconColor: Colors.orange,
-        title: 'Slot Full',
-        message:
-            'This time slot is fully booked for the selected date. Please try a different time or another date.',
-        buttonColor: Colors.orange,
-      ),
-    );
-  }
-
-  void _showAlreadyBookedDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => _buildInfoDialog(
-        icon: Icons.check_circle_outline,
-        iconColor: themeColor,
-        title: 'Already Booked',
-        message:
-            'You already have a booking for this slot on the selected date. Check your appointments to manage it.',
-        buttonColor: themeColor,
-        buttonTextColor: Colors.black,
-      ),
-    );
-  }
-
-  void _showExpiredDialog(bool isInProgress) {
-    showDialog(
-      context: context,
-      builder: (_) => _buildInfoDialog(
-        icon: isInProgress ? Icons.timelapse : Icons.lock_clock,
-        iconColor: isInProgress ? Colors.orange : Colors.grey,
-        title: isInProgress ? 'Session In Progress' : 'Slot Expired',
-        message: isInProgress
-            ? 'This session has already started and cannot be booked. Please select an upcoming slot.'
-            : 'This time slot has already passed for today. Please select a future slot or another date.',
-        buttonColor: isInProgress ? Colors.orange : Colors.grey,
-      ),
-    );
-  }
-
-  Widget _buildInfoDialog({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String message,
-    required Color buttonColor,
-    Color buttonTextColor = Colors.white,
-  }) {
-    return AlertDialog(
-      backgroundColor: const Color(0xFF2C2C2C),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: Column(children: [
-        Icon(icon, color: iconColor, size: 48),
-        const SizedBox(height: 12),
-        Text(title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold)),
-      ]),
-      content: Text(message,
-          textAlign: TextAlign.center,
-          style:
-              const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5)),
-      actionsAlignment: MainAxisAlignment.center,
-      actions: [
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: buttonColor,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-          ),
-          child: Text('OK',
-              style: TextStyle(
-                  color: buttonTextColor, fontWeight: FontWeight.bold)),
-        ),
-      ],
     );
   }
 }

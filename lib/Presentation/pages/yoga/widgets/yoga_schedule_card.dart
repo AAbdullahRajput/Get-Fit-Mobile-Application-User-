@@ -4,9 +4,7 @@ import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
 class YogaScheduleCard extends StatefulWidget {
-  final String timeSlot;
-
-  const YogaScheduleCard({super.key, required this.timeSlot});
+  const YogaScheduleCard({super.key});
 
   @override
   State<YogaScheduleCard> createState() => _YogaScheduleCardState();
@@ -17,6 +15,7 @@ class _YogaScheduleCardState extends State<YogaScheduleCard> {
   bool _isLoading = true;
   int _visibleCount = 5;
   static const int _pageSize = 5;
+  int _selectedFilter = 0; // 0 = All, 1 = Free, 2 = Paid
 
   @override
   void initState() {
@@ -24,18 +23,9 @@ class _YogaScheduleCardState extends State<YogaScheduleCard> {
     _loadClasses();
   }
 
-  @override
-  void didUpdateWidget(YogaScheduleCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.timeSlot != widget.timeSlot) {
-      _visibleCount = _pageSize;
-      _loadClasses();
-    }
-  }
-
   Future<void> _loadClasses() async {
     setState(() => _isLoading = true);
-    final data = await SupabaseService.getYogaClasses(widget.timeSlot);
+    final data = await SupabaseService.getAllYogaClasses();
     if (mounted) {
       setState(() {
         _allClasses = data;
@@ -47,32 +37,47 @@ class _YogaScheduleCardState extends State<YogaScheduleCard> {
   void _loadMore() {
     setState(() {
       _visibleCount =
-          (_visibleCount + _pageSize).clamp(0, _allClasses.length);
+          (_visibleCount + _pageSize).clamp(0, _filteredClasses.length);
     });
+  }
+
+  List<Map<String, dynamic>> get _filteredClasses {
+    if (_selectedFilter == 0) return _allClasses;
+    if (_selectedFilter == 1) {
+      return _allClasses.where((c) => c['is_paid'] != true).toList();
+    }
+    return _allClasses.where((c) => c['is_paid'] == true).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final visibleClasses = _allClasses.take(_visibleCount).toList();
-    final hasMore = _visibleCount < _allClasses.length;
+    final filtered = _filteredClasses;
+    final visibleClasses = filtered.take(_visibleCount).toList();
+    final hasMore = _visibleCount < filtered.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Best ${widget.timeSlot} Yoga',
-          style: TextStyle(
-            color: context.textColor,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Yogas to Practice',
+              style: TextStyle(
+                color: context.textColor,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            _buildFilterChips(context),
+          ],
         ),
         const SizedBox(height: 12),
         SizedBox(
           height: 200,
           child: _isLoading
               ? _buildSkeleton(context)
-              : _allClasses.isEmpty
+              : filtered.isEmpty
                   ? Container(
                       padding: const EdgeInsets.all(20),
                       alignment: Alignment.center,
@@ -81,7 +86,7 @@ class _YogaScheduleCardState extends State<YogaScheduleCard> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
-                        'No classes available for ${widget.timeSlot}',
+                        'No classes available',
                         style: TextStyle(
                             color: context.subtextColor, fontSize: 14),
                       ),
@@ -102,8 +107,41 @@ class _YogaScheduleCardState extends State<YogaScheduleCard> {
     );
   }
 
+  Widget _buildFilterChips(BuildContext context) {
+    const labels = ['All', 'Free', 'Paid'];
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(labels.length, (i) {
+        final selected = _selectedFilter == i;
+        return GestureDetector(
+          onTap: () => setState(() {
+            _selectedFilter = i;
+            _visibleCount = _pageSize;
+          }),
+          child: Container(
+            margin: const EdgeInsets.only(left: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: selected ? themeColor : context.cardBgColor,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              labels[i],
+              style: TextStyle(
+                color: selected ? Colors.black : context.subtextColor,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
   Widget _buildClassCard(
       BuildContext context, Map<String, dynamic> yoga) {
+    final isPaid = yoga['is_paid'] == true;
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
@@ -162,6 +200,27 @@ class _YogaScheduleCardState extends State<YogaScheduleCard> {
                             Colors.black.withOpacity(0.4),
                           ],
                         ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: isPaid
+                            ? Colors.orange.withOpacity(0.9)
+                            : Colors.green.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Text(
+                        isPaid ? 'Paid' : 'Free',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
@@ -280,7 +339,7 @@ class _YogaScheduleCardState extends State<YogaScheduleCard> {
   }
 
   Widget _buildLoadMoreCard(BuildContext context) {
-    final remaining = _allClasses.length - _visibleCount;
+    final remaining = _filteredClasses.length - _visibleCount;
     return GestureDetector(
       onTap: _loadMore,
       child: Container(

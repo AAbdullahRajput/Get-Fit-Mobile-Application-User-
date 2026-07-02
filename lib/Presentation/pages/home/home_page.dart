@@ -8,11 +8,8 @@ import 'package:get_fit/Presentation/pages/runner/runner_page.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_fit/Services/supabase_service.dart';
-import 'package:get_fit/Presentation/pages/fitnes_trainer/trainer_booking_detail_page.dart';
-import 'package:get_fit/Presentation/pages/yoga/session_detail_page.dart';
 import 'package:get_fit/Presentation/pages/setting/notifications_page.dart';
 import 'package:get_fit/Presentation/pages/yoga/yoga_detail_page.dart';
-import 'package:get_fit/Presentation/pages/yoga/yoga_instructor_detail_page.dart';
 
 Color _accent(BuildContext context) {
   return context.isDark ? themeColor : const Color(0xFF6B7A00);
@@ -205,11 +202,6 @@ class _OverviewTabState extends State<_OverviewTab> {
   List<Map<String, dynamic>> _trainerBookings = [];
   bool _loadingTrainer = true;
 
-  // ── Yoga session bookings ──
-  List<Map<String, dynamic>> _allYogaBookings = [];
-  int _yogaVisible = 3;
-  bool _loadingYoga = true;
-
   // ── Activity summary ──
   int _totalKcal7d = 0;
   bool _loadingActivity = true;
@@ -222,7 +214,6 @@ void initState() {
   super.initState();
   _fetchUsername();
   _fetchTrainerBookings();
-  _fetchYogaBookings();
   _fetchActivitySummary();
   // Ticker fires every second — forces full rebuild of countdown text
   _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -241,12 +232,12 @@ void dispose() {
   Future<void> _fetchTrainerBookings() async {
   setState(() => _loadingTrainer = true);
   try {
-    final res = await SupabaseService.getUpcomingTrainerBookings();
+    final res = await SupabaseService.getUpcomingTrainerAppointments();
     final now = DateTime.now();
     // Filter out slots whose end time has already passed today
     final filtered = res.where((booking) {
       try {
-        final dateStr = booking['booking_date'] as String;
+        final dateStr = booking['appointment_date'] as String;
         final endStr = booking['end_time'] as String;
         final parts = endStr.split(':');
         final d = DateTime.parse(dateStr);
@@ -263,34 +254,6 @@ void dispose() {
     });
   } catch (_) {
     if (mounted) setState(() => _loadingTrainer = false);
-  }
-}
-
-  // ── Fetch yoga session bookings ──
-  Future<void> _fetchYogaBookings() async {
-  setState(() => _loadingYoga = true);
-  try {
-    final res = await SupabaseService.getMyYogaBookings();
-    final today = DateTime.now();
-    final todayClean = DateTime(today.year, today.month, today.day);
-    final filtered = res.where((b) {
-      final status = b['status'] as String? ?? '';
-      if (status == 'cancelled' || status == 'completed') return false;
-      // Keep if start_date is today or future
-      try {
-        final d = DateTime.parse(b['start_date'] as String);
-        final startDay = DateTime(d.year, d.month, d.day);
-        return !startDay.isBefore(todayClean);
-      } catch (_) {
-        return true;
-      }
-    }).toList();
-    if (mounted) setState(() {
-      _allYogaBookings = filtered;
-      _loadingYoga = false;
-    });
-  } catch (_) {
-    if (mounted) setState(() => _loadingYoga = false);
   }
 }
 
@@ -322,52 +285,18 @@ void dispose() {
   }
 
   Future<void> _onRefresh() async {
-    setState(() => _yogaVisible = 3);
     await Future.wait([
       _fetchUsername(),
       _fetchTrainerBookings(),
-      _fetchYogaBookings(),
       _fetchActivitySummary(),
     ]);
-  }
-
-  // ── Time helpers ──
-
-  String _timeLeft(String? startDate) {
-    if (startDate == null) return '';
-    try {
-      final d = DateTime.parse(startDate);
-      final now = DateTime.now();
-      final diff = d.difference(DateTime(now.year, now.month, now.day));
-      if (diff.inDays == 0) return 'Today';
-      if (diff.inDays == 1) return 'Tomorrow';
-      if (diff.inDays < 0) return 'Started';
-      return 'In ${diff.inDays} days';
-    } catch (_) {
-      return '';
-    }
-  }
-
-  Color _timeLeftColor(String? startDate) {
-    if (startDate == null) return Colors.grey;
-    try {
-      final d = DateTime.parse(startDate);
-      final now = DateTime.now();
-      final diff =
-          d.difference(DateTime(now.year, now.month, now.day)).inDays;
-      if (diff <= 0) return Colors.green;
-      if (diff <= 2) return Colors.orange;
-      return Colors.blue;
-    } catch (_) {
-      return Colors.grey;
-    }
   }
 
   /// Countdown string for a trainer slot booking
   /// Returns null if not today or already started
   String? _trainerCountdown(Map<String, dynamic> booking) {
     try {
-      final dateStr = booking['booking_date'] as String;
+      final dateStr = booking['appointment_date'] as String;
       final startStr = booking['start_time'] as String;
       final endStr = booking['end_time'] as String;
       final parts = startStr.split(':');
@@ -394,9 +323,73 @@ void dispose() {
     }
   }
 
+void _handleBannerTap(BuildContext context) {
+    if (_trainerBookings.isEmpty) {
+      widget.onTabSwitch(1); // no appointment — go to Yoga tab as before
+      return;
+    }
+    final booking = _trainerBookings.first;
+    final trainer =
+        booking['fitness_trainers'] as Map<String, dynamic>? ?? {};
+    final dateStr = booking['appointment_date'] as String? ?? '';
+    final startTime = booking['start_time'] as String? ?? '';
+    final endTime = booking['end_time'] as String? ?? '';
+    final price = (booking['price'] as num?)?.toDouble() ?? 0.0;
+    final isLive = _isTrainerSlotLive(booking);
+    final countdown = _trainerCountdown(booking);
+    _showBookingSummary(
+      context: context,
+      booking: booking,
+      trainer: trainer,
+      accent: _accent(context),
+      statusColor: isLive ? Colors.green : _accent(context),
+      statusLabel: isLive ? 'LIVE' : 'UPCOMING',
+      countdown: countdown,
+      isLive: isLive,
+      dateStr: dateStr,
+      startTime: startTime,
+      endTime: endTime,
+      price: price,
+    );
+  }
+
+  /// Countdown text for the very next upcoming appointment (any day),
+  /// used in the Yoga promo banner. Returns 'Live now' if in progress,
+  /// or null if there's no upcoming appointment at all.
+  String? _nextAppointmentCountdownText() {
+    if (_trainerBookings.isEmpty) return null;
+    try {
+      final booking = _trainerBookings.first; // list is sorted ascending
+      final dateStr = booking['appointment_date'] as String;
+      final startStr = booking['start_time'] as String;
+      final endStr = booking['end_time'] as String;
+      final d = DateTime.parse(dateStr);
+      final now = DateTime.now();
+      final startParts = startStr.split(':');
+      final endParts = endStr.split(':');
+      final start = DateTime(d.year, d.month, d.day,
+          int.parse(startParts[0]), int.parse(startParts[1]));
+      final end = DateTime(d.year, d.month, d.day,
+          int.parse(endParts[0]), int.parse(endParts[1]));
+
+      if (now.isAfter(start) && now.isBefore(end)) return 'Live now';
+
+      final diff = start.difference(now);
+      if (diff.isNegative) return null;
+      final days = diff.inDays;
+      final hours = diff.inHours % 24;
+      final mins = diff.inMinutes % 60;
+      if (days > 0) return '${days}d ${hours}h';
+      if (hours > 0) return '${hours}h ${mins}m';
+      return '${mins}m ${diff.inSeconds % 60}s';
+    } catch (_) {
+      return null;
+    }
+  }
+
   bool _isTrainerSlotLive(Map<String, dynamic> booking) {
     try {
-      final dateStr = booking['booking_date'] as String;
+      final dateStr = booking['appointment_date'] as String;
       final startStr = booking['start_time'] as String;
       final endStr = booking['end_time'] as String;
       final parts = startStr.split(':');
@@ -412,29 +405,6 @@ void dispose() {
       return false;
     }
   }
-
-  /// Countdown string for a yoga booking (start_date is date only)
-  String? _yogaCountdown(String? startDate) {
-  if (startDate == null) return null;
-  try {
-    final d = DateTime.parse(startDate);
-    final now = DateTime.now();
-    final todayClean = DateTime(now.year, now.month, now.day);
-    final startDay = DateTime(d.year, d.month, d.day);
-    final daysUntil = startDay.difference(todayClean).inDays;
-    if (daysUntil > 0) {
-      // Future day — show days remaining
-      return '${daysUntil}d away';
-    }
-    if (daysUntil == 0) {
-      // Today — show live countdown
-      return 'Today';
-    }
-    return null; // past, shouldn't be here after filtering
-  } catch (_) {
-    return null;
-  }
-}
 
   String _fmtTime(String t) {
     final parts = t.split(':');
@@ -467,9 +437,6 @@ void dispose() {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = _accent(context);
-    final visibleYoga = _allYogaBookings.take(_yogaVisible).toList();
-    final hasMoreYoga = _yogaVisible < _allYogaBookings.length;
-
     return RefreshIndicator(
       color: accent,
       backgroundColor: Theme.of(context).cardColor,
@@ -875,7 +842,7 @@ void dispose() {
               // ── Yoga promo banner ──
               const SizedBox(height: 30),
               GestureDetector(
-                onTap: () => widget.onTabSwitch(2),
+                onTap: () => _handleBannerTap(context),
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -890,26 +857,40 @@ void dispose() {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text("Next Upcoming Class",
-                                style: TextStyle(
+                            Text(
+                                _trainerBookings.isEmpty
+                                    ? "Next Upcoming Your"
+                                    : "Next Appointment",
+                                style: const TextStyle(
                                     color: Colors.black,
                                     fontSize: 25,
                                     fontWeight: FontWeight.bold)),
                             const SizedBox(height: 5),
-                            const Text("Yoga",
-                                style: TextStyle(
+                            Text(
+                                _trainerBookings.isEmpty
+                                    ? "Appointment"
+                                    : (_trainerBookings.first['fitness_trainers']
+                                            as Map<String, dynamic>?)?['name'] ??
+                                        "Trainer",
+                                style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black,
                                     fontSize: 25)),
-                            const Text("Time: 2h:20m",
-                                style: TextStyle(
+                            Text(
+                                _nextAppointmentCountdownText() == null
+                                    ? "Explore Fitness classes"
+                                    : _nextAppointmentCountdownText() ==
+                                            'Live now'
+                                        ? "Live now"
+                                        : "Starts in ${_nextAppointmentCountdownText()}",
+                                style: const TextStyle(
                                     color: Colors.black, fontSize: 17)),
                             const Spacer(),
                             SizedBox(
                               width: 100,
                               height: 40,
                               child: ElevatedButton(
-                                onPressed: () => widget.onTabSwitch(2),
+                                onPressed: () => _handleBannerTap(context),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.white,
                                   foregroundColor: Colors.black,
@@ -928,421 +909,24 @@ void dispose() {
                     Positioned(
                       top: -23,
                       left: 0,
-                      right: -75,
+                      right: -105,
                       child: Image.asset("assets/home/yoga-girl.png",
                           height: 223, width: 150),
                     ),
                   ],
                 ),
               ),
-
-              // ── Trainer promo banner ──
-              const SizedBox(height: 20),
-              GestureDetector(
-                onTap: () => widget.onTabSwitch(1),
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? const Color(0xFF2C2C2C)
-                        : Colors.black,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Padding(
-                        padding:
-                            const EdgeInsets.fromLTRB(16, 16, 100, 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text("Next Training Session",
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            Text("Fitness Trainer",
-                                style: TextStyle(
-                                    color: themeColor,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            Text("Personal & Group Sessions",
-                                style: TextStyle(
-                                    color:
-                                        Colors.white.withOpacity(0.6),
-                                    fontSize: 14)),
-                            const SizedBox(height: 14),
-                            SizedBox(
-                              width: 110,
-                              height: 38,
-                              child: ElevatedButton(
-                                onPressed: () =>
-                                    widget.onTabSwitch(1),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: themeColor,
-                                  foregroundColor: Colors.black,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(20)),
-                                ),
-                                child: const Text("Book Now",
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Positioned(
-                        top: -48,
-                        right: -15,
-                        left: 0,
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Image.asset(
-                              "assets/home/trainer-man.png",
-                              height: 240,
-                              width: 250),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
               // ══════════════════════════════════════
               // UPCOMING CLASSES & BOOKINGS SECTION
               // ══════════════════════════════════════
               const SizedBox(height: 28),
-              Text("Upcoming Classes & Bookings",
+              Text("Upcoming Appointments",
                   style: TextStyle(
                       color:
                           Theme.of(context).textTheme.bodyLarge?.color,
                       fontSize: 18,
                       fontWeight: FontWeight.bold)),
 
-              // ── YOGA SESSIONS ──────────────────────
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Icon(Icons.self_improvement_outlined,
-                      color: accent, size: 16),
-                  const SizedBox(width: 6),
-                  Text("Yoga Sessions",
-                      style: TextStyle(
-                          color: accent,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  Text('${_allYogaBookings.length} booked',
-                      style: TextStyle(
-                          color: accent.withOpacity(0.7),
-                          fontSize: 12)),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              if (_loadingYoga)
-                _buildYogaSkeleton(context, accent)
-              else if (_allYogaBookings.isEmpty)
-                GestureDetector(
-                  onTap: () => widget.onTabSwitch(2),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.self_improvement_outlined,
-                            color: accent, size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                              "No upcoming yoga sessions. Book one!",
-                              style: TextStyle(
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.color,
-                                  fontSize: 13)),
-                        ),
-                        Icon(Icons.arrow_forward_ios,
-                            color: accent, size: 14),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                Column(
-                  children: [
-                    ...visibleYoga.map((booking) {
-                      final instructor = booking['yoga_instructors']
-                          as Map<String, dynamic>?;
-                      final insName =
-                          instructor?['name'] ?? 'Instructor';
-                      final insImage =
-                          instructor?['image_url'] ?? '';
-                      final insSpecialty =
-                          instructor?['specialty'] ?? '';
-                      final startDate =
-                          booking['start_date'] as String?;
-                      final numSessions =
-                          booking['num_sessions'] ?? 0;
-                      final status =
-                          booking['status'] ?? 'pending';
-                      final timeLeft = _timeLeft(startDate);
-                      final timeColor = _timeLeftColor(startDate);
-                      final countdown = _yogaCountdown(startDate);
-                      final isToday = timeLeft == 'Today';
-
-                      return GestureDetector(
-                        onTap: () {
-                          final instructorData =
-                              booking['yoga_instructors']
-                                      as Map<String, dynamic>? ??
-                                  {};
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => SessionDetailPage(
-                                booking: booking,
-                                instructor: instructorData,
-                              ),
-                            ),
-                          ).then((_) => _onRefresh());
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: isToday
-                                  ? accent.withOpacity(0.4)
-                                  : accent.withOpacity(0.15),
-                              width: isToday ? 1.5 : 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              // Avatar
-                              CircleAvatar(
-                                radius: 26,
-                                backgroundColor:
-                                    accent.withOpacity(0.2),
-                                backgroundImage: insImage.isNotEmpty
-                                    ? NetworkImage(insImage)
-                                    : null,
-                                child: insImage.isEmpty
-                                    ? Icon(Icons.person,
-                                        color: accent, size: 22)
-                                    : null,
-                              ),
-                              const SizedBox(width: 12),
-                              // Info
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(insName,
-                                        style: TextStyle(
-                                            color: Theme.of(context)
-                                                .textTheme
-                                                .bodyLarge
-                                                ?.color,
-                                            fontWeight:
-                                                FontWeight.bold,
-                                            fontSize: 14)),
-                                    const SizedBox(height: 2),
-                                    Text(insSpecialty,
-                                        style: TextStyle(
-                                            color: accent,
-                                            fontSize: 12)),
-                                    const SizedBox(height: 4),
-                                    Row(children: [
-                                      const Icon(
-                                          Icons.event_outlined,
-                                          size: 11,
-                                          color: Colors.grey),
-                                      const SizedBox(width: 3),
-                                      Text(startDate ?? '',
-                                          style: const TextStyle(
-                                              color: Colors.grey,
-                                              fontSize: 11)),
-                                      const SizedBox(width: 10),
-                                      const Icon(
-                                          Icons.layers_outlined,
-                                          size: 11,
-                                          color: Colors.grey),
-                                      const SizedBox(width: 3),
-                                      Text('$numSessions sessions',
-                                          style: const TextStyle(
-                                              color: Colors.grey,
-                                              fontSize: 11)),
-                                    ]),
-                                    // Countdown for today
-                                    if (countdown != null) ...[
-  const SizedBox(height: 4),
-  Row(children: [
-    Icon(
-      countdown == 'Today'
-          ? Icons.today_outlined
-          : Icons.calendar_today_outlined,
-      size: 11,
-      color: countdown == 'Today' ? Colors.green : Colors.orange,
-    ),
-    const SizedBox(width: 3),
-    Text(
-      countdown == 'Today' ? 'Starting Today!' : 'In $countdown',
-      style: TextStyle(
-        color: countdown == 'Today' ? Colors.green : Colors.orange,
-        fontSize: 11,
-        fontWeight: FontWeight.bold,
-      ),
-    ),
-  ]),
-],
-                                  ],
-                                ),
-                              ),
-                              // Right badges
-                              Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.end,
-                                children: [
-                                  Container(
-                                    padding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: timeColor.withOpacity(
-                                          0.12),
-                                      borderRadius:
-                                          BorderRadius.circular(8),
-                                    ),
-                                    child: Text(timeLeft,
-                                        style: TextStyle(
-                                            color: timeColor,
-                                            fontSize: 11,
-                                            fontWeight:
-                                                FontWeight.bold)),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Container(
-                                    padding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: status == 'confirmed' ||
-                                              status == 'active'
-                                          ? Colors.green
-                                              .withOpacity(0.12)
-                                          : themeColor
-                                              .withOpacity(0.15),
-                                      borderRadius:
-                                          BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      status.toUpperCase(),
-                                      style: TextStyle(
-                                        color: status ==
-                                                    'confirmed' ||
-                                                status == 'active'
-                                            ? Colors.green
-                                            : accent,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Icon(Icons.arrow_forward_ios,
-                                      size: 11,
-                                      color:
-                                          accent.withOpacity(0.5)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-
-                    // Load more / collapse
-                    if (hasMoreYoga)
-                      GestureDetector(
-                        onTap: () =>
-                            setState(() => _yogaVisible += 3),
-                        child: Container(
-                          width: double.infinity,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 12),
-                          margin: const EdgeInsets.only(bottom: 4),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                                color: accent.withOpacity(0.4)),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.expand_more,
-                                  color: accent, size: 18),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Load ${(_allYogaBookings.length - _yogaVisible).clamp(0, 3)} more',
-                                style: TextStyle(
-                                    color: accent,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    else if (_allYogaBookings.length > 3)
-                      GestureDetector(
-                        onTap: () =>
-                            setState(() => _yogaVisible = 3),
-                        child: Container(
-                          width: double.infinity,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 12),
-                          margin: const EdgeInsets.only(bottom: 4),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                                color:
-                                    Colors.grey.withOpacity(0.3)),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.expand_less,
-                                  color: Colors.grey, size: 18),
-                              const SizedBox(width: 6),
-                              const Text('Show less',
-                                  style: TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 13)),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
 
               // ── TRAINER SLOT BOOKINGS ──────────────
               const SizedBox(height: 16),
@@ -1351,7 +935,7 @@ void dispose() {
                   Icon(Icons.fitness_center_outlined,
                       color: accent, size: 16),
                   const SizedBox(width: 6),
-                  Text("Trainer Sessions",
+                  Text("Your Schedule",
                       style: TextStyle(
                           color: accent,
                           fontSize: 14,
@@ -1388,7 +972,7 @@ void dispose() {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                              "No upcoming sessions. Book a trainer!",
+                              "No upcoming Appointments. Book an appointment.",
                               style: TextStyle(
                                   color: Theme.of(context)
                                       .textTheme
@@ -1412,7 +996,7 @@ void dispose() {
                     final imageUrl =
                         trainer['image_url'] as String? ?? '';
                     final dateStr =
-                        booking['booking_date'] as String? ?? '';
+                        booking['appointment_date'] as String? ?? '';
                     final startTime =
                         booking['start_time'] as String? ?? '';
                     final endTime =
@@ -1439,15 +1023,20 @@ void dispose() {
                     }
 
                     return GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => TrainerBookingDetailPage(
-                            booking: booking,
-                            trainer: trainer,
-                          ),
-                        ),
-                      ).then((_) => _onRefresh()),
+                      onTap: () => _showBookingSummary(
+                        context: context,
+                        booking: booking,
+                        trainer: trainer,
+                        accent: accent,
+                        statusColor: statusColor,
+                        statusLabel: statusLabel,
+                        countdown: countdown,
+                        isLive: isLive,
+                        dateStr: dateStr,
+                        startTime: startTime,
+                        endTime: endTime,
+                        price: price,
+                      ),
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(14),
@@ -1609,20 +1198,229 @@ void dispose() {
     );
   }
 
-  Widget _buildYogaSkeleton(BuildContext context, Color accent) {
-    return Column(
-      children: List.generate(
-          2,
-          (_) => Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                height: 80,
+  // ── Booking summary dialog ──
+  void _showBookingSummary({
+    required BuildContext context,
+    required Map<String, dynamic> booking,
+    required Map<String, dynamic> trainer,
+    required Color accent,
+    required Color statusColor,
+    required String statusLabel,
+    required String? countdown,
+    required bool isLive,
+    required String dateStr,
+    required String startTime,
+    required String endTime,
+    required double price,
+  }) {
+    final imageUrl = trainer['image_url'] as String? ?? '';
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: context.cardBgColor,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(20),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: 32,
+                backgroundColor: themeColor,
+                backgroundImage:
+                    imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                child: imageUrl.isEmpty
+                    ? const Icon(Icons.person,
+                        color: Colors.black, size: 30)
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              Text(trainer['name'] ?? 'Trainer',
+                  style: TextStyle(
+                      color: context.textColor,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold)),
+              Text(trainer['training_type'] ?? '',
+                  style: TextStyle(color: accent, fontSize: 13)),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xff3a3a3a)
-                      : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(14),
+                  color: statusColor.withOpacity(isLive ? 0.2 : 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: isLive
+                      ? Border.all(color: Colors.green.withOpacity(0.5))
+                      : null,
                 ),
-              )),
+                child: Text(statusLabel,
+                    style: TextStyle(
+                        color: statusColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 16),
+              _summaryRow(context, Icons.calendar_today,
+                  _fmtBookingDate(dateStr)),
+              const SizedBox(height: 8),
+              _summaryRow(context, Icons.access_time,
+                  '${_fmtTime(startTime)} → ${_fmtTime(endTime)}'),
+              const SizedBox(height: 8),
+              _summaryRow(context, Icons.attach_money,
+                  '\$${price.toStringAsFixed(2)}'),
+              if (countdown != null) ...[
+                const SizedBox(height: 8),
+                _summaryRow(
+                  context,
+                  isLive ? Icons.radio_button_checked : Icons.timer_outlined,
+                  isLive ? 'Live now' : 'Starts in $countdown',
+                  color: isLive ? Colors.green : Colors.orange,
+                ),
+              ],
+              const SizedBox(height: 24),
+              if (isLive) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _joinCall(
+                      context: context,
+                      dialogContext: dialogContext,
+                      trainerId:
+                          (booking['trainer_id'] as String?) ??
+                              trainer['id'] as String,
+                      trainerName: trainer['name'] ?? 'Trainer',
+                    ),
+                    icon: const Icon(Icons.video_call, color: Colors.black),
+                    label: const Text('Join Call',
+                        style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _openTrainerProfile(
+                    context: context,
+                    dialogContext: dialogContext,
+                    trainerId:
+                        (booking['trainer_id'] as String?) ??
+                            trainer['id'] as String,
+                    fallbackTrainer: trainer,
+                  ),
+                  icon: const Icon(Icons.person, color: Colors.black),
+                  label: const Text('View Trainer Profile',
+                      style: TextStyle(
+                          color: Colors.black, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: themeColor,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text('Close',
+                      style: TextStyle(color: context.subtextColor)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openTrainerProfile({
+    required BuildContext context,
+    required BuildContext dialogContext,
+    required String trainerId,
+    required Map<String, dynamic> fallbackTrainer,
+  }) async {
+    Navigator.pop(dialogContext);
+
+    // Fetch the FULL trainer record (the booking join only carries a few
+    // fields — bio, phone, bg_image_url, id etc. are missing from it).
+    final fullTrainer = await SupabaseService.getTrainerById(trainerId);
+
+    if (!context.mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FitnessTrainerDetailPage(
+          trainer: fullTrainer ?? fallbackTrainer,
+        ),
+      ),
+    );
+  }
+
+  void _joinCall({
+    required BuildContext context,
+    required BuildContext dialogContext,
+    required String trainerId,
+    required String trainerName,
+  }) {
+    Navigator.pop(dialogContext);
+    // TODO: wire this into the real video-call integration once it's built.
+    // trainerId is already available here to pass straight into the call
+    // session (e.g. as a channel/room identifier).
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: context.cardBgColor,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Icon(Icons.video_call, color: Colors.green, size: 40),
+        content: Text(
+          'Video call with $trainerName is coming soon.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: context.textColor, fontSize: 14),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                  color: themeColor, borderRadius: BorderRadius.circular(10)),
+              child: const Text('OK',
+                  style: TextStyle(
+                      color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow(BuildContext context, IconData icon, String text,
+      {Color? color}) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color ?? context.subtextColor),
+        const SizedBox(width: 8),
+        Text(text,
+            style: TextStyle(
+                color: color ?? context.textColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w500)),
+      ],
     );
   }
 }
@@ -2024,7 +1822,6 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
   bool _hasSearched = false;
 
   List<Map<String, dynamic>> _trainers = [];
-  List<Map<String, dynamic>> _instructors = [];
   List<Map<String, dynamic>> _exercises = [];
   List<Map<String, dynamic>> _yogaClasses = [];
 
@@ -2034,11 +1831,10 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
     super.dispose();
   }
 
-  Future<void> _search(String query) async {
+ Future<void> _search(String query) async {
     if (query.trim().isEmpty) {
       setState(() {
         _trainers = [];
-        _instructors = [];
         _exercises = [];
         _yogaClasses = [];
         _hasSearched = false;
@@ -2050,7 +1846,6 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
 
     final results = await Future.wait([
       SupabaseService.getTrainers(pageSize: 20),
-      SupabaseService.getYogaInstructors(pageSize: 20),
       SupabaseService.getGymExercises(pageSize: 20),
       SupabaseService.searchYogaClasses(q),
     ]);
@@ -2061,13 +1856,7 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
             (t['training_type'] ?? '').toString().toLowerCase().contains(q))
         .toList();
 
-    final instructors = (results[1] as List<Map<String, dynamic>>)
-        .where((i) =>
-            (i['name'] ?? '').toString().toLowerCase().contains(q) ||
-            (i['specialty'] ?? '').toString().toLowerCase().contains(q))
-        .toList();
-
-    final exercises = (results[2] as List<Map<String, dynamic>>)
+    final exercises = (results[1] as List<Map<String, dynamic>>)
         .where((e) =>
             (e['title'] ?? '').toString().toLowerCase().contains(q) ||
             (e['category'] ?? '').toString().toLowerCase().contains(q))
@@ -2076,9 +1865,8 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
     if (mounted) {
       setState(() {
         _trainers = trainers;
-        _instructors = instructors;
         _exercises = exercises;
-        _yogaClasses = results[3] as List<Map<String, dynamic>>;
+        _yogaClasses = results[2] as List<Map<String, dynamic>>;
         _isLoading = false;
         _hasSearched = true;
       });
@@ -2087,7 +1875,6 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
 
   bool get _hasResults =>
       _trainers.isNotEmpty ||
-      _instructors.isNotEmpty ||
       _exercises.isNotEmpty ||
       _yogaClasses.isNotEmpty;
 
@@ -2234,39 +2021,6 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
                                           )),
                                       const SizedBox(height: 16),
                                     ],
-
-                                    // YOGA INSTRUCTORS
-                                    if (_instructors.isNotEmpty) ...[
-                                      _sectionHeader(
-                                          context,
-                                          Icons.self_improvement,
-                                          'Yoga Instructors',
-                                          2),
-                                      const SizedBox(height: 8),
-                                      ..._instructors.take(3).map((i) =>
-                                          _resultTile(
-                                            context,
-                                            imageUrl: i['image_url'] ?? '',
-                                            title: i['name'] ?? '',
-                                            subtitle: i['specialty'] ?? '',
-                                            badge: i['rating']?.toString(),
-                                            onTap: () {
-                                              final nav = Navigator.of(context);
-                                              nav.pop();
-                                              widget.onTabSwitch(2);
-                                              Future.delayed(
-                                                  const Duration(milliseconds: 300),
-                                                  () {
-                                                nav.push(MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      YogaInstructorDetailPage(instructor: i),
-                                                ));
-                                              });
-                                            },
-                                          )),
-                                      const SizedBox(height: 16),
-                                    ],
-
                                     // GYM EXERCISES
                                     if (_exercises.isNotEmpty) ...[
                                       _sectionHeader(context,

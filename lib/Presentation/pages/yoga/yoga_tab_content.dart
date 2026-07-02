@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get_fit/Presentation/pages/yoga/widgets/yoga_motivation_card.dart';
-import 'package:get_fit/Presentation/pages/yoga/widgets/yoga_schedule_card.dart';
 import 'package:get_fit/Presentation/pages/yoga/widgets/yoga_challenge_card.dart';
 import 'package:get_fit/Presentation/pages/yoga/widgets/yoga_feed_card.dart';
-import 'package:get_fit/Presentation/pages/yoga/widgets/yoga_instructor_card.dart';
-import 'package:get_fit/Presentation/pages/yoga/yoga_instructor_detail_page.dart';
+import 'package:get_fit/Presentation/pages/yoga/widgets/yoga_course_card.dart';
+import 'package:get_fit/Presentation/pages/yoga/yoga_booking_page.dart';
+import 'package:get_fit/Presentation/pages/yoga/instructor_class_detail_page.dart';
 import 'package:get_fit/Presentation/pages/yoga/yoga_detail_page.dart';
 import 'package:get_fit/Presentation/pages/setting/setting_home_page.dart';
 import 'package:get_fit/Presentation/pages/setting/notifications_page.dart';
@@ -19,49 +19,65 @@ class YogaTabContent extends StatefulWidget {
 }
 
 class _YogaTabContentState extends State<YogaTabContent> {
-  int _selectedTimeSlot = 0;
-  final List<String> _timeSlots = ['Morning', 'Afternoon', 'Evening'];
-
-  List<Map<String, dynamic>> _allInstructors = [];
-  bool _isLoadingInstructors = true;
-  int _visibleInstructorCount = 3;
-  static const int _instructorPageSize = 3;
+  List<Map<String, dynamic>> _allItems = [];
+  Set<String> _purchasedIds = {};
+  bool _isLoading = true;
+  int _visibleCount = 5;
+  static const int _pageSize = 5;
+  int _selectedFilter = 0; // 0 = All, 1 = Free, 2 = Paid
   int _feedRefreshKey = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadInstructors();
+    _loadYogas();
   }
 
-  Future<void> _loadInstructors() async {
+  Future<void> _loadYogas() async {
     setState(() {
-      _isLoadingInstructors = true;
-      _visibleInstructorCount = _instructorPageSize;
+      _isLoading = true;
+      _visibleCount = _pageSize;
     });
-    final data = await SupabaseService.getYogaInstructors();
+
+    final freeClasses = await SupabaseService.getAllYogaClasses();
+    final paidCourses = await SupabaseService.getAllPaidClasses();
+    final purchased = await SupabaseService.getPurchasedClassIds();
+
+    final tagged = <Map<String, dynamic>>[
+      ...freeClasses.map((c) => {...c, '_kind': 'free'}),
+      ...paidCourses.map((c) => {...c, '_kind': 'paid'}),
+    ];
+
     if (mounted) {
       setState(() {
-        _allInstructors = data;
-        _isLoadingInstructors = false;
+        _allItems = tagged;
+        _purchasedIds = purchased;
+        _isLoading = false;
         _feedRefreshKey++;
       });
     }
   }
 
-  void _loadMoreInstructors() {
+  void _loadMore() {
     setState(() {
-      _visibleInstructorCount =
-          (_visibleInstructorCount + _instructorPageSize)
-              .clamp(0, _allInstructors.length);
+      _visibleCount =
+          (_visibleCount + _pageSize).clamp(0, _filteredItems.length);
     });
+  }
+
+  List<Map<String, dynamic>> get _filteredItems {
+    if (_selectedFilter == 0) return _allItems;
+    if (_selectedFilter == 1) {
+      return _allItems.where((c) => c['_kind'] == 'free').toList();
+    }
+    return _allItems.where((c) => c['_kind'] == 'paid').toList();
   }
 
   void _openSearch(BuildContext context) {
     showDialog(
       context: context,
       barrierColor: Colors.black87,
-      builder: (_) => _YogaSearchDialog(instructors: _allInstructors),
+      builder: (_) => _YogaSearchDialog(),
     );
   }
 
@@ -74,7 +90,7 @@ class _YogaTabContentState extends State<YogaTabContent> {
           color: themeColor,
           backgroundColor: context.cardBgColor,
           displacement: 100,
-          onRefresh: _loadInstructors,
+          onRefresh: _loadYogas,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -86,14 +102,7 @@ class _YogaTabContentState extends State<YogaTabContent> {
                 const SizedBox(height: 20),
                 const YogaMotivationCard(),
                 const SizedBox(height: 24),
-                _buildTimeSlotTabs(context),
-                const SizedBox(height: 16),
-                YogaScheduleCard(
-                  key: ValueKey(_timeSlots[_selectedTimeSlot]),
-                  timeSlot: _timeSlots[_selectedTimeSlot],
-                ),
-                const SizedBox(height: 24),
-                _buildInstructorsSection(context),
+                _buildYogasSection(context),
                 const SizedBox(height: 24),
                 const YogaChallengeCard(),
                 const SizedBox(height: 24),
@@ -147,47 +156,10 @@ class _YogaTabContentState extends State<YogaTabContent> {
     );
   }
 
-  Widget _buildTimeSlotTabs(BuildContext context) {
-    return Container(
-      height: 45,
-      decoration: BoxDecoration(
-        color: context.cardBgColor,
-        borderRadius: BorderRadius.circular(25),
-      ),
-      child: Row(
-        children: List.generate(_timeSlots.length, (index) {
-          final isSelected = _selectedTimeSlot == index;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedTimeSlot = index),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? themeColor : Colors.transparent,
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                child: Center(
-                  child: Text(
-                    _timeSlots[index],
-                    style: TextStyle(
-                      color: isSelected ? Colors.black : context.subtextColor,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildInstructorsSection(BuildContext context) {
-    final visibleInstructors =
-        _allInstructors.take(_visibleInstructorCount).toList();
-    final hasMore = _visibleInstructorCount < _allInstructors.length;
+  Widget _buildYogasSection(BuildContext context) {
+    final filtered = _filteredItems;
+    final visibleItems = filtered.take(_visibleCount).toList();
+    final hasMore = _visibleCount < filtered.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,112 +168,200 @@ class _YogaTabContentState extends State<YogaTabContent> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Yoga Instructors',
+              'Yogas',
               style: TextStyle(
                 color: context.textColor,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            if (_allInstructors.isNotEmpty)
-              Text(
-                '${_allInstructors.length} available',
-                style: TextStyle(color: context.subtextColor, fontSize: 13),
-              ),
+            _buildFilterChips(context),
           ],
         ),
         const SizedBox(height: 14),
-        SizedBox(
-          height: 260,
-          child: _isLoadingInstructors
-              ? _buildInstructorSkeleton(context)
-              : _allInstructors.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No instructors available',
-                        style: TextStyle(color: context.subtextColor, fontSize: 14),
-                      ),
-                    )
-                  : ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: visibleInstructors.length + (hasMore ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == visibleInstructors.length) {
-                          return _buildInstructorLoadMore(context);
-                        }
-                        final instructor = visibleInstructors[index];
-                        return YogaInstructorCard(
-                          instructor: instructor,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  YogaInstructorDetailPage(instructor: instructor),
-                            ),
-                          ).then((_) => _loadInstructors()),
-                        );
-                      },
+        if (_isLoading)
+          _buildSkeleton(context)
+        else if (filtered.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Center(
+              child: Text(
+                'No yogas available',
+                style: TextStyle(color: context.subtextColor, fontSize: 14),
+              ),
+            ),
+          )
+        else ...[
+          ...visibleItems.map((item) {
+            final kind = item['_kind'] as String;
+            final isFree = kind == 'free';
+            final classId = item['id'] as String;
+            final isUnlocked = isFree || _purchasedIds.contains(classId);
+
+            return YogaCourseCard(
+              course: item,
+              isUnlocked: isUnlocked,
+              onTap: () {
+                if (isFree) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => YogaDetailPage(yoga: item),
                     ),
-        ),
+                  );
+                } else if (isUnlocked) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => InstructorClassDetailPage(
+                        classData: item,
+                        instructorData: item['yoga_instructors']
+                                as Map<String, dynamic>? ??
+                            {},
+                      ),
+                    ),
+                  );
+                } else {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      backgroundColor: const Color(0xFF2C2C2C),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                      title: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.lock_outline,
+                              color: themeColor, size: 44),
+                          const SizedBox(height: 12),
+                          Text(
+                            item['title'] ?? 'This course',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      content: Text(
+                        'This is a paid course. Purchase it to unlock full access.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 13, height: 1.5),
+                      ),
+                      actionsAlignment: MainAxisAlignment.center,
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text('Cancel',
+                              style: TextStyle(color: Colors.grey.shade400)),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => YogaBookingPage(course: item),
+                              ),
+                            ).then((_) => _loadYogas());
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: themeColor,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text('Buy Now',
+                              style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
+            );
+          }),
+          if (hasMore) _buildLoadMore(context),
+        ],
       ],
     );
   }
 
-  Widget _buildInstructorLoadMore(BuildContext context) {
-    final remaining = _allInstructors.length - _visibleInstructorCount;
+  Widget _buildFilterChips(BuildContext context) {
+    const labels = ['All', 'Free', 'Paid'];
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(labels.length, (i) {
+        final selected = _selectedFilter == i;
+        return GestureDetector(
+          onTap: () => setState(() {
+            _selectedFilter = i;
+            _visibleCount = _pageSize;
+          }),
+          child: Container(
+            margin: const EdgeInsets.only(left: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: selected ? themeColor : context.cardBgColor,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              labels[i],
+              style: TextStyle(
+                color: selected ? Colors.black : context.subtextColor,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildLoadMore(BuildContext context) {
+    final remaining = _filteredItems.length - _visibleCount;
     return GestureDetector(
-      onTap: _loadMoreInstructors,
+      onTap: _loadMore,
       child: Container(
-        width: 100,
-        margin: const EdgeInsets.only(right: 14),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        margin: const EdgeInsets.only(bottom: 4),
         decoration: BoxDecoration(
           color: context.cardBgColor,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: themeColor.withOpacity(0.3)),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: themeColor.withOpacity(0.15),
-                shape: BoxShape.circle,
-                border: Border.all(color: themeColor, width: 1.5),
-              ),
-              child: const Icon(Icons.add, color: themeColor, size: 24),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              '+$remaining more',
-              style: const TextStyle(
-                  color: themeColor, fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'See more',
-              style: TextStyle(color: context.subtextColor, fontSize: 10),
-            ),
-          ],
+        child: Center(
+          child: Text(
+            'Load $remaining more',
+            style: const TextStyle(
+                color: themeColor, fontSize: 13, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildInstructorSkeleton(BuildContext context) {
-    return ListView.builder(
-      scrollDirection: Axis.horizontal,
-      itemCount: 3,
-      itemBuilder: (context, index) => _ShimmerWidget(
-        child: Container(
-          width: 220,
-          margin: const EdgeInsets.only(right: 14),
-          decoration: BoxDecoration(
-            color: context.isDark
-                ? const Color(0xff3a3a3a)
-                : Colors.grey.shade300,
-            borderRadius: BorderRadius.circular(20),
+  Widget _buildSkeleton(BuildContext context) {
+    return Column(
+      children: List.generate(
+        3,
+        (_) => _ShimmerWidget(
+          child: Container(
+            height: 110,
+            margin: const EdgeInsets.only(bottom: 14),
+            decoration: BoxDecoration(
+              color: context.isDark
+                  ? const Color(0xff3a3a3a)
+                  : Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(18),
+            ),
           ),
         ),
       ),
@@ -310,12 +370,11 @@ class _YogaTabContentState extends State<YogaTabContent> {
 }
 
 // ─────────────────────────────────────────────
-// SEARCH DIALOG
+// SEARCH DIALOG (unchanged — leave exactly as-is)
 // ─────────────────────────────────────────────
 
 class _YogaSearchDialog extends StatefulWidget {
-  final List<Map<String, dynamic>> instructors;
-  const _YogaSearchDialog({required this.instructors});
+  const _YogaSearchDialog();
 
   @override
   State<_YogaSearchDialog> createState() => _YogaSearchDialogState();
@@ -324,7 +383,6 @@ class _YogaSearchDialog extends StatefulWidget {
 class _YogaSearchDialogState extends State<_YogaSearchDialog> {
   final _controller = TextEditingController();
   List<Map<String, dynamic>> _classResults = [];
-  List<Map<String, dynamic>> _instructorResults = [];
   bool _isLoading = false;
   bool _hasSearched = false;
 
@@ -332,7 +390,6 @@ class _YogaSearchDialogState extends State<_YogaSearchDialog> {
     if (query.trim().isEmpty) {
       setState(() {
         _classResults = [];
-        _instructorResults = [];
         _hasSearched = false;
       });
       return;
@@ -344,15 +401,9 @@ class _YogaSearchDialogState extends State<_YogaSearchDialog> {
 
     final allClasses = await SupabaseService.searchYogaClasses(q);
 
-    final instructorResults = widget.instructors.where((i) {
-      return (i['name'] ?? '').toString().toLowerCase().contains(q) ||
-          (i['specialty'] ?? '').toString().toLowerCase().contains(q);
-    }).toList();
-
     if (mounted) {
       setState(() {
         _classResults = allClasses;
-        _instructorResults = instructorResults;
         _isLoading = false;
         _hasSearched = true;
       });
@@ -360,7 +411,7 @@ class _YogaSearchDialogState extends State<_YogaSearchDialog> {
   }
 
   String _getClassLabel(Map<String, dynamic> yoga) {
-    return 'Best ${yoga['time_slot']} Yoga · Free Exercise';
+    return 'Yoga Practice · Free Exercise';
   }
 
   @override
@@ -371,7 +422,7 @@ class _YogaSearchDialogState extends State<_YogaSearchDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final hasResults = _classResults.isNotEmpty || _instructorResults.isNotEmpty;
+    final hasResults = _classResults.isNotEmpty;
 
     final screenHeight = MediaQuery.of(context).size.height;
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
@@ -390,7 +441,6 @@ class _YogaSearchDialogState extends State<_YogaSearchDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.max,
           children: [
-            // Search bar
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Row(
@@ -433,7 +483,6 @@ class _YogaSearchDialogState extends State<_YogaSearchDialog> {
 
             const Divider(height: 1),
 
-            // Results
             Flexible(
               child: _isLoading
                   ? const Padding(
@@ -476,7 +525,6 @@ class _YogaSearchDialogState extends State<_YogaSearchDialog> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Classes section
                                   if (_classResults.isNotEmpty) ...[
                                     Row(
                                       children: [
@@ -584,129 +632,6 @@ class _YogaSearchDialogState extends State<_YogaSearchDialog> {
                                           ),
                                         )),
                                   ],
-
-                                  // Instructors section
-                                  if (_instructorResults.isNotEmpty) ...[
-                                    if (_classResults.isNotEmpty)
-                                      const SizedBox(height: 16),
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.person_outline,
-                                            color: themeColor, size: 16),
-                                        const SizedBox(width: 6),
-                                        Text('Yoga Instructors',
-                                            style: TextStyle(
-                                                color: context.textColor,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.bold)),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    ..._instructorResults
-                                        .map((instructor) => GestureDetector(
-                                              onTap: () {
-                                                final nav = Navigator.of(context);
-                                                nav.pop();
-                                                nav.push(MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      YogaInstructorDetailPage(
-                                                          instructor: instructor),
-                                                ));
-                                              },
-                                              child: Container(
-                                                margin: const EdgeInsets.only(
-                                                    bottom: 10),
-                                                padding: const EdgeInsets.all(12),
-                                                decoration: BoxDecoration(
-                                                  color: context.cardBgColor,
-                                                  borderRadius:
-                                                      BorderRadius.circular(14),
-                                                ),
-                                                child: Row(
-                                                  children: [
-                                                    CircleAvatar(
-                                                      radius: 28,
-                                                      backgroundColor: themeColor,
-                                                      backgroundImage: (instructor[
-                                                                      'image_url'] ??
-                                                                  '')
-                                                              .isNotEmpty
-                                                          ? NetworkImage(instructor[
-                                                              'image_url'])
-                                                          : null,
-                                                      child: (instructor[
-                                                                      'image_url'] ??
-                                                                  '')
-                                                              .isEmpty
-                                                          ? const Icon(
-                                                              Icons.person,
-                                                              color: Colors.black,
-                                                              size: 24)
-                                                          : null,
-                                                    ),
-                                                    const SizedBox(width: 12),
-                                                    Expanded(
-                                                      child: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Text(
-                                                              instructor['name'] ??
-                                                                  '',
-                                                              style: TextStyle(
-                                                                  color: context
-                                                                      .textColor,
-                                                                  fontSize: 14,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold)),
-                                                          const SizedBox(height: 4),
-                                                          Container(
-                                                            padding: const EdgeInsets
-                                                                .symmetric(
-                                                                horizontal: 8,
-                                                                vertical: 2),
-                                                            decoration:
-                                                                BoxDecoration(
-                                                              color: themeColor
-                                                                  .withOpacity(
-                                                                      0.15),
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(6),
-                                                            ),
-                                                            child: Text(
-                                                              'Yoga Instructors',
-                                                              style: TextStyle(
-                                                                  color: themeColor,
-                                                                  fontSize: 10,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w600),
-                                                            ),
-                                                          ),
-                                                          const SizedBox(height: 4),
-                                                          Text(
-                                                              instructor[
-                                                                      'specialty'] ??
-                                                                  '',
-                                                              style: TextStyle(
-                                                                  color: context
-                                                                      .subtextColor,
-                                                                  fontSize: 12)),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    const Icon(
-                                                        Icons.arrow_forward_ios,
-                                                        size: 14,
-                                                        color: Colors.grey),
-                                                  ],
-                                                ),
-                                              ),
-                                            )),
-                                  ],
                                 ],
                               ),
                             ),
@@ -718,10 +643,6 @@ class _YogaSearchDialogState extends State<_YogaSearchDialog> {
     );
   }
 }
-
-// ─────────────────────────────────────────────
-// SHIMMER
-// ─────────────────────────────────────────────
 
 class _ShimmerWidget extends StatefulWidget {
   final Widget child;

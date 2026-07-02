@@ -99,7 +99,6 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
   Future<void> _load() async {
     setState(() => _isLoading = true);
     SupabaseService.clearOldActivityHistory();
-
     final raw = await SupabaseService.getFullActivityHistory(days: 10);
     final allDays = raw.map((m) => _HistoryDay(
   date:             DateTime.parse(m['date'] as String),

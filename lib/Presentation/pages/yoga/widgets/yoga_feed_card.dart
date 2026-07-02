@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/newsfeed/newsfeed_page.dart';
-import 'package:get_fit/Presentation/pages/yoga/instructor_class_detail_page.dart';
-import 'package:get_fit/Presentation/pages/fitnes_trainer/trainer_content_page.dart';
 
 class YogaFeedCard extends StatefulWidget {
   const YogaFeedCard({super.key});
@@ -14,7 +12,6 @@ class YogaFeedCard extends StatefulWidget {
 
 class _YogaFeedCardState extends State<YogaFeedCard> {
   List<Map<String, dynamic>> _yogaFeedItems = [];
-  List<Map<String, dynamic>> _trainerFeedItems = [];
   bool _isLoading = true;
 
   @override
@@ -23,10 +20,9 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
     _loadFeed();
   }
 
-   Future<void> _loadFeed() async {
+  Future<void> _loadFeed() async {
     setState(() => _isLoading = true);
     final yogaRaw = await SupabaseService.getUserFeedClasses();
-    final trainerData = await SupabaseService.getTrainerFeedItems();
 
     // Enrich yoga items with class details
     final List<Map<String, dynamic>> enrichedYoga = [];
@@ -60,7 +56,6 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
     if (mounted) {
       setState(() {
         _yogaFeedItems = enrichedYoga;
-        _trainerFeedItems = trainerData;
         _isLoading = false;
       });
     }
@@ -81,25 +76,14 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
     }
   }
 
-  Future<void> _removeTrainerItem(String bookingId) async {
-    try {
-      await SupabaseService.removeTrainerContentFromFeed(
-          bookingId: bookingId);
-      setState(() {
-        _trainerFeedItems
-            .removeWhere((item) => item['booking_id'] == bookingId);
-      });
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to remove. Try again.')),
-        );
-      }
-    }
+  void _goToFeedPage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const NewsfeedPage()),
+    ).then((_) => _loadFeed());
   }
 
-  bool get _isEmpty =>
-      _yogaFeedItems.isEmpty && _trainerFeedItems.isEmpty;
+  bool get _isEmpty => _yogaFeedItems.isEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -111,7 +95,7 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'My Classes Feed',
+              'Added Feed',
               style: TextStyle(
                 color: context.textColor,
                 fontSize: 18,
@@ -119,11 +103,7 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
               ),
             ),
             IconButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const NewsfeedPage()),
-              ),
+              onPressed: _goToFeedPage,
               icon: Icon(
                 Icons.add_circle_outline_rounded,
                 color: context.textColor,
@@ -140,271 +120,58 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
 
         // Empty state
         else if (_isEmpty)
-          Container(
-            width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-            decoration: BoxDecoration(
-              color: context.cardBgColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: themeColor.withOpacity(0.2)),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: themeColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.play_lesson_outlined,
-                      color: themeColor, size: 32),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'No classes in your feed yet',
-                  style: TextStyle(
-                    color: context.textColor,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Book an instructor or trainer and add\ntheir classes to see them here.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: context.subtextColor,
-                    fontSize: 12,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          )
-
-        else ...[
-          // ── TRAINER FEED ITEMS ──────────────────────
-          if (_trainerFeedItems.isNotEmpty) ...[
-            _sectionHeader(context, Icons.fitness_center, 'Trainer Sessions'),
-            const SizedBox(height: 10),
-            ..._trainerFeedItems
-                .map((item) => _buildTrainerFeedCard(context, item)),
-            const SizedBox(height: 8),
-          ],
-
-          // ── YOGA FEED ITEMS ─────────────────────────
-          if (_yogaFeedItems.isNotEmpty) ...[
-            if (_trainerFeedItems.isNotEmpty)
-              _sectionHeader(
-                  context, Icons.self_improvement, 'Yoga Classes'),
-            if (_trainerFeedItems.isNotEmpty) const SizedBox(height: 10),
-            ..._yogaFeedItems
-                .map((item) => _buildYogaFeedCard(context, item)),
-          ],
-        ],
-      ],
-    );
-  }
-
-  // ── SECTION HEADER ────────────────────────────
-
-  Widget _sectionHeader(
-      BuildContext context, IconData icon, String label) {
-    return Row(children: [
-      Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: themeColor.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: themeColor, size: 15),
-      ),
-      const SizedBox(width: 8),
-      Text(
-        label,
-        style: TextStyle(
-          color: context.textColor,
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    ]);
-  }
-
-  // ── TRAINER FEED CARD ─────────────────────────
-
-  Widget _buildTrainerFeedCard(
-      BuildContext context, Map<String, dynamic> item) {
-    final trainer =
-        item['fitness_trainers'] as Map<String, dynamic>? ?? {};
-    final bookingId = item['booking_id'] as String? ?? '';
-    final trainerName = trainer['name'] as String? ?? 'Trainer';
-    final trainerType =
-        trainer['training_type'] as String? ?? 'Fitness';
-    final trainerImage = trainer['image_url'] as String? ?? '';
-    final addedAt = item['added_at'] as String? ?? '';
-
-    String fmtDate = '';
-    try {
-      final dt = DateTime.parse(addedAt).toLocal();
-      const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
-      fmtDate = '${dt.day} ${months[dt.month - 1]} ${dt.year}';
-    } catch (_) {}
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => TrainerContentPage(
-              trainer: {
-                ...trainer,
-                'id': item['trainer_id'] as String? ?? trainer['id'] ?? '',
-              },
-              activeBooking: {'id': bookingId},
-            ),
-          ),
-        ).then((_) => _loadFeed());
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        decoration: BoxDecoration(
-          color: context.cardBgColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: themeColor.withOpacity(0.2)),
-        ),
-        child: Stack(children: [
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(children: [
-              // Trainer avatar
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: themeColor,
-                backgroundImage: trainerImage.isNotEmpty
-                    ? NetworkImage(trainerImage)
-                    : null,
-                child: trainerImage.isEmpty
-                    ? const Icon(Icons.fitness_center,
-                        color: Colors.black, size: 24)
-                    : null,
+          GestureDetector(
+            onTap: _goToFeedPage,
+            child: Container(
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+              decoration: BoxDecoration(
+                color: context.cardBgColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: themeColor.withOpacity(0.2)),
               ),
-              const SizedBox(width: 14),
-
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  // Trainer name
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: themeColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.bookmark_border_rounded,
+                        color: themeColor, size: 32),
+                  ),
+                  const SizedBox(height: 12),
                   Text(
-                    trainerName,
+                    'Nothing here yet',
                     style: TextStyle(
                       color: context.textColor,
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  // Type badge
-                  Row(children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: themeColor.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        trainerType,
-                        style: const TextStyle(
-                            color: themeColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold),
-                      ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Tap to add sessions to your feed.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: context.subtextColor,
+                      fontSize: 12,
+                      height: 1.5,
                     ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'Training Content',
-                        style: TextStyle(
-                            color: Colors.blue,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ]),
-                  const SizedBox(height: 8),
-
-                  // Info row
-                  Row(children: [
-                    Icon(Icons.play_lesson_outlined,
-                        color: context.subtextColor, size: 13),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Videos • Guide • Diet • Steps',
-                      style: TextStyle(
-                          color: context.subtextColor, fontSize: 11),
-                    ),
-                  ]),
-                  if (fmtDate.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      Icon(Icons.calendar_today,
-                          color: context.subtextColor, size: 12),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Added $fmtDate',
-                        style: TextStyle(
-                            color: context.subtextColor, fontSize: 11),
-                      ),
-                    ]),
-                  ],
-                ]),
-              ),
-
-              // Play icon
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.play_arrow_rounded,
-                    color: themeColor, size: 20),
-              ),
-            ]),
-          ),
-
-          // Remove button
-          Positioned(
-            top: 8,
-            right: 8,
-            child: GestureDetector(
-              onTap: () => _removeTrainerItem(bookingId),
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.45),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.close,
-                    color: Colors.white, size: 14),
+                  ),
+                ],
               ),
             ),
-          ),
-        ]),
-      ),
+          )
+
+        else ...[
+          // ── YOGA FEED ITEMS ─────────────────────────
+          ..._yogaFeedItems
+              .map((item) => _buildYogaFeedCard(context, item)),
+        ],
+      ],
     );
   }
 
@@ -427,25 +194,7 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
     final instructorSpecialty = instructor?['specialty'] ?? '';
     final instructorImage = instructor?['image_url'] ?? '';
 
-    return GestureDetector(
-      onTap: () {
-        if (cls == null) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => InstructorClassDetailPage(
-              classData: {
-                ...cls,
-                'id': classId,
-                'instructor_id':
-                    cls['instructor_id'] ?? instructor?['id'] ?? '',
-              },
-              instructorData: instructor ?? {},
-            ),
-          ),
-        );
-      },
-      child: Container(
+    return Container(
         margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
           color: context.cardBgColor,
@@ -600,8 +349,7 @@ class _YogaFeedCardState extends State<YogaFeedCard> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   // ── HELPERS ───────────────────────────────────

@@ -12,6 +12,7 @@ class ReviewsPage extends StatefulWidget {
   final String trainerName;
   final String rating;
   final VoidCallback? onReviewChanged;
+  final bool hasBookedTrainer;
 
   const ReviewsPage({
     super.key,
@@ -19,6 +20,7 @@ class ReviewsPage extends StatefulWidget {
     required this.trainerName,
     required this.rating,
     this.onReviewChanged,
+    this.hasBookedTrainer = false,
   });
 
   @override
@@ -482,6 +484,44 @@ class _ReviewsPageState extends State<ReviewsPage> {
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                   child: ElevatedButton(
                     onPressed: () async {
+                      if (!widget.hasBookedTrainer) {
+                        showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            backgroundColor: const Color(0xFF2C2C2C),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
+                            title: const Icon(Icons.lock_outline,
+                                color: Colors.grey, size: 40),
+                            content: const Text(
+                              'You can write a review once your session with this trainer has ended.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                  height: 1.5),
+                            ),
+                            actionsAlignment: MainAxisAlignment.center,
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 10),
+                                  decoration: BoxDecoration(
+                                      color: themeColor,
+                                      borderRadius: BorderRadius.circular(10)),
+                                  child: const Text('OK',
+                                      style: TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                        return;
+                      }
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -498,14 +538,21 @@ class _ReviewsPageState extends State<ReviewsPage> {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: themeColor,
+                      backgroundColor:
+                          widget.hasBookedTrainer ? themeColor : Colors.grey.withOpacity(0.4),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       minimumSize: const Size(double.infinity, 0),
                     ),
                     child: Text(
-                      _myReview != null ? 'Edit Your Review' : 'Write a Review',
-                      style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
+                      !widget.hasBookedTrainer
+                          ? 'Write a Review'
+                          : (_myReview != null ? 'Edit Your Review' : 'Write a Review'),
+                      style: TextStyle(
+                        color: widget.hasBookedTrainer ? Colors.black : Colors.grey.shade300,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),

@@ -21,7 +21,7 @@ class AppointmentPaymentPage extends StatefulWidget {
   final double sessionPrice;
   final double trainerRating;
   final String trainerAvatarUrl;
-  final String weeklySlotId;
+  final String slotId;
   final String startTime;
   final String endTime;
 
@@ -34,7 +34,7 @@ class AppointmentPaymentPage extends StatefulWidget {
     required this.displayDate,
     required this.time,
     required this.notes,
-    required this.weeklySlotId,
+    required this.slotId,
     required this.startTime,
     required this.endTime,
     this.sessionPrice = 50.00,
@@ -136,14 +136,11 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
       // 4. Payment succeeded — book the slot
       await SupabaseService.bookTrainerSlot(
         trainerId: widget.trainerId,
-        weeklySlotId: widget.weeklySlotId,
-        bookingDate: widget.date,
+        slotId: widget.slotId,
+        slotDate: widget.date,
         startTime: widget.startTime,
         endTime: widget.endTime,
         price: widget.sessionPrice,
-        paymentCardLast4: _cards.isNotEmpty
-            ? (_cards[_selectedCardIndex]['last4'] ?? '')
-            : '',
         notes: widget.notes,
       );
 
@@ -175,19 +172,12 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
       if (!mounted) return;
       setState(() => _isBooking = false);
       final msg = e.toString();
-      if (msg.contains('already_booked')) {
+      if (msg.contains('slot_unavailable')) {
         _showDialog(
           icon: Icons.event_busy,
           iconColor: Colors.orangeAccent,
-          title: 'Already Booked',
-          message: 'You already have this slot booked for this date.',
-        );
-      } else if (msg.contains('slot_full')) {
-        _showDialog(
-          icon: Icons.people_outline,
-          iconColor: Colors.orangeAccent,
-          title: 'Slot Full',
-          message: 'This slot just filled up. Please go back and pick another time.',
+          title: 'Slot No Longer Available',
+          message: 'This slot was just booked by someone else. Please go back and pick another time.',
         );
       } else {
         _showDialog(

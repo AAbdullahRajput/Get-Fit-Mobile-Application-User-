@@ -7,23 +7,13 @@ import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
 class YogaPaymentPage extends StatefulWidget {
-  final Map<String, dynamic> instructor;
-  final String startDate;
-  final String displayDate;
-  final int numSessions;
-  final double totalPrice;
-  final String notes;
-  final List<String> selectedSessionIds;
+  final Map<String, dynamic> course;
+  final double price;
 
   const YogaPaymentPage({
     super.key,
-    required this.instructor,
-    required this.startDate,
-    required this.displayDate,
-    required this.numSessions,
-    required this.totalPrice,
-    required this.notes,
-    required this.selectedSessionIds,
+    required this.course,
+    required this.price,
   });
 
   @override
@@ -121,13 +111,13 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
     );
   }
 
-  Future<void> _confirmBooking() async {
+  Future<void> _confirmPurchase() async {
     setState(() => _isBooking = true);
 
     try {
       // 1. Create PaymentIntent on backend
       final clientSecret =
-          await SupabaseService.createPaymentIntent(widget.totalPrice);
+          await SupabaseService.createPaymentIntent(widget.price);
 
       // 2. Init Stripe payment sheet
       await Stripe.instance.initPaymentSheet(
@@ -141,25 +131,22 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
       // 3. Present Stripe payment sheet
       await Stripe.instance.presentPaymentSheet();
 
-      // 4. Payment succeeded — book the sessions
-      await SupabaseService.bookInstructorSessions(
-        instructorId: widget.instructor['id'],
-        sessionIds: widget.selectedSessionIds,
-        sessionCount: widget.numSessions,
-        totalPrice: widget.totalPrice,
-        notes: widget.notes,
+      // 4. Payment succeeded — record the purchase
+      final instructor =
+          widget.course['yoga_instructors'] as Map<String, dynamic>?;
+      await SupabaseService.purchaseClass(
+        classId: widget.course['id'] as String,
+        instructorId: widget.course['instructor_id'] as String? ??
+            instructor?['id'] as String? ??
+            '',
+        price: widget.price,
       );
 
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => YogaBookingConfirmationPage(
-            instructor: widget.instructor,
-            displayDate: widget.displayDate,
-            numSessions: widget.numSessions,
-            totalPrice: widget.totalPrice,
-          ),
+          builder: (_) => YogaBookingConfirmationPage(course: widget.course),
         ),
       );
     } on StripeException catch (e) {
@@ -180,17 +167,16 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
         _showDialog(
           icon: Icons.event_busy,
           iconColor: Colors.orangeAccent,
-          title: 'Already Booked',
-          message:
-              'You already have a booking on ${widget.displayDate}. Please go back and choose a different date.',
+          title: 'Already Purchased',
+          message: 'You already own this course.',
         );
       } else {
         _showDialog(
           icon: Icons.wifi_off_outlined,
           iconColor: Colors.redAccent,
-          title: 'Booking Failed',
+          title: 'Purchase Failed',
           message:
-              'Something went wrong while processing your booking. Please try again.',
+              'Something went wrong while processing your purchase. Please try again.',
         );
       }
     }
@@ -537,84 +523,50 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                         height: 20),
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 26,
-                          backgroundColor: themeColor,
-                          backgroundImage:
-                              (widget.instructor['image_url'] ?? '').isNotEmpty
-                                  ? NetworkImage(
-                                      widget.instructor['image_url'])
-                                  : null,
-                          child:
-                              (widget.instructor['image_url'] ?? '').isEmpty
-                                  ? const Icon(Icons.self_improvement,
-                                      color: Colors.black, size: 28)
-                                  : null,
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            widget.course['image_url'] ?? '',
+                            width: 52,
+                            height: 52,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 52,
+                              height: 52,
+                              color: context.isDark
+                                  ? Colors.grey[800]
+                                  : Colors.grey[200],
+                              child: Icon(Icons.self_improvement,
+                                  color: context.subtextColor),
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(widget.instructor['name'] ?? '',
+                              Text(widget.course['title'] ?? '',
                                   style: TextStyle(
                                       color: context.textColor,
-                                      fontSize: 17,
+                                      fontSize: 16,
                                       fontWeight: FontWeight.bold)),
-                              Text(widget.instructor['specialty'] ?? '',
+                              if (((widget.course['yoga_instructors']
+                                          as Map<String, dynamic>?)?['name'] ??
+                                      '')
+                                  .toString()
+                                  .isNotEmpty)
+                                Text(
+                                  'by ${(widget.course['yoga_instructors'] as Map<String, dynamic>?)?['name']}',
                                   style: TextStyle(
                                       color: context.subtextColor,
-                                      fontSize: 13)),
+                                      fontSize: 13),
+                                ),
                             ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: themeColor,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            double.parse(
-                                    widget.instructor['rating'].toString())
-                                .toStringAsFixed(1),
-                            style: const TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13),
                           ),
                         ),
                       ],
                     ),
-                    Divider(
-                        color: context.isDark
-                            ? Colors.white12
-                            : Colors.grey.shade200,
-                        height: 24),
-                    Text('Start Date',
-                        style: TextStyle(
-                            color: context.subtextColor, fontSize: 16)),
-                    const SizedBox(height: 6),
-                    Text(widget.displayDate,
-                        style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600)),
-                    Divider(
-                        color: context.isDark
-                            ? Colors.white12
-                            : Colors.grey.shade200,
-                        height: 24),
-                    Text('Sessions',
-                        style: TextStyle(
-                            color: context.subtextColor, fontSize: 16)),
-                    const SizedBox(height: 6),
-                    Text('${widget.numSessions} sessions',
-                        style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600)),
                     Divider(
                         color: context.isDark
                             ? Colors.white12
@@ -626,7 +578,7 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                         Text('Total Amount',
                             style: TextStyle(
                                 color: context.subtextColor, fontSize: 15)),
-                        Text('\$${widget.totalPrice.toStringAsFixed(2)}',
+                        Text('\$${widget.price.toStringAsFixed(2)}',
                             style: const TextStyle(
                                 color: themeColor,
                                 fontSize: 22,
@@ -637,7 +589,7 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _isBooking ? null : _confirmBooking,
+                        onPressed: _isBooking ? null : _confirmPurchase,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: themeColor,
                           disabledBackgroundColor: Colors.grey,
@@ -651,7 +603,7 @@ class _YogaPaymentPageState extends State<YogaPaymentPage> {
                                 height: 22,
                                 child: CircularProgressIndicator(
                                     strokeWidth: 2.5, color: Colors.black))
-                            : const Text('Confirm & Book',
+                            : const Text('Confirm & Pay',
                                 style: TextStyle(
                                     color: Colors.black,
                                     fontSize: 16,

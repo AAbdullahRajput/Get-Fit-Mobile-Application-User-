@@ -2,17 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get_fit/Utils/constants.dart';
 
 class YogaBookingConfirmationPage extends StatelessWidget {
-  final Map<String, dynamic> instructor;
-  final String displayDate;
-  final int numSessions;
-  final double totalPrice;
+  final Map<String, dynamic> course;
 
   const YogaBookingConfirmationPage({
     super.key,
-    required this.instructor,
-    required this.displayDate,
-    required this.numSessions,
-    required this.totalPrice,
+    required this.course,
   });
 
   @override
@@ -42,7 +36,7 @@ class YogaBookingConfirmationPage extends StatelessWidget {
               const SizedBox(height: 24),
 
               const Text(
-                'Booking Confirmed!',
+                'Purchase Confirmed!',
                 style: TextStyle(
                     color: themeColor,
                     fontSize: 26,
@@ -50,7 +44,7 @@ class YogaBookingConfirmationPage extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Your yoga sessions have been booked successfully.',
+                'This course is now unlocked and ready to view.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     color: context.subtextColor, fontSize: 14, height: 1.5),
@@ -67,20 +61,26 @@ class YogaBookingConfirmationPage extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    // Instructor row
+                    // Course row
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 26,
-                          backgroundColor: themeColor,
-                          backgroundImage:
-                              (instructor['image_url'] ?? '').isNotEmpty
-                                  ? NetworkImage(instructor['image_url'])
-                                  : null,
-                          child: (instructor['image_url'] ?? '').isEmpty
-                              ? const Icon(Icons.self_improvement,
-                                  color: Colors.black, size: 28)
-                              : null,
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            course['image_url'] ?? '',
+                            width: 52,
+                            height: 52,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 52,
+                              height: 52,
+                              color: context.isDark
+                                  ? Colors.grey[800]
+                                  : Colors.grey[200],
+                              child: Icon(Icons.self_improvement,
+                                  color: context.subtextColor),
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -88,18 +88,23 @@ class YogaBookingConfirmationPage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                instructor['name'] ?? '',
+                                course['title'] ?? '',
                                 style: TextStyle(
                                     color: context.textColor,
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold),
                               ),
-                              Text(
-                                instructor['specialty'] ?? '',
-                                style: TextStyle(
-                                    color: context.subtextColor,
-                                    fontSize: 13),
-                              ),
+                              if (((course['yoga_instructors']
+                                          as Map<String, dynamic>?)?['name'] ??
+                                      '')
+                                  .toString()
+                                  .isNotEmpty)
+                                Text(
+                                  'by ${(course['yoga_instructors'] as Map<String, dynamic>?)?['name']}',
+                                  style: TextStyle(
+                                      color: context.subtextColor,
+                                      fontSize: 13),
+                                ),
                             ],
                           ),
                         ),
@@ -111,14 +116,9 @@ class YogaBookingConfirmationPage extends StatelessWidget {
                             : Colors.grey.shade200,
                         height: 24),
 
-                    _detailRow(context, Icons.calendar_today_outlined,
-                        'Start Date', displayDate),
-                    const SizedBox(height: 12),
-                    _detailRow(context, Icons.self_improvement,
-                        'Sessions', '$numSessions sessions'),
-                    const SizedBox(height: 12),
                     _detailRow(context, Icons.monetization_on_outlined,
-                        'Total Paid', '\$${totalPrice.toStringAsFixed(2)}'),
+                        'Total Paid',
+                        '\$${((course['price'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}'),
                   ],
                 ),
               ),

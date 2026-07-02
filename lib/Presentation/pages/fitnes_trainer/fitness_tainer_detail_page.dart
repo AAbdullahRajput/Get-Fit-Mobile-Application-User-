@@ -4,8 +4,6 @@ import 'package:get_fit/Presentation/pages/review/reviews_page.dart';
 import 'package:get_fit/Presentation/widgets/reuseable_button.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
-import 'package:get_fit/Presentation/pages/fitnes_trainer/trainer_booking_detail_page.dart';
-import 'package:get_fit/Presentation/pages/fitnes_trainer/trainer_content_page.dart';
 
 Color _accent(BuildContext context) {
   return context.isDark ? themeColor : const Color(0xFF6B7A00);
@@ -25,7 +23,9 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _reviews = [];
   Map<String, dynamic>? _myReview;
-  List<Map<String, dynamic>> _myBookings = [];
+  bool _hasBookedTrainer = false; // true once a session has ended — unlocks reviews
+  bool _hasAnyBooking = false;    // true if any active booking exists — used for call messaging
+  bool _canCallNow = false;
 
   @override
   void initState() {
@@ -33,37 +33,72 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
+ Future<void> _loadData() async {
     setState(() => _isLoading = true);
     final trainerId = widget.trainer['id'] as String;
     final reviews = await SupabaseService.getTrainerReviews(trainerId);
     final myReview = await SupabaseService.getMyReview(trainerId);
-    final myBookings = await SupabaseService.getMyTrainerSlotBookings();
-    final now = DateTime.now();
+    final myBookings = await SupabaseService.getMyTrainerAppointments();
     final trainerBookings = myBookings
-        .where((b) {
-          if (b['trainer_id'] != trainerId) return false;
-          final status = b['status'] as String? ?? '';
-          if (status == 'cancelled') return false;
-          // Hide expired+attended bookings
-          final date = b['booking_date'] as String? ?? '';
-          final endTime = b['end_time'] as String? ?? '23:59';
-          final dt = DateTime.tryParse(date);
-          if (dt != null) {
-            final parts = endTime.split(':');
-            final slotEnd = DateTime(dt.year, dt.month, dt.day,
-                int.parse(parts[0]), int.parse(parts[1]));
-            if (DateTime.now().isAfter(slotEnd)) return false;
-          }
-          return true;
-        })
+        .where((b) =>
+            b['trainer_id'] == trainerId && b['status'] != 'cancelled')
         .toList();
+
+    final now = DateTime.now();
+    final canCallNow = trainerBookings.any((b) {
+      try {
+        final status = b['status'] as String? ?? '';
+        if (status != 'confirmed') return false; // attended/cancelled sessions can't be called
+        final date = b['appointment_date'] as String? ?? '';
+        final startStr = b['start_time'] as String? ?? '';
+        final endStr = b['end_time'] as String? ?? '';
+        final d = DateTime.parse(date);
+        final startParts = startStr.split(':');
+        final endParts = endStr.split(':');
+        final start = DateTime(d.year, d.month, d.day,
+            int.parse(startParts[0]), int.parse(startParts[1]));
+        final end = DateTime(d.year, d.month, d.day,
+            int.parse(endParts[0]), int.parse(endParts[1]));
+        return now.isAfter(start) && now.isBefore(end);
+      } catch (_) {
+        return false;
+      }
+    });
+
+    final hasCompletedSession = trainerBookings.any((b) {
+      try {
+        final status = b['status'] as String? ?? '';
+        if (status == 'attended') return true; // trainer confirmed it's done — unlock immediately
+        final date = b['appointment_date'] as String? ?? '';
+        final endStr = b['end_time'] as String? ?? '';
+        final d = DateTime.parse(date);
+        final endParts = endStr.split(':');
+        final end = DateTime(d.year, d.month, d.day,
+            int.parse(endParts[0]), int.parse(endParts[1]));
+        return now.isAfter(end); // fallback: clock-based, for sessions never marked attended
+      } catch (_) {
+        return false;
+      }
+    });
+
+    debugPrint('\x1B[35m[TRAINER-DETAIL] trainerId=$trainerId '
+        'myUserId=${SupabaseService.currentUser?.id} '
+        'totalBookings=${myBookings.length} '
+        'trainerBookings=${trainerBookings.length} '
+        'canCallNow=$canCallNow hasCompleted=$hasCompletedSession\x1B[0m');
+    for (final b in trainerBookings) {
+      debugPrint('\x1B[35m  -> date=${b['appointment_date']} '
+          'start=${b['start_time']} end=${b['end_time']} '
+          'status=${b['status']}\x1B[0m');
+    }
 
     if (mounted) {
       setState(() {
         _reviews = reviews;
         _myReview = myReview;
-        _myBookings = trainerBookings;
+        _hasBookedTrainer = hasCompletedSession;
+        _hasAnyBooking = trainerBookings.isNotEmpty;
+        _canCallNow = canCallNow;
         _isLoading = false;
       });
     }
@@ -344,6 +379,46 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                 trainer['phone_number'].toString().isNotEmpty)
               GestureDetector(
                 onTap: () {
+                  if (!_canCallNow) {
+                    showDialog(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        backgroundColor: const Color(0xFF2C2C2C),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        title: const Icon(Icons.lock_clock,
+                            color: Colors.grey, size: 40),
+                        content: Text(
+                          _hasAnyBooking
+                              ? 'You can call your trainer once your booked session starts.'
+                              : 'Book a session with this trainer to unlock calling.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              height: 1.5),
+                        ),
+                        actionsAlignment: MainAxisAlignment.center,
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 10),
+                              decoration: BoxDecoration(
+                                  color: themeColor,
+                                  borderRadius: BorderRadius.circular(10)),
+                              child: const Text('OK',
+                                  style: TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                    return;
+                  }
                   showDialog(
                     context: context,
                     builder: (_) => AlertDialog(
@@ -389,9 +464,14 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                 },
                 child: CircleAvatar(
                   radius: 22,
-                  backgroundColor: themeColor,
-                  child:
-                      const Icon(Icons.phone, color: Colors.black, size: 20),
+                  backgroundColor: _canCallNow
+                      ? themeColor
+                      : Colors.grey.withOpacity(0.4),
+                  child: Icon(
+                    _canCallNow ? Icons.phone : Icons.phone_locked,
+                    color: _canCallNow ? Colors.black : Colors.grey.shade300,
+                    size: 20,
+                  ),
                 ),
               ),
           ],
@@ -523,6 +603,7 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                           trainerName: trainer['name'] ?? '',
                           rating: trainer['rating'].toString(),
                           onReviewChanged: _loadData,
+                          hasBookedTrainer: _hasBookedTrainer,
                         ),
                       ),
                     );
@@ -584,8 +665,6 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
             ),
           ),
         ),
-
-        _buildMyBookingsSection(context),
       ],
     );
   }
@@ -621,6 +700,7 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
               trainerName: trainer['name'] ?? '',
               rating: trainer['rating']?.toString() ?? '0.0',
               onReviewChanged: _loadData,
+              hasBookedTrainer: _hasBookedTrainer,
             ),
           ),
         );
@@ -731,235 +811,6 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
     } catch (_) {
       return '';
     }
-  }
-
-  Widget _buildMyBookingsSection(BuildContext context) {
-    if (_myBookings.isEmpty) {
-      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const SizedBox(height: 28),
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.lock_outline, color: Colors.grey, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Text('Classes Locked',
-              style: TextStyle(
-                  color: context.textColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold)),
-        ]),
-        const SizedBox(height: 12),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: context.cardBgColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.withOpacity(0.3)),
-          ),
-          child: Column(children: [
-            const Icon(Icons.lock, color: Colors.grey, size: 40),
-            const SizedBox(height: 12),
-            Text('No active bookings',
-                style: TextStyle(
-                    color: context.textColor,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text(
-              'Book an appointment to unlock trainer content, videos, diet plans and more.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: context.subtextColor, fontSize: 13, height: 1.4),
-            ),
-          ]),
-        ),
-      ]);
-    }
-    final accent = _accent(context);
-
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const SizedBox(height: 28),
-      Row(children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: themeColor.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Icon(Icons.event_available,
-              color: themeColor, size: 18),
-        ),
-        const SizedBox(width: 10),
-        Text('My Bookings',
-            style: TextStyle(
-                color: context.textColor,
-                fontSize: 18,
-                fontWeight: FontWeight.bold)),
-      ]),
-      const SizedBox(height: 6),
-      Text('Tap to view session details',
-          style:
-              TextStyle(color: context.subtextColor, fontSize: 13)),
-      const SizedBox(height: 14),
-
-      ..._myBookings.map((booking) {
-        final date = booking['booking_date'] as String? ?? '';
-        final startTime = booking['start_time'] as String? ?? '';
-        final endTime = booking['end_time'] as String? ?? '';
-        final price =
-            (booking['price'] as num?)?.toDouble() ?? 0.0;
-        final status =
-            booking['status'] as String? ?? 'confirmed';
-
-        final dt = DateTime.tryParse(date);
-        final endParts = endTime.split(':');
-        final slotEnd = dt != null
-            ? DateTime(dt.year, dt.month, dt.day,
-                int.parse(endParts[0]), int.parse(endParts[1]))
-            : null;
-        final startParts = startTime.split(':');
-        final slotStart = dt != null
-            ? DateTime(dt.year, dt.month, dt.day,
-                int.parse(startParts[0]), int.parse(startParts[1]))
-            : null;
-        final now = DateTime.now();
-        final isLive = slotStart != null && slotEnd != null &&
-            now.isAfter(slotStart) && now.isBefore(slotEnd);
-        final isPast = slotEnd != null && now.isAfter(slotEnd);
-
-        Color statusColor;
-        IconData statusIcon;
-        String statusLabel;
-
-        if (status == 'cancelled') {
-          statusColor = Colors.red;
-          statusIcon = Icons.cancel;
-          statusLabel = 'Cancelled';
-        } else if (status == 'attended') {
-          statusColor = Colors.green;
-          statusIcon = Icons.check_circle;
-          statusLabel = 'Attended';
-        } else if (isPast) {
-          statusColor = Colors.grey;
-          statusIcon = Icons.lock_clock;
-          statusLabel = 'Expired';
-        } else if (isLive) {
-          statusColor = Colors.green;
-          statusIcon = Icons.radio_button_checked;
-          statusLabel = 'Live Now';
-        } else {
-          statusColor = accent;
-          statusIcon = Icons.schedule;
-          statusLabel = 'Upcoming';
-        }
-
-        String fmtDate = date;
-        if (dt != null) {
-          const months = [
-            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-          ];
-          const days = [
-            'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'
-          ];
-          fmtDate =
-              '${days[dt.weekday - 1]}, ${dt.day} ${months[dt.month - 1]}';
-        }
-
-        String fmtTime(String t) {
-          final parts = t.split(':');
-          final h = int.parse(parts[0]);
-          final m = parts[1];
-          final period = h >= 12 ? 'PM' : 'AM';
-          final h12 = h > 12 ? h - 12 : h == 0 ? 12 : h;
-          return '$h12:$m $period';
-        }
-
-        return GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TrainerBookingDetailPage(
-                booking: booking,
-                trainer: widget.trainer,
-              ),
-            ),
-          ).then((_) => _loadData()),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: context.cardBgColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: statusColor.withOpacity(0.4),
-              ),
-            ),
-            child: Row(children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                  Icon(statusIcon, color: statusColor, size: 22),
-                ]),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text(fmtDate,
-                      style: TextStyle(
-                          color: context.textColor,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${fmtTime(startTime)} → ${fmtTime(endTime)}',
-                    style: TextStyle(
-                        color: context.subtextColor, fontSize: 12),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '\$${price.toStringAsFixed(2)}',
-                    style: TextStyle(
-                        color: themeColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600),
-                  ),
-                ]),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
-                  border:
-                      Border.all(color: statusColor.withOpacity(0.4)),
-                ),
-                child: Text(statusLabel,
-                    style: TextStyle(
-                        color: statusColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold)),
-              ),
-            ]),
-          ),
-        );
-      }).toList(),
-    ]);
   }
 
   Widget _buildSkeleton(BuildContext context) {
