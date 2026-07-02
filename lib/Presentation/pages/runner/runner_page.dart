@@ -5,7 +5,7 @@ import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/runner/runner_history_page.dart';
 
-// ─── accent ────────────────────────────────────────────────────────────────────
+// ─── accent ───────────────────────────────────────────────────────────────────
 Color _accent(BuildContext context) =>
     context.isDark ? themeColor : const Color(0xFF6B7A00);
 
