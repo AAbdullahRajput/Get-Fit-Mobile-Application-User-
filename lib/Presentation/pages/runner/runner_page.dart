@@ -13,7 +13,7 @@ const Color _challengeColor = Color(0xFFCCE600);
 const Color _gymColor       = Color(0xFF4A90D9);
 const Color _yogaColor      = Color(0xFFFF8C42);
 
-// ─── Day model ─────────────────────────────────────────────────────────────────
+// ─── Day model ──────────────────────────────────────────────────────────────
 class _DayStat {
   final String   label;
   final DateTime date;
