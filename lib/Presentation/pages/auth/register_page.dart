@@ -4,6 +4,8 @@ import 'package:get_fit/Presentation/pages/auth/login_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/home/home_page.dart';
+import 'package:flutter/services.dart';
+import 'package:get_fit/Presentation/widgets/validated_text_field.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -17,8 +19,44 @@ class _RegisterPageState extends State<RegisterPage> {
   final _usernameController = TextEditingController();
   final _mobileNoController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _usernameFieldKey = GlobalKey<ValidatedTextFieldState>();
+  final _emailFieldKey = GlobalKey<ValidatedTextFieldState>();
+  final _mobileFieldKey = GlobalKey<ValidatedTextFieldState>();
+  final _passwordFieldKey = GlobalKey<ValidatedTextFieldState>();
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  String? _validateUsername(String value) {
+    if (value.trim().isEmpty) return 'Username is required';
+    if (value.trim().length < 3) return 'Username must be at least 3 characters';
+    return null;
+  }
+
+  String? _validateEmail(String value) {
+    if (value.trim().isEmpty) return 'Email is required';
+    final emailRegex = RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return 'Enter a valid email like name@example.com';
+    }
+    return null;
+  }
+
+  String? _validateMobile(String value) {
+    if (value.isEmpty) return 'Mobile number is required';
+    if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+      return 'Digits only — no letters or symbols';
+    }
+    if (value.length > 11) return 'Maximum 11 digits allowed';
+    if (value.length < 10) return 'Enter a valid 10-11 digit number';
+    return null;
+  }
+
+  String? _validatePassword(String value) {
+    if (value.isEmpty) return 'Password is required';
+    if (value.length < 6) return 'Password must be at least 6 characters';
+    if (value.length > 20) return 'Password must be 20 characters or fewer';
+    return null;
+  }
 
   @override
   void dispose() {
@@ -35,13 +73,15 @@ class _RegisterPageState extends State<RegisterPage> {
     final mobileNo = _mobileNoController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty || username.isEmpty || mobileNo.isEmpty || password.isEmpty) {
-      _showSnackBar('Please fill in all fields');
-      return;
-    }
+    final usernameError = _usernameFieldKey.currentState?.validateForSubmit();
+    final emailError = _emailFieldKey.currentState?.validateForSubmit();
+    final mobileError = _mobileFieldKey.currentState?.validateForSubmit();
+    final passwordError = _passwordFieldKey.currentState?.validateForSubmit();
 
-    if (password.length < 6) {
-      _showSnackBar('Password must be at least 6 characters');
+    if (usernameError != null ||
+        emailError != null ||
+        mobileError != null ||
+        passwordError != null) {
       return;
     }
 
@@ -316,31 +356,42 @@ void _showErrorDialog(String title, String message) {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildTextField(
+                      ValidatedTextField(
+                        key: _usernameFieldKey,
                         controller: _usernameController,
-                        hint: 'Username',
+                        hint: 'e.g. john_doe',
                         icon: Icons.person_outline,
+                        validator: _validateUsername,
                       ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
+                      const SizedBox(height: 20),
+                      ValidatedTextField(
+                        key: _emailFieldKey,
                         controller: _emailController,
-                        hint: 'Email',
+                        hint: 'name@example.com',
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
+                        validator: _validateEmail,
                       ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
+                      const SizedBox(height: 20),
+                      ValidatedTextField(
+                        key: _mobileFieldKey,
                         controller: _mobileNoController,
-                        hint: 'Mobile number',
+                        hint: '03XXXXXXXXX (10-11 digits)',
                         icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone,
+                        maxLength: 11,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        validator: _validateMobile,
                       ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
+                      const SizedBox(height: 20),
+                      ValidatedTextField(
+                        key: _passwordFieldKey,
                         controller: _passwordController,
-                        hint: 'Password',
+                        hint: '6-20 characters',
                         icon: Icons.lock_outline,
                         obscure: _obscurePassword,
+                        maxLength: 20,
+                        validator: _validatePassword,
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword

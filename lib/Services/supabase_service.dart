@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:typed_data';
+import 'package:get_fit/Services/notification_service.dart';
 
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
@@ -1617,12 +1618,36 @@ static Future<Map<String, dynamic>> bookTrainerSlot({
       .single();
 
   debugPrint('\x1B[32m[API] 200 OK | Slot booked, appointment created\x1B[0m');
+
+  // Schedule 1-day / 2-hour / 5-minute reminders for this appointment.
+  try {
+    final appointmentId = result['id'] as String;
+    final trainerData = await client
+        .from('fitness_trainers')
+        .select('name')
+        .eq('id', trainerId)
+        .maybeSingle();
+    final trainerName = trainerData?['name'] as String? ?? 'your trainer';
+    final startParts = startTime.split(':');
+    final d = DateTime.parse(slotDate);
+    final startDateTime = DateTime(
+        d.year, d.month, d.day, int.parse(startParts[0]), int.parse(startParts[1]));
+    await NotificationService.scheduleAppointmentReminders(
+      appointmentId: appointmentId,
+      trainerName: trainerName,
+      startDateTime: startDateTime,
+    );
+  } catch (e) {
+    debugPrint('\x1B[31m[NOTIF] ERROR | scheduling appointment reminders | $e\x1B[0m');
+  }
+
   return Map<String, dynamic>.from(result);
 }
 
 /// Cancel an appointment — reopens the slot for others to book.
 static Future<void> cancelAppointment(String appointmentId) async {
   try {
+    await NotificationService.cancelAppointmentReminders(appointmentId);
     final appt = await client
         .from('trainer_appointments')
         .select('slot_id')
@@ -1654,6 +1679,7 @@ static Future<void> cancelAppointment(String appointmentId) async {
 /// Mark an appointment as attended (also flips the slot's status).
 static Future<void> markAppointmentAttended(String appointmentId) async {
   try {
+    await NotificationService.cancelAppointmentReminders(appointmentId);
     final appt = await client
         .from('trainer_appointments')
         .select('slot_id')

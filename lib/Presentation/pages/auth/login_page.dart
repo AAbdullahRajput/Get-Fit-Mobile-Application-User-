@@ -5,6 +5,7 @@ import 'package:get_fit/Presentation/pages/auth/register_page.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:get_fit/Presentation/pages/home/home_page.dart';
+import 'package:get_fit/Presentation/widgets/validated_text_field.dart';
 import 'package:get_fit/Presentation/pages/setup/setup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -17,8 +18,26 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _emailFieldKey = GlobalKey<ValidatedTextFieldState>();
+  final _passwordFieldKey = GlobalKey<ValidatedTextFieldState>();
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  String? _validateEmail(String value) {
+    if (value.trim().isEmpty) return 'Email is required';
+    final emailRegex = RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return 'Enter a valid email like name@example.com';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String value) {
+    if (value.isEmpty) return 'Password is required';
+    if (value.length < 6) return 'Password must be at least 6 characters';
+    if (value.length > 20) return 'Password must be 20 characters or fewer';
+    return null;
+  }
 
   @override
   void dispose() {
@@ -31,17 +50,9 @@ class _LoginPageState extends State<LoginPage> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      _showErrorDialog('Missing Fields', 'Please fill in both email and password.');
-      return;
-    }
-
-    // Email format validation
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(email)) {
-      _showErrorDialog('Invalid Email', 'Please enter a valid email address (e.g. name@email.com).');
-      return;
-    }
+    final emailError = _emailFieldKey.currentState?.validateForSubmit();
+    final passwordError = _passwordFieldKey.currentState?.validateForSubmit();
+    if (emailError != null || passwordError != null) return;
 
     setState(() => _isLoading = true);
 
@@ -275,20 +286,25 @@ void _showErrorDialog(String title, String message) {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Email field
-                      _buildTextField(
+                      ValidatedTextField(
+                        key: _emailFieldKey,
                         controller: _emailController,
-                        hint: 'Email',
+                        hint: 'name@example.com',
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
+                        validator: _validateEmail,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
                       // Password field
-                      _buildTextField(
+                      ValidatedTextField(
+                        key: _passwordFieldKey,
                         controller: _passwordController,
-                        hint: 'Password',
+                        hint: '6-20 characters',
                         icon: Icons.lock_outline,
                         obscure: _obscurePassword,
+                        maxLength: 20,
+                        validator: _validatePassword,
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword
@@ -300,7 +316,7 @@ void _showErrorDialog(String title, String message) {
                               setState(() => _obscurePassword = !_obscurePassword),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
                       Align(
                         alignment: Alignment.centerRight,

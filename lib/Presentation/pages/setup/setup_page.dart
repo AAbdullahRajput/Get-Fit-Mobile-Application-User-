@@ -323,7 +323,7 @@ Future<void> _saveSetupData() async {
                 initialItem: 8), // Add this line (18-10=8)
             onSelectedItemChanged: (index) {
               setState(() {
-                selectedAge = index + 10; // Starting from age 10
+                selectedAge = (index + 10).clamp(10, 99);
               });
             },
             childDelegate: ListWheelChildBuilderDelegate(
@@ -341,7 +341,8 @@ Future<void> _saveSetupData() async {
                     });
                   });
                 }
-                return SizedBox(
+                return RepaintBoundary(
+                  child: SizedBox(
                   height: 80, // Match itemExtent
                   width: double.infinity,
                   child: Padding(
@@ -381,7 +382,8 @@ Future<void> _saveSetupData() async {
                       ),
                     ),
                   ),
-                );
+                ),
+              );
               },
             ),
           ),
@@ -428,7 +430,7 @@ Future<void> _saveSetupData() async {
               max: max,
               onChange: (newValue) {
                 setState(() {
-                  selectedWeight = int.parse(newValue); // Update selectedWeight
+                  selectedWeight = int.parse(newValue).clamp(30, 200);
                 });
               },
             ),
@@ -475,7 +477,7 @@ Future<void> _saveSetupData() async {
                 initialItem: 20), // 170cm default (170-150=20)
             onSelectedItemChanged: (index) {
               setState(() {
-                selectedHeight = index + 150; // Heights from 150-250cm
+                selectedHeight = (index + 150).clamp(150, 250);
               });
             },
             childDelegate: ListWheelChildBuilderDelegate(
@@ -536,7 +538,7 @@ Future<void> _saveSetupData() async {
                 );
               },
             ),
-          ),
+            ),
         ),
         const Spacer(),
       ],
@@ -581,7 +583,7 @@ Future<void> _saveSetupData() async {
           child: ListWheelScrollView.useDelegate(
             itemExtent: 80,
             diameterRatio: 1.8,
-            perspective: 0.005,
+            perspective: 0.002,
             physics: const FixedExtentScrollPhysics(),
             controller: FixedExtentScrollController(initialItem: 0),
             onSelectedItemChanged: (index) {

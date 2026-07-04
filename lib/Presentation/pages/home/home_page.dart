@@ -8,6 +8,7 @@ import 'package:get_fit/Presentation/pages/runner/runner_page.dart';
 import 'package:get_fit/Presentation/pages/gym/gym_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_fit/Services/supabase_service.dart';
+import 'package:get_fit/Services/notification_service.dart';
 import 'package:get_fit/Presentation/pages/setting/notifications_page.dart';
 import 'package:get_fit/Presentation/pages/yoga/yoga_detail_page.dart';
 
@@ -500,6 +501,24 @@ void _handleBannerTap(BuildContext context) {
                           child: Icon(Icons.settings,
                               color: isDark ? themeColor : Colors.black),
                         ),
+                        /* ───── TEST NOTIFICATION BUTTON (commented out) ─────
+                           Uncomment this whole block anytime you want to test
+                           notifications — it schedules one 2 minutes from now.
+                           Don't forget to hot restart after uncommenting.
+
+                        const SizedBox(width: 10),
+                        InkWell(
+                          onTap: () async {
+                            await NotificationService.scheduleTestReminder();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Test notification scheduled for 2 minutes from now')),
+                              );
+                            }
+                          },
+                          child: const Icon(Icons.bug_report, color: Colors.red),
+                        ),
+                        ───── END TEST NOTIFICATION BUTTON ───── */
                       ],
                     ),
                   ],
