@@ -3,6 +3,8 @@ import 'package:get_fit/Presentation/pages/booking/appointment_booking_page.dart
 import 'package:get_fit/Presentation/pages/review/reviews_page.dart';
 import 'package:get_fit/Presentation/widgets/reuseable_button.dart';
 import 'package:get_fit/Services/supabase_service.dart';
+import 'package:get_fit/Services/call_service.dart';
+import 'package:get_fit/Presentation/pages/call/outgoing_call_page.dart';
 import 'package:get_fit/Utils/constants.dart';
 
 Color _accent(BuildContext context) {
@@ -26,6 +28,8 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
   bool _hasBookedTrainer = false; // true once a session has ended — unlocks reviews
   bool _hasAnyBooking = false;    // true if any active booking exists — used for call messaging
   bool _canCallNow = false;
+  bool _isStartingCall = false;
+  String? _activeAppointmentId; // the matching in-progress appointment for this call
 
   @override
   void initState() {
@@ -45,6 +49,7 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
         .toList();
 
     final now = DateTime.now();
+    String? matchingAppointmentId;
     final canCallNow = trainerBookings.any((b) {
       try {
         final status = b['status'] as String? ?? '';
@@ -59,7 +64,9 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
             int.parse(startParts[0]), int.parse(startParts[1]));
         final end = DateTime(d.year, d.month, d.day,
             int.parse(endParts[0]), int.parse(endParts[1]));
-        return now.isAfter(start) && now.isBefore(end);
+        final isNow = now.isAfter(start) && now.isBefore(end);
+        if (isNow) matchingAppointmentId = b['id'] as String?;
+        return isNow;
       } catch (_) {
         return false;
       }
@@ -99,9 +106,43 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
         _hasBookedTrainer = hasCompletedSession;
         _hasAnyBooking = trainerBookings.isNotEmpty;
         _canCallNow = canCallNow;
+        _activeAppointmentId = matchingAppointmentId;
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _startVideoCall(Map<String, dynamic> trainer) async {
+    if (_isStartingCall) return;
+    setState(() => _isStartingCall = true);
+    debugPrint('\x1B[36m[CALL-BUTTON] Starting call to trainer=${trainer['id']}\x1B[0m');
+    final session = await CallService().startCall(
+      trainerId: trainer['id'],
+      appointmentId: _activeAppointmentId,
+    );
+    if (mounted) setState(() => _isStartingCall = false);
+    if (session == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to start call — please try again'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OutgoingCallPage(
+          callId: session['id'] as String,
+          channelName: session['channel_name'] as String,
+          trainerName: trainer['name'] ?? '',
+          trainerImageUrl: trainer['bg_image_url'],
+        ),
+      ),
+    );
   }
 
   Future<void> _onRefresh() async => _loadData();
@@ -419,59 +460,24 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                     );
                     return;
                   }
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      backgroundColor: const Color(0xFF2C2C2C),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      title:
-                          const Icon(Icons.phone, color: themeColor, size: 40),
-                      content:
-                          Column(mainAxisSize: MainAxisSize.min, children: [
-                        Text(trainer['name'] ?? '',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 13)),
-                        const SizedBox(height: 8),
-                        Text(trainer['phone_number'],
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.5)),
-                      ]),
-                      actionsAlignment: MainAxisAlignment.center,
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 10),
-                            decoration: BoxDecoration(
-                                color: themeColor,
-                                borderRadius: BorderRadius.circular(10)),
-                            child: const Text('OK',
-                                style: TextStyle(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+                  _startVideoCall(trainer);
                 },
                 child: CircleAvatar(
                   radius: 22,
                   backgroundColor: _canCallNow
                       ? themeColor
                       : Colors.grey.withOpacity(0.4),
-                  child: Icon(
-                    _canCallNow ? Icons.phone : Icons.phone_locked,
-                    color: _canCallNow ? Colors.black : Colors.grey.shade300,
-                    size: 20,
-                  ),
+                  child: _isStartingCall
+                      ? const Padding(
+                          padding: EdgeInsets.all(6),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.black),
+                        )
+                      : Icon(
+                          _canCallNow ? Icons.videocam : Icons.phone_locked,
+                          color: _canCallNow ? Colors.black : Colors.grey.shade300,
+                          size: 20,
+                        ),
                 ),
               ),
           ],

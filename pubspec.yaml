@@ -27,6 +27,7 @@ dependencies:
   flutter_stripe: ^10.1.1
   flutter_local_notifications: ^17.2.3
   timezone: ^0.9.4
+  agora_rtc_engine: 6.6.3
 
 dev_dependencies:
   flutter_test:
@@ -36,6 +37,7 @@ dev_dependencies:
 
 dependency_overrides:
   sign_in_with_apple: ^6.0.0
+  ffi: ^2.0.1
 
 flutter_launcher_icons:
   android: true
