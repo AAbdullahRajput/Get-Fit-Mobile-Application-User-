@@ -43,8 +43,8 @@ class _RunnerPageState extends State<RunnerPage>
   bool get wantKeepAlive => true;
 
   // ── filter ─────────────────────────────────────────────────────────────────
-  static const _filters    = ['Today', '7D', '14D', '1M'];
-  static const _filterDays = [1, 7, 14, 30, 90];
+  static const _filters    = ['Today', '7D', '14D', '20D'];
+  static const _filterDays = [1, 7, 14, 20];
   int _filterIdx = 0;
 
   // ── state ──────────────────────────────────────────────────────────────────
@@ -80,9 +80,24 @@ int get _todayAutoIdx {
     return _stats[idx];
   }
 
-  int get _effectiveIdx  => _selectedIdx ?? _todayAutoIdx;
-  int get _selKcal       => _selectedStat?.totalKcal  ?? 0;
-  int get _selSeconds    => (_selectedStat?.challengeSec ?? 0) + (_selectedStat?.gymSec ?? 0);
+  // True when showing a range TOTAL (no specific bar tapped, multi-day filter)
+  // rather than one day's numbers.
+  bool get _isAggregate   => _filterIdx != 0 && _selectedIdx == null;
+
+  int get _effectiveIdx  => _selectedIdx ?? (_filterIdx == 0 ? _todayAutoIdx : -1);
+  int get _selKcal       => _isAggregate ? _totalKcal : (_selectedStat?.totalKcal ?? 0);
+  int get _selSeconds    => _isAggregate
+      ? _totalSeconds
+      : (_selectedStat?.challengeSec ?? 0) + (_selectedStat?.gymSec ?? 0);
+  int get _selGymKcal    => _isAggregate
+      ? _stats.fold(0, (s, d) => s + d.gymKcal)
+      : (_selectedStat?.gymKcal ?? 0);
+  int get _selChallengeKcal => _isAggregate
+      ? _stats.fold(0, (s, d) => s + d.challengeKcal)
+      : (_selectedStat?.challengeKcal ?? 0);
+  int get _selYogaKcal   => _isAggregate
+      ? _stats.fold(0, (s, d) => s + d.yogaKcal)
+      : (_selectedStat?.yogaKcal ?? 0);
   int get _totalKcal     => _stats.fold(0, (s, d) => s + d.totalKcal);
   int get _totalSeconds  => _stats.fold(0, (s, d) => s + d.challengeSec + d.gymSec);
   int get _activeDays    => _stats.where((d) => d.totalKcal > 0).length;
@@ -271,6 +286,19 @@ void initState() {
           ),
         ]),
         const SizedBox(height: 6),
+        Text(
+          _isAggregate
+              ? 'Last $_days Days Total'
+              : (_selectedStat != null &&
+                      _selectedStat!.date.year == DateTime.now().year &&
+                      _selectedStat!.date.month == DateTime.now().month &&
+                      _selectedStat!.date.day == DateTime.now().day
+                  ? 'Today'
+                  : _selectedStat?.label ?? ''),
+          style: const TextStyle(
+              color: Color(0xFF556600), fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 4),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 180),
           child: RichText(
@@ -297,7 +325,7 @@ void initState() {
             children: List.generate(count, (i) {
               final d    = _stats[i];
               final frac = maxKcal > 0 ? d.totalKcal / maxKcal : 0.0;
-              final isSel = i == _effectiveIdx;
+              final isSel = _isAggregate ? true : i == _effectiveIdx;
               return Expanded(child: GestureDetector(
                 onTap: () => _tapBar(i),
                 child: Padding(
@@ -341,11 +369,13 @@ void initState() {
     final tStr  = hrs > 0 ? '${hrs}h ${remM}m' : '${mins}m';
     final today = DateTime.now();
     final selD  = stat?.date;
-    final isToday = selD != null &&
+    final isToday = !_isAggregate && selD != null &&
         selD.year == today.year && selD.month == today.month && selD.day == today.day;
     const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
     String dayLabel = 'Today';
-    if (selD != null && !isToday) {
+    if (_isAggregate) {
+      dayLabel = 'Last $_days Days';
+    } else if (selD != null && !isToday) {
       dayLabel = _days <= 7
           ? dayNames[selD.weekday - 1]
           : '${selD.day}/${selD.month}/${selD.year}';
@@ -398,7 +428,7 @@ void initState() {
               tStr, 'active', themeColor, textCol, subCol),
             const SizedBox(width: 10),
             _dayPill(context, Icons.fitness_center_rounded,
-              '${stat?.gymKcal ?? 0}', 'gym kcal', _gymColor, textCol, subCol),
+              '$_selGymKcal', 'gym kcal', _gymColor, textCol, subCol),
           ]),
         ]),
       ),
@@ -479,7 +509,7 @@ void initState() {
               final d    = _stats[i];
               final mins = (d.challengeSec + d.gymSec) / 60.0;
               final frac = maxMins > 0 ? mins / maxMins : 0.0;
-              final isSel = i == _effectiveIdx;
+              final isSel = _isAggregate ? true : i == _effectiveIdx;
               return Expanded(child: GestureDetector(
                 onTap: () => _tapBar(i),
                 child: Padding(
@@ -514,10 +544,9 @@ void initState() {
 
   // ── source card — themeColor bg, white progress bars ──────────────────────
   Widget _buildSourceCard(BuildContext context) {
-    final stat  = _selectedStat;
-    final c = stat?.challengeKcal ?? 0;
-    final g = stat?.gymKcal       ?? 0;
-    final y = stat?.yogaKcal      ?? 0;
+    final c = _selChallengeKcal;
+    final g = _selGymKcal;
+    final y = _selYogaKcal;
     final total = c + g + y;
 
     return AnimatedSwitcher(

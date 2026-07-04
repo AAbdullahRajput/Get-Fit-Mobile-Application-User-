@@ -23,18 +23,7 @@ class InstructorClassDetailPage extends StatefulWidget {
 class _InstructorClassDetailPageState
     extends State<InstructorClassDetailPage> {
   List<Map<String, dynamic>> _steps = [];
-  Map<String, dynamic>? _todayLog;
   bool _loading = true;
-  bool _toggling = false;
-  final Set<int> _doneSteps = {};
-
-  String get _todayDate =>
-      DateTime.now().toIso8601String().substring(0, 10);
-
-  bool get _isDone => _todayLog?['is_done'] == true;
-
-  bool get _allStepsChecked =>
-      _steps.isEmpty || _doneSteps.length == _steps.length;
 
   @override
   void initState() {
@@ -45,86 +34,12 @@ class _InstructorClassDetailPageState
   Future<void> _load() async {
     final classId = widget.classData['id'] as String;
     final steps = await SupabaseService.getInstructorClassSteps(classId);
-    final log = await SupabaseService.getInstructorClassLog(
-      classId: classId,
-      date: _todayDate,
-    );
     if (mounted) {
       setState(() {
         _steps = steps;
-        _todayLog = log;
         _loading = false;
-        // If already done, pre-check all steps
-        if (log?['is_done'] == true) {
-          _doneSteps.addAll(List.generate(steps.length, (i) => i));
-        }
       });
     }
-  }
-
-  Future<void> _toggleDone() async {
-    if (_toggling) return;
-
-    if (!_isDone && !_allStepsChecked) {
-      _showStepsWarning();
-      return;
-    }
-
-    setState(() => _toggling = true);
-    try {
-      if (_isDone) {
-        await SupabaseService.deleteInstructorClassLog(
-          classId: widget.classData['id'] as String,
-          date: _todayDate,
-        );
-        if (mounted) {
-          setState(() {
-            _todayLog = null;
-            _doneSteps.clear(); // unlock steps
-          });
-        }
-      } else {
-        await SupabaseService.upsertInstructorClassLog(
-          classId: widget.classData['id'] as String,
-          instructorId: widget.classData['instructor_id'] as String,
-          date: _todayDate,
-          isDone: true,
-          sessionDurationMinutes:
-              (widget.classData['duration_minutes'] as num?)?.toInt() ?? 0,
-        );
-        final log = await SupabaseService.getInstructorClassLog(
-          classId: widget.classData['id'] as String,
-          date: _todayDate,
-        );
-        if (mounted) setState(() => _todayLog = log);
-      }
-    } finally {
-      if (mounted) setState(() => _toggling = false);
-    }
-  }
-
-  void _showStepsWarning() {
-    final remaining = _steps.length - _doneSteps.length;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.warning_amber_rounded,
-                color: Colors.white, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'Complete $remaining more step${remaining == 1 ? '' : 's'} first',
-              style: const TextStyle(color: Colors.white),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.orange.shade700,
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   @override
@@ -200,6 +115,32 @@ class _InstructorClassDetailPageState
                             ),
                             child: const Icon(Icons.arrow_back_ios_new,
                                 color: Colors.white, size: 16),
+                          ),
+                        ),
+                      ),
+                      // Owned badge
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 8,
+                        right: 16,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: themeColor,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_circle,
+                                  size: 13, color: Colors.black),
+                              SizedBox(width: 4),
+                              Text('Owned',
+                                  style: TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold)),
+                            ],
                           ),
                         ),
                       ),
@@ -319,84 +260,20 @@ class _InstructorClassDetailPageState
 
                         const SizedBox(height: 28),
 
-                        // ── Steps header ──
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Session Guide',
-                                      style: TextStyle(
-                                        color: textColor,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      )),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _isDone
-                                        ? 'Session completed — steps locked'
-                                        : '${_steps.length} steps — check each before marking done',
-                                    style: TextStyle(
-                                      color: _isDone
-                                          ? accent
-                                          : subColor,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (_steps.isNotEmpty)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: _isDone
-                                      ? accent.withOpacity(0.15)
-                                      : _allStepsChecked
-                                          ? accent.withOpacity(0.15)
-                                          : Colors.orange.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: _isDone
-                                        ? accent.withOpacity(0.4)
-                                        : _allStepsChecked
-                                            ? accent.withOpacity(0.4)
-                                            : Colors.orange.withOpacity(0.4),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      _isDone
-                                          ? Icons.lock
-                                          : Icons.lock_open,
-                                      size: 11,
-                                      color: _isDone
-                                          ? accent
-                                          : _allStepsChecked
-                                              ? accent
-                                              : Colors.orange,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${_doneSteps.length}/${_steps.length}',
-                                      style: TextStyle(
-                                        color: _isDone
-                                            ? accent
-                                            : _allStepsChecked
-                                                ? accent
-                                                : Colors.orange,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
+                        // ── Steps header (informational only, no locking) ──
+                        Text('Session Guide',
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            )),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${_steps.length} steps — watch anytime, as many times as you like',
+                          style: TextStyle(
+                            color: subColor,
+                            fontSize: 12,
+                          ),
                         ),
                         const SizedBox(height: 16),
 
@@ -409,115 +286,35 @@ class _InstructorClassDetailPageState
                             textColor,
                             subColor)),
 
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 24),
 
-                        // ── Progress bar (only when not done) ──
-                        if (!_isDone && _steps.isNotEmpty) ...[
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: _steps.isEmpty
-                                  ? 0
-                                  : _doneSteps.length / _steps.length,
-                              backgroundColor: context.isDark
-                                  ? Colors.white12
-                                  : Colors.black12,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(accent),
-                              minHeight: 6,
-                            ),
+                        // ── Owned notice (replaces the old lock/mark-done button) ──
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: accent.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: accent.withOpacity(0.3)),
                           ),
-                          const SizedBox(height: 10),
-                          if (!_allStepsChecked)
-                            Center(
-                              child: Text(
-                                'Check all ${_steps.length} steps to unlock',
-                                style: TextStyle(
-                                  color: Colors.orange,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
+                          child: Row(
+                            children: [
+                              Icon(Icons.all_inclusive,
+                                  color: accent, size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'You own this course — access it anytime, no limits.',
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                            ),
-                          const SizedBox(height: 12),
-                        ],
-
-                        // ── Mark done / undone button ──
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: ElevatedButton(
-                            onPressed: !_toggling ? _toggleDone : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _isDone
-                                  ? Colors.red.shade700
-                                  : _allStepsChecked
-                                      ? accent
-                                      : Colors.grey.withOpacity(0.4),
-                              disabledBackgroundColor:
-                                  Colors.grey.withOpacity(0.3),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
-                            ),
-                            child: _toggling
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                        color: Colors.white, strokeWidth: 2))
-                                : Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        _isDone
-                                            ? Icons.close
-                                            : _allStepsChecked
-                                                ? Icons.check_circle_outline
-                                                : Icons.lock_outline,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        _isDone
-                                            ? 'Mark as Not Done'
-                                            : _allStepsChecked
-                                                ? 'Mark Session as Done'
-                                                : 'Complete all steps first',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                            ],
                           ),
                         ),
-
-                        if (_isDone)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 10),
-                            child: Center(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.check_circle,
-                                      color: accent, size: 14),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Session completed today — only your instructor can view this',
-                                    style: TextStyle(
-                                      color: accent,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
 
                         const SizedBox(height: 40),
                       ],
@@ -596,20 +393,14 @@ class _InstructorClassDetailPageState
     final doTip = step['do_tip'] as String? ?? '';
     final dontTip = step['dont_tip'] as String? ?? '';
     final imageUrl = step['image_url'] as String? ?? '';
-    final isChecked = _doneSteps.contains(idx);
-    final isSessionDone = _isDone; // freeze when submitted
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: isChecked
-            ? Border.all(color: accent, width: 1.5)
-            : Border.all(
-                color: context.isDark
-                    ? Colors.white10
-                    : Colors.black12),
+        border: Border.all(
+            color: context.isDark ? Colors.white10 : Colors.black12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
@@ -647,19 +438,15 @@ class _InstructorClassDetailPageState
                       width: 28,
                       height: 28,
                       decoration: BoxDecoration(
-                        color: isChecked
-                            ? accent
-                            : accent.withOpacity(0.25),
+                        color: accent.withOpacity(0.25),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
                         child: Text('$stepNum',
                             style: TextStyle(
-                              color: isChecked
-                                  ? Colors.white
-                                  : context.isDark
-                                      ? Colors.white70
-                                      : Colors.black54,
+                              color: context.isDark
+                                  ? Colors.white70
+                                  : Colors.black54,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             )),
@@ -674,38 +461,6 @@ class _InstructorClassDetailPageState
                             fontWeight: FontWeight.w500,
                             height: 1.5,
                           )),
-                    ),
-                    // Checkbox / lock icon
-                    GestureDetector(
-                      onTap: isSessionDone
-                          ? null // locked after submit
-                          : () => setState(() {
-                                if (isChecked) {
-                                  _doneSteps.remove(idx);
-                                } else {
-                                  _doneSteps.add(idx);
-                                }
-                              }),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        child: isSessionDone
-                            ? Icon(
-                                Icons.lock,
-                                color: accent,
-                                size: 22,
-                              )
-                            : Icon(
-                                isChecked
-                                    ? Icons.check_circle
-                                    : Icons.radio_button_unchecked,
-                                color: isChecked
-                                    ? accent
-                                    : (context.isDark
-                                        ? Colors.white38
-                                        : Colors.black26),
-                                size: 24,
-                              ),
-                      ),
                     ),
                   ],
                 ),

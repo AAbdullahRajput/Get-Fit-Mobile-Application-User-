@@ -679,12 +679,88 @@ class SupabaseService {
         'completed_at': DateTime.now().toIso8601String(),
       }, onConflict: 'user_id,exercise_id,challenge_id');
       debugPrint('\x1B[32m[API] 200 OK | Marked done | calories: $caloriesBurned\x1B[0m');
+
+      await updateStreak();
+
     } catch (e) {
       debugPrint('\x1B[31m[API] ERROR | markExerciseDone | $e\x1B[0m');
       rethrow;
     }
   }
 
+
+// ─────────────────────────────────────────────
+// STREAK TRACKING
+// ─────────────────────────────────────────────
+
+static Future<void> updateStreak() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final todayStr = todayDate.toIso8601String().substring(0, 10);
+
+    final setup = await client
+        .from('user_setup')
+        .select('current_streak, longest_streak, last_active_date')
+        .eq('id', userId)
+        .maybeSingle();
+
+    final lastActiveStr = setup?['last_active_date'] as String?;
+    int currentStreak = (setup?['current_streak'] as int?) ?? 0;
+    int longestStreak = (setup?['longest_streak'] as int?) ?? 0;
+
+    if (lastActiveStr == null) {
+      currentStreak = 1;
+    } else {
+      final lastActive = DateTime.parse(lastActiveStr);
+      final daysDiff = todayDate.difference(lastActive).inDays;
+
+      if (daysDiff == 0) {
+        debugPrint('\x1B[33m[STREAK] Already logged today — no change\x1B[0m');
+        return;
+      } else if (daysDiff == 1) {
+        currentStreak += 1;
+      } else {
+        currentStreak = 1;
+      }
+    }
+
+    if (currentStreak > longestStreak) longestStreak = currentStreak;
+
+    await client.from('user_setup').update({
+      'current_streak': currentStreak,
+      'longest_streak': longestStreak,
+      'last_active_date': todayStr,
+    }).eq('id', userId);
+
+    debugPrint('\x1B[32m[STREAK] Updated | current: $currentStreak | longest: $longestStreak\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[STREAK] ERROR | updateStreak | $e\x1B[0m');
+  }
+}
+
+static Future<Map<String, dynamic>> getStreakInfo() async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return {'current_streak': 0, 'longest_streak': 0};
+    final data = await client
+        .from('user_setup')
+        .select('current_streak, longest_streak, last_active_date')
+        .eq('id', userId)
+        .maybeSingle();
+    return {
+      'current_streak': data?['current_streak'] ?? 0,
+      'longest_streak': data?['longest_streak'] ?? 0,
+      'last_active_date': data?['last_active_date'],
+    };
+  } catch (e) {
+    debugPrint('\x1B[31m[STREAK] ERROR | getStreakInfo | $e\x1B[0m');
+    return {'current_streak': 0, 'longest_streak': 0};
+  }
+}
   static Future<List<String>> getCompletedExerciseIds({
     required String challengeId,
     required int dayNumber,
@@ -809,18 +885,6 @@ class SupabaseService {
             buckets[key]!['gymKcal']! + (row['calories_burned'] as num? ?? 0).toInt();
         buckets[key]!['gymSec'] =
             buckets[key]!['gymSec']! + (row['duration_seconds'] as num? ?? 0).toInt();
-      }
-    }
-
-    // yoga kcal estimate: 5 kcal per minute
-    for (final row in yogaRows) {
-      final dateStr = row['scheduled_date'] as String?;
-      if (dateStr == null) continue;
-      final key = dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
-      if (buckets.containsKey(key)) {
-        final mins = (row['session_duration_minutes'] as num? ?? 0).toInt();
-        buckets[key]!['yogaKcal'] =
-            buckets[key]!['yogaKcal']! + (mins * 5);
       }
     }
 
@@ -1013,24 +1077,22 @@ class SupabaseService {
       }
     }
 
-    // ── Yoga buckets ──
+    // ── Yoga sessions (no calories — course/guide content only) ──
     for (final row in yogaRows) {
       final dateStr = row['scheduled_date'] as String?;
       if (dateStr == null) continue;
       final key = dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
       if (!buckets.containsKey(key)) continue;
       final mins  = (row['session_duration_minutes'] as num? ?? 0).toInt();
-      final kcal  = mins * 5;
       final secs  = mins * 60;
       final cls   = row['instructor_paid_classes'] as Map<String, dynamic>?;
       final title = cls?['title'] as String? ?? 'Yoga Class';
       final image = cls?['image_url'] as String? ?? '';
-      buckets[key]!['yogaKcal']  = (buckets[key]!['yogaKcal'] as int) + kcal;
       buckets[key]!['totalSecs'] = (buckets[key]!['totalSecs'] as int) + secs;
       (buckets[key]!['yogaSessions'] as List).add({
         'title': title,
         'image': image,
-        'kcal':  kcal,
+        'kcal':  0,
         'secs':  secs,
         'mins':  mins,
       });

@@ -26,6 +26,8 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
   Map<String, List<Map<String, dynamic>>> _exercisesByRound = {};
   Set<String> _completedIds = {};
   int _todayCalories = 0;
+  int _currentStreak = 0;
+  int _longestStreak = 0;
 
   @override
   void initState() {
@@ -69,6 +71,8 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
       dayNumber: todayDay['day_number'],
     );
 
+    final streakInfo = await SupabaseService.getStreakInfo();
+
     if (mounted) {
       setState(() {
         _challenge = challenge;
@@ -77,6 +81,8 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
         _exercisesByRound = exercisesByRound;
         _completedIds = completedIds.toSet();
         _todayCalories = calories;
+        _currentStreak = (streakInfo['current_streak'] as int?) ?? 0;
+        _longestStreak = (streakInfo['longest_streak'] as int?) ?? 0;
         _isLoading = false;
       });
     }
@@ -255,14 +261,23 @@ class _WeeklyChallengeHomePageState extends State<WeeklyChallengeHomePage> {
     final total = _totalExercises();
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-      child: Row(
-        children: [
-          _buildStatChip(Icons.local_fire_department_rounded, '$_todayCalories kcal', Colors.orange),
-          const SizedBox(width: 10),
-          _buildStatChip(Icons.access_time_rounded, '$completed/$total done', _accent(context)),
-          const SizedBox(width: 10),
-          _buildStatChip(Icons.directions_run_rounded, '${_rounds.length} rounds', Colors.blue),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            if (_currentStreak > 0)
+              Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: _buildStatChip(
+                    Icons.whatshot_rounded, '$_currentStreak day streak', Colors.deepOrange),
+              ),
+            _buildStatChip(Icons.local_fire_department_rounded, '$_todayCalories kcal', Colors.orange),
+            const SizedBox(width: 10),
+            _buildStatChip(Icons.access_time_rounded, '$completed/$total done', _accent(context)),
+            const SizedBox(width: 10),
+            _buildStatChip(Icons.directions_run_rounded, '${_rounds.length} rounds', Colors.blue),
+          ],
+        ),
       ),
     );
   }

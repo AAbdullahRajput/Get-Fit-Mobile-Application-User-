@@ -265,8 +265,7 @@ void dispose() {
       int total = 0;
       for (final day in raw) {
         total += (day['challengeKcal'] as int) +
-                 (day['gymKcal'] as int) +
-                 (day['yogaKcal'] as int);
+                 (day['gymKcal'] as int);
       }
       if (mounted) setState(() {
         _totalKcal7d = total;
@@ -612,7 +611,7 @@ void _handleBannerTap(BuildContext context) {
                                     children: [
                                       Text(
                                         _loadingActivity
-                                            ? '5000'
+                                            ? '0'
                                             : '${(_totalKcal7d* 0.1).round() < 100 ? 5000 : (_totalKcal7d * 0.1).round()}',
                                           style: TextStyle(
                                               fontSize: 22,
@@ -750,7 +749,7 @@ void _handleBannerTap(BuildContext context) {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                          _loadingActivity ? '1500' : '${_totalKcal7d < 1500 ? 1500 : _totalKcal7d}',
+                                          _loadingActivity ? '0' : '${_totalKcal7d < 0 ? 0 : _totalKcal7d}',
                                           style: TextStyle(
                                               fontSize: 22,
                                               fontWeight: FontWeight.bold,
