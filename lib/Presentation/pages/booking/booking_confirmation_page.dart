@@ -63,6 +63,30 @@ class BookingConfirmationPage extends StatelessWidget {
                   height: 1.5,
                 ),
               ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: Colors.orange, size: 14),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Reminder: this booking is non-refundable.',
+                        style: TextStyle(
+                          color: context.isDark ? Colors.orange.shade300 : Colors.orange.shade800,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 16),
               Container(
                 width: double.infinity,

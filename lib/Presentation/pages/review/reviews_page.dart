@@ -33,6 +33,10 @@ class _ReviewsPageState extends State<ReviewsPage> {
   List<Map<String, dynamic>> _filtered = [];
   Map<String, dynamic>? _myReview;
   int _selectedIndex = 0;
+  Map<String, int> _helpfulCounts = {};
+  Set<String> _myVotes = {};
+
+  static const int _concernThreshold = 5;
 
   final List<String> _categories = ['Recent', 'Critical', 'Favourables'];
 
@@ -46,10 +50,15 @@ class _ReviewsPageState extends State<ReviewsPage> {
     setState(() => _isLoading = true);
     final data = await SupabaseService.getTrainerReviews(widget.trainerId);
     final myReview = await SupabaseService.getMyReview(widget.trainerId);
+    final reviewIds = data.map((r) => r['id'] as String).toList();
+    final counts = await SupabaseService.getHelpfulVoteCounts(reviewIds);
+    final myVotes = await SupabaseService.getMyHelpfulVotes(reviewIds);
     if (mounted) {
       setState(() {
         _allReviews = data;
         _myReview = myReview;
+        _helpfulCounts = counts;
+        _myVotes = myVotes;
         _applyFilter();
         _isLoading = false;
       });
@@ -70,6 +79,13 @@ class _ReviewsPageState extends State<ReviewsPage> {
         _filtered = _allReviews.where((r) => (r['rating'] as num).toDouble() >= 4.0).toList();
         break;
     }
+    // Most-helpful reviews float to the top; ties broken by recency.
+    _filtered.sort((a, b) {
+      final countA = _helpfulCounts[a['id']] ?? 0;
+      final countB = _helpfulCounts[b['id']] ?? 0;
+      if (countA != countB) return countB.compareTo(countA);
+      return (b['created_at'] as String? ?? '').compareTo(a['created_at'] as String? ?? '');
+    });
   }
 
   Map<int, int> get _distribution {
@@ -716,6 +732,90 @@ class _ReviewsPageState extends State<ReviewsPage> {
                           style: TextStyle(color: context.subtextColor.withOpacity(0.5), fontSize: 10, fontStyle: FontStyle.italic),
                         ),
                       ),
+                    const SizedBox(height: 10),
+                    Builder(builder: (_) {
+                      final reviewId = r['id'] as String;
+                      final count = _helpfulCounts[reviewId] ?? 0;
+                      final voted = _myVotes.contains(reviewId);
+                      final isOwnReview = isMe;
+                      final isConcerning = count >= _concernThreshold &&
+                          (r['rating'] as num).toDouble() <= 3.0;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (isConcerning)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.orange.withOpacity(0.4)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 14),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Many users found this concerning',
+                                    style: TextStyle(
+                                      color: context.isDark ? Colors.orange.shade300 : Colors.orange.shade800,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IgnorePointer(
+                                ignoring: isOwnReview,
+                                child: GestureDetector(
+                                  onTap: () => _handleVote(reviewId),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        voted ? Icons.thumb_up_alt_rounded : Icons.thumb_up_alt_outlined,
+                                        size: 15,
+                                        color: isOwnReview
+                                            ? context.subtextColor.withOpacity(0.5)
+                                            : (voted ? themeColor : context.subtextColor),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        count == 0 ? 'Helpful' : 'Helpful ($count)',
+                                        style: TextStyle(
+                                          color: isOwnReview
+                                              ? context.subtextColor.withOpacity(0.5)
+                                              : (voted ? themeColor : context.subtextColor),
+                                          fontSize: 12,
+                                          fontWeight: voted && !isOwnReview ? FontWeight.bold : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (isOwnReview) ...[
+                                const SizedBox(width: 6),
+                                Text(
+                                  '(your review)',
+                                  style: TextStyle(
+                                    color: context.subtextColor.withOpacity(0.5),
+                                    fontSize: 10,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -724,6 +824,38 @@ class _ReviewsPageState extends State<ReviewsPage> {
         );
       },
     );
+  }
+
+  Future<void> _handleVote(String reviewId) async {
+    final wasVoted = _myVotes.contains(reviewId);
+    // Optimistic update
+    setState(() {
+      if (wasVoted) {
+        _myVotes.remove(reviewId);
+        _helpfulCounts[reviewId] = (_helpfulCounts[reviewId] ?? 1) - 1;
+      } else {
+        _myVotes.add(reviewId);
+        _helpfulCounts[reviewId] = (_helpfulCounts[reviewId] ?? 0) + 1;
+      }
+      _applyFilter();
+    });
+    try {
+      await SupabaseService.toggleHelpfulVote(reviewId);
+    } catch (e) {
+      // Revert on failure
+      if (mounted) {
+        setState(() {
+          if (wasVoted) {
+            _myVotes.add(reviewId);
+            _helpfulCounts[reviewId] = (_helpfulCounts[reviewId] ?? 0) + 1;
+          } else {
+            _myVotes.remove(reviewId);
+            _helpfulCounts[reviewId] = (_helpfulCounts[reviewId] ?? 1) - 1;
+          }
+          _applyFilter();
+        });
+      }
+    }
   }
 
   String _formatDate(String? iso) {

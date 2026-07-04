@@ -438,6 +438,71 @@ class SupabaseService {
     }
   }
 
+  static Future<Map<String, int>> getHelpfulVoteCounts(List<String> reviewIds) async {
+    if (reviewIds.isEmpty) return {};
+    try {
+      final data = await client
+          .from('review_helpful_votes')
+          .select('review_id')
+          .in_('review_id', reviewIds);
+      final counts = <String, int>{};
+      for (final row in data) {
+        final id = row['review_id'] as String;
+        counts[id] = (counts[id] ?? 0) + 1;
+      }
+      return counts;
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getHelpfulVoteCounts | $e\x1B[0m');
+      return {};
+    }
+  }
+
+  static Future<Set<String>> getMyHelpfulVotes(List<String> reviewIds) async {
+    final userId = currentUser?.id;
+    if (userId == null || reviewIds.isEmpty) return {};
+    try {
+      final data = await client
+          .from('review_helpful_votes')
+          .select('review_id')
+          .eq('user_id', userId)
+          .in_('review_id', reviewIds);
+      return Set<String>.from(data.map((r) => r['review_id'] as String));
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getMyHelpfulVotes | $e\x1B[0m');
+      return {};
+    }
+  }
+
+  static Future<bool> toggleHelpfulVote(String reviewId) async {
+    final userId = currentUser?.id;
+    if (userId == null) return false;
+    try {
+      final existing = await client
+          .from('review_helpful_votes')
+          .select('id')
+          .eq('review_id', reviewId)
+          .eq('user_id', userId)
+          .maybeSingle();
+      if (existing != null) {
+        await client
+            .from('review_helpful_votes')
+            .delete()
+            .eq('review_id', reviewId)
+            .eq('user_id', userId);
+        return false; // now un-voted
+      } else {
+        await client.from('review_helpful_votes').insert({
+          'review_id': reviewId,
+          'user_id': userId,
+        });
+        return true; // now voted
+      }
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | toggleHelpfulVote | $e\x1B[0m');
+      rethrow;
+    }
+  }
+
   static Future<void> deleteReview({required String trainerId}) async {
     try {
       final userId = currentUser?.id;
@@ -1569,6 +1634,7 @@ static Future<Map<String, dynamic>> bookTrainerSlot({
   required String endTime,
   required double price,
   String notes = '',
+  bool noRefundAcknowledged = false,
 }) async {
   final userId = currentUser?.id;
   if (userId == null) throw Exception('Not logged in');
@@ -1613,6 +1679,10 @@ static Future<Map<String, dynamic>> bookTrainerSlot({
         'price': price,
         'status': 'confirmed',
         'notes': notes,
+        'no_refund_acknowledged': noRefundAcknowledged,
+        'no_refund_acknowledged_at': noRefundAcknowledged
+            ? DateTime.now().toIso8601String()
+            : null,
       })
       .select()
       .single();

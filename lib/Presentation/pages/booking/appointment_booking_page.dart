@@ -34,6 +34,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   List<Map<String, dynamic>> _slots = [];
   bool _isLoading = true;
   Map<String, dynamic>? _selectedSlot;
+  bool _acknowledgedNoRefund = false;
   final TextEditingController _notesController = TextEditingController();
 
   late DateTime _todayClean;
@@ -149,6 +150,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
           slotId: slot['id'] as String,
           startTime: slot['start_time'] as String,
           endTime: slot['end_time'] as String,
+          noRefundAcknowledged: _acknowledgedNoRefund,
         ),
       ),
     ).then((_) => _load());
@@ -205,6 +207,8 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                               _buildSlotsSection(context, accent),
                               const SizedBox(height: 20),
                             ],
+                            _buildNoRefundNotice(context),
+                            const SizedBox(height: 20),
                             Text('Notes (Optional)',
                                 style: TextStyle(
                                     color: context.textColor,
@@ -236,7 +240,9 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                               width: double.infinity,
                               child: ElevatedButton(
                                 onPressed:
-                                    _selectedSlot == null ? null : _proceed,
+                                    (_selectedSlot == null || !_acknowledgedNoRefund)
+                                        ? null
+                                        : _proceed,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: themeColor,
                                   disabledBackgroundColor:
@@ -250,7 +256,9 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                                 child: Text(
                                   _selectedSlot == null
                                       ? 'Select a date and time slot'
-                                      : 'Proceed to Payment  •  \$${(_selectedSlot!['price'] as num).toStringAsFixed(2)}',
+                                      : !_acknowledgedNoRefund
+                                          ? 'Please confirm the no-refund policy above'
+                                          : 'Proceed to Payment  •  \$${(_selectedSlot!['price'] as num).toStringAsFixed(2)}',
                                   style: TextStyle(
                                     color: _selectedSlot == null
                                         ? Colors.grey.shade400
@@ -266,6 +274,79 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                   ),
           ),
         ]),
+      ),
+    );
+  }
+
+  Widget _buildNoRefundNotice(BuildContext context) {
+    final slotChosen = _selectedSlot != null;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(slotChosen ? 0.12 : 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.orange.withOpacity(slotChosen ? 0.4 : 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline_rounded,
+                  color: Colors.orange.withOpacity(slotChosen ? 1 : 0.5), size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  slotChosen
+                      ? 'This session is non-refundable. If you\'re unavailable at your booked time, the session will be marked as missed and the payment will not be refunded.'
+                      : 'Select a date and time slot above to review the refund policy.',
+                  style: TextStyle(
+                    color: (context.isDark ? Colors.orange.shade300 : Colors.orange.shade800)
+                        .withOpacity(slotChosen ? 1 : 0.6),
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          IgnorePointer(
+            ignoring: !slotChosen,
+            child: Opacity(
+              opacity: slotChosen ? 1 : 0.4,
+              child: GestureDetector(
+                onTap: () => setState(() => _acknowledgedNoRefund = !_acknowledgedNoRefund),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: _acknowledgedNoRefund,
+                      onChanged: !slotChosen
+                          ? null
+                          : (v) => setState(() => _acknowledgedNoRefund = v ?? false),
+                      activeColor: Colors.orange,
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'I understand this booking is non-refundable',
+                        style: TextStyle(
+                          color: context.isDark ? Colors.orange.shade300 : Colors.orange.shade800,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -544,6 +625,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
           ? null
           : () => setState(() {
                 _selectedSlot = isSelected ? null : slot;
+                _acknowledgedNoRefund = false; // require re-confirmation on slot change
               }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),

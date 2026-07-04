@@ -24,6 +24,7 @@ class AppointmentPaymentPage extends StatefulWidget {
   final String slotId;
   final String startTime;
   final String endTime;
+  final bool noRefundAcknowledged;
 
   const AppointmentPaymentPage({
     super.key,
@@ -40,6 +41,7 @@ class AppointmentPaymentPage extends StatefulWidget {
     this.sessionPrice = 50.00,
     this.trainerRating = 0.0,
     this.trainerAvatarUrl = '',
+    this.noRefundAcknowledged = false,
   });
 
   @override
@@ -142,6 +144,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
         endTime: widget.endTime,
         price: widget.sessionPrice,
         notes: widget.notes,
+        noRefundAcknowledged: widget.noRefundAcknowledged,
       );
 
       if (!mounted) return;
