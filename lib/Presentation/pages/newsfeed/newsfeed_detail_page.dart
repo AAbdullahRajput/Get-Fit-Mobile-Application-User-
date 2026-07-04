@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
 
-class NewsfeedDetailPage extends StatelessWidget {
+class NewsfeedDetailPage extends StatefulWidget {
   final String id;
   final String title;
   final String description;
@@ -22,43 +23,100 @@ class NewsfeedDetailPage extends StatelessWidget {
   });
 
   @override
+  State<NewsfeedDetailPage> createState() => _NewsfeedDetailPageState();
+}
+
+class _NewsfeedDetailPageState extends State<NewsfeedDetailPage> {
+  List<Map<String, dynamic>> _relatedItems = [];
+  bool _isLoadingRelated = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRelated();
+  }
+
+  Future<void> _loadRelated() async {
+    final items = await SupabaseService.getNewsfeedItems(category: widget.category);
+    final filtered = items.where((i) => i['id']?.toString() != widget.id).take(4).toList();
+    if (mounted) {
+      setState(() {
+        _relatedItems = filtered;
+        _isLoadingRelated = false;
+      });
+    }
+  }
+
+  void _openRelated(Map<String, dynamic> item) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NewsfeedDetailPage(
+          id: item['id']?.toString() ?? '',
+          title: item['title'] as String? ?? '',
+          description: item['description'] as String? ?? '',
+          category: item['category'] as String? ?? '',
+          imageUrl: item['image_url'] as String?,
+          author: item['author'] as String? ?? item['source_name'] as String? ?? '',
+          date: _formatDate(item['published_at'] as String?),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(String? iso) {
+    if (iso == null) return '';
+    final dt = DateTime.tryParse(iso);
+    if (dt == null) return '';
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.bgColor,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 60, 16, 16),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header — back button + category title, no overlap
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
+              child: Row(
+                children: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      shape: const CircleBorder(),
+                      padding: const EdgeInsets.all(10),
+                      backgroundColor: Colors.black54,
+                      elevation: 0,
+                    ),
+                    child: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '${widget.category} News',
+                    style: TextStyle(
+                      color: themeColor,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Category Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: themeColor.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        category,
-                        style: TextStyle(
-                          color: themeColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
                     // Title
                     Text(
-                      title,
+                      widget.title,
                       style: TextStyle(
                         fontSize: 24,
                         color: context.textColor,
@@ -70,39 +128,25 @@ class NewsfeedDetailPage extends StatelessWidget {
                     // Author and Date
                     Row(
                       children: [
-                        Icon(
-                          Icons.person_outline,
-                          size: 14,
-                          color: context.subtextColor,
-                        ),
+                        Icon(Icons.person_outline, size: 14, color: context.subtextColor),
                         const SizedBox(width: 4),
                         Text(
-                          author,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: context.subtextColor,
-                          ),
+                          widget.author,
+                          style: TextStyle(fontSize: 12, color: context.subtextColor),
                         ),
                         const SizedBox(width: 12),
-                        Icon(
-                          Icons.calendar_today_outlined,
-                          size: 14,
-                          color: context.subtextColor,
-                        ),
+                        Icon(Icons.calendar_today_outlined, size: 14, color: context.subtextColor),
                         const SizedBox(width: 4),
                         Text(
-                          date,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: context.subtextColor,
-                          ),
+                          widget.date,
+                          style: TextStyle(fontSize: 12, color: context.subtextColor),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
 
                     // Image
-                    if (imageUrl != null && imageUrl!.isNotEmpty)
+                    if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty)
                       Container(
                         height: 250,
                         width: double.infinity,
@@ -113,23 +157,17 @@ class NewsfeedDetailPage extends StatelessWidget {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: Image.network(
-                            imageUrl!,
+                            widget.imageUrl!,
                             fit: BoxFit.cover,
                             width: double.infinity,
                             loadingBuilder: (context, child, progress) {
                               if (progress == null) return child;
                               return Center(
-                                child: CircularProgressIndicator(
-                                  color: themeColor,
-                                ),
+                                child: CircularProgressIndicator(color: themeColor),
                               );
                             },
                             errorBuilder: (context, error, stack) => Center(
-                              child: Icon(
-                                Icons.image_outlined,
-                                size: 64,
-                                color: context.subtextColor,
-                              ),
+                              child: Icon(Icons.image_outlined, size: 64, color: context.subtextColor),
                             ),
                           ),
                         ),
@@ -156,109 +194,64 @@ class NewsfeedDetailPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            description,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: context.subtextColor,
-                              height: 1.6,
-                            ),
+                            widget.description,
+                            style: TextStyle(fontSize: 15, color: context.subtextColor, height: 1.6),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
 
-                    // Related Posts Section
-                    Text(
-                      'Other Feeds',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: context.textColor,
-                        fontWeight: FontWeight.bold,
+                    // Related Posts Section — real data now
+                    if (_isLoadingRelated)
+                      _buildRelatedSkeleton(context)
+                    else if (_relatedItems.isNotEmpty) ...[
+                      Text(
+                        'More in ${widget.category}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: context.textColor,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: context.cardBgColor,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        children: [
-                          _relatedFeedItem(
-                            context,
-                            'Benefits of yoga with a partner',
-                            'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-                          ),
-                          const Divider(color: Colors.grey),
-                          _relatedFeedItem(
-                            context,
-                            'Healthy and nutritious food',
-                            'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-                          ),
-                          const Divider(color: Colors.grey),
-                          _relatedFeedItem(
-                            context,
-                            '5 advantages of gym exercise',
-                            'Regular workouts strengthen your heart, muscles, and bones.',
-                          ),
-                        ],
-                      ),
-                    ),
+                      const SizedBox(height: 12),
+                      ..._relatedItems.map((item) => _relatedFeedItem(context, item)),
+                    ],
                     const SizedBox(height: 20),
                   ],
                 ),
               ),
             ),
-          ),
-
-          // Back button overlay
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(10),
-                    backgroundColor: Colors.black54,
-                  ),
-                  child: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _relatedFeedItem(BuildContext context, String title, String description) {
+  Widget _relatedFeedItem(BuildContext context, Map<String, dynamic> item) {
+    final imageUrl = item['image_url'] as String? ?? '';
     return GestureDetector(
-      onTap: () {
-        // Navigate to another detail page
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+      onTap: () => _openRelated(item),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: context.cardBgColor,
+          borderRadius: BorderRadius.circular(14),
+        ),
         child: Row(
           children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: context.isDark ? Colors.grey[800] : Colors.grey[200],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.image_outlined,
-                color: context.subtextColor,
-              ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _relatedImagePlaceholder(context),
+                    )
+                  : _relatedImagePlaceholder(context),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -266,29 +259,53 @@ class NewsfeedDetailPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    item['title'] as String? ?? '',
                     style: TextStyle(
                       color: context.textColor,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    description,
-                    style: TextStyle(
-                      color: context.subtextColor,
-                      fontSize: 12,
-                    ),
+                    item['description'] as String? ?? '',
+                    style: TextStyle(color: context.subtextColor, fontSize: 12),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 6),
+            Icon(Icons.arrow_forward_ios, size: 14, color: context.subtextColor),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _relatedImagePlaceholder(BuildContext context) {
+    return Container(
+      width: 64,
+      height: 64,
+      color: context.isDark ? Colors.grey[800] : Colors.grey[200],
+      child: Icon(Icons.image_outlined, color: context.subtextColor, size: 24),
+    );
+  }
+
+  Widget _buildRelatedSkeleton(BuildContext context) {
+    return Column(
+      children: List.generate(
+        2,
+        (_) => Container(
+          height: 84,
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: context.isDark ? const Color(0xff2c2c2c) : Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
       ),
     );

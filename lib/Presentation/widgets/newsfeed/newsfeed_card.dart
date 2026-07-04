@@ -71,6 +71,11 @@ class NewfeedCard extends StatelessWidget {
                           fit: BoxFit.cover,
                           width: double.infinity,
                           cacheWidth: 400,
+                          headers: const {
+                            'User-Agent':
+                                'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36',
+                            'Referer': 'https://breakingmuscle.com/',
+                          },
                           loadingBuilder: (context, child, progress) {
                             if (progress == null) return child;
                             return Center(
@@ -84,11 +89,15 @@ class NewfeedCard extends StatelessWidget {
                               ),
                             );
                           },
-                          errorBuilder: (context, error, stack) => Icon(
-                            Icons.image_outlined,
-                            size: 48,
-                            color: context.isDark ? themeColor : Colors.grey,
-                          ),
+                          errorBuilder: (context, error, stack) {
+                            debugPrint('❌ Image load failed: $imageUrl');
+                            debugPrint('❌ Error: $error');
+                            return Icon(
+                              Icons.image_outlined,
+                              size: 48,
+                              color: context.isDark ? themeColor : Colors.grey,
+                            );
+                          },
                         ),
                       )
                     : Icon(

@@ -1830,6 +1830,117 @@ static Future<void> purchaseClass({
   });
 }
 
+// ─────────────────────────────────────────────
+  // NEWSFEED
+  // ─────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getNewsfeedItems({
+    String? category,
+    int page = 0,
+    int pageSize = 20,
+  }) async {
+    try {
+      debugPrint('\x1B[33m[API] GET /rest/v1/newsfeed_items | category: $category\x1B[0m');
+      var query = client.from('newsfeed_items').select();
+      if (category != null) {
+        query = query.eq('category', category);
+      }
+      final data = await query
+          .order('published_at', ascending: false)
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+      debugPrint('\x1B[32m[API] 200 OK | NewsfeedItems: ${data.length}\x1B[0m');
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getNewsfeedItems | $e\x1B[0m');
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> searchNewsfeedItems(String query) async {
+    try {
+      final data = await client
+          .from('newsfeed_items')
+          .select()
+          .ilike('title', '%$query%')
+          .order('published_at', ascending: false)
+          .limit(30);
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | searchNewsfeedItems | $e\x1B[0m');
+      return [];
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // SAVED NEWSFEED ITEMS (Added Feed)
+  // ─────────────────────────────────────────────
+
+  static Future<void> saveNewsfeedItem(String newsfeedItemId) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return;
+      debugPrint('\x1B[33m[API] POST /rest/v1/saved_newsfeed_items | item: $newsfeedItemId\x1B[0m');
+      await client.from('saved_newsfeed_items').upsert({
+        'user_id': userId,
+        'newsfeed_item_id': newsfeedItemId,
+      }, onConflict: 'user_id,newsfeed_item_id');
+      debugPrint('\x1B[32m[API] 200 OK | Saved to feed\x1B[0m');
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | saveNewsfeedItem | $e\x1B[0m');
+      rethrow;
+    }
+  }
+
+  static Future<void> unsaveNewsfeedItem(String newsfeedItemId) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return;
+      debugPrint('\x1B[33m[API] DELETE /rest/v1/saved_newsfeed_items | item: $newsfeedItemId\x1B[0m');
+      await client
+          .from('saved_newsfeed_items')
+          .delete()
+          .eq('user_id', userId)
+          .eq('newsfeed_item_id', newsfeedItemId);
+      debugPrint('\x1B[32m[API] 200 OK | Removed from feed\x1B[0m');
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | unsaveNewsfeedItem | $e\x1B[0m');
+      rethrow;
+    }
+  }
+
+  static Future<Set<String>> getSavedNewsfeedItemIds() async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return {};
+      final data = await client
+          .from('saved_newsfeed_items')
+          .select('newsfeed_item_id')
+          .eq('user_id', userId);
+      return Set<String>.from(data.map((r) => r['newsfeed_item_id'].toString()));
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getSavedNewsfeedItemIds | $e\x1B[0m');
+      return {};
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getSavedNewsfeedItems() async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return [];
+      debugPrint('\x1B[33m[API] GET /rest/v1/saved_newsfeed_items (with items)\x1B[0m');
+      final data = await client
+          .from('saved_newsfeed_items')
+          .select('added_at, newsfeed_items(*)')
+          .eq('user_id', userId)
+          .order('added_at', ascending: false);
+      debugPrint('\x1B[32m[API] 200 OK | SavedNewsfeedItems: ${data.length}\x1B[0m');
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getSavedNewsfeedItems | $e\x1B[0m');
+      return [];
+    }
+  }
+
 static Future<List<Map<String, dynamic>>> getMyPurchasedCourses() async {
   try {
     final userId = currentUser?.id;
