@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get_fit/Utils/constants.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:get_fit/Services/notification_service.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -21,6 +22,7 @@ class _NotificationsPageState extends State<NotificationsPage>
   bool _vibrate = false;
   bool _lockScreen = false;
   bool _reminder = false;
+  bool _dataReminder = false;
 
   static const _kGeneral  = 'notif_general';
   static const _kSound    = 'notif_sound';
@@ -28,6 +30,7 @@ class _NotificationsPageState extends State<NotificationsPage>
   static const _kVibrate  = 'notif_vibrate';
   static const _kLock     = 'notif_lock';
   static const _kReminder = 'notif_reminder';
+  static const _kDataReminder = 'notif_data_reminder';
 
   @override
   void initState() {
@@ -60,6 +63,7 @@ class _NotificationsPageState extends State<NotificationsPage>
         _vibrate    = prefs.getBool(_kVibrate)  ?? false;
         _lockScreen = prefs.getBool(_kLock)     ?? false;
         _reminder   = prefs.getBool(_kReminder) ?? false;
+        _dataReminder = prefs.getBool(_kDataReminder) ?? false;
         _isLoading  = false;
       });
     }
@@ -73,6 +77,7 @@ class _NotificationsPageState extends State<NotificationsPage>
     await prefs.setBool(_kVibrate,  _vibrate);
     await prefs.setBool(_kLock,     _lockScreen);
     await prefs.setBool(_kReminder, _reminder);
+    await prefs.setBool(_kDataReminder, _dataReminder);
   }
 
   Future<void> _syncGeneralWithPermission() async {
@@ -85,8 +90,10 @@ class _NotificationsPageState extends State<NotificationsPage>
         _vibrate    = false;
         _lockScreen = false;
         _reminder   = false;
+        _dataReminder = false;
       });
       _savePrefs();
+      NotificationService.cancelClearReminder();
     }
   }
 
@@ -110,8 +117,10 @@ class _NotificationsPageState extends State<NotificationsPage>
         _vibrate    = false;
         _lockScreen = false;
         _reminder   = false;
+        _dataReminder = false;
       });
       _savePrefs();
+      NotificationService.cancelClearReminder();
       _showSnack('Notifications disabled');
     }
   }
@@ -158,6 +167,17 @@ class _NotificationsPageState extends State<NotificationsPage>
     _showSnack(value
         ? 'Reminders enabled — you\'ll be notified before classes'
         : 'Reminders disabled');
+  }
+
+  Future<void> _toggleDataReminder(bool value) async {
+    setState(() => _dataReminder = value);
+    _savePrefs();
+    if (!value) {
+      await NotificationService.cancelClearReminder();
+    }
+    _showSnack(value
+        ? 'You\'ll be reminded before old activity data is cleared'
+        : 'Data clear reminders disabled');
   }
 
   void _showSnack(String msg) {
@@ -346,6 +366,15 @@ class _NotificationsPageState extends State<NotificationsPage>
         subtitle: 'Get reminded before upcoming yoga & trainer classes',
         value: _reminder,
         onChanged: _generalNotification ? _toggleReminder : null,
+        enabled: _generalNotification,
+      ),
+      _NotifItem(
+        icon: Icons.cloud_download_rounded,
+        iconColor: Colors.green,
+        title: 'Data Backup Reminder',
+        subtitle: 'Get notified before old activity history is cleared',
+        value: _dataReminder,
+        onChanged: _generalNotification ? _toggleDataReminder : null,
         enabled: _generalNotification,
       ),
     ];

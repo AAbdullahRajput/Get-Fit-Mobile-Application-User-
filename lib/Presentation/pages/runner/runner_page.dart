@@ -44,7 +44,7 @@ class _RunnerPageState extends State<RunnerPage>
 
   // ── filter ─────────────────────────────────────────────────────────────────
   static const _filters    = ['Today', '7D', '14D', '20D'];
-  static const _filterDays = [1, 7, 14, 20];
+  static const _filterDays = [7, 7, 14, 20];
   int _filterIdx = 0;
 
   // ── state ──────────────────────────────────────────────────────────────────

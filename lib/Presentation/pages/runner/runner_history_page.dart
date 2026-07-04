@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Utils/constants.dart';
+import 'package:get_fit/Services/notification_service.dart';
 
 // ─── accent helper ────────────────────────────────────────────────────────────
 Color _accent(BuildContext context) =>
@@ -88,7 +89,25 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
   bool _isLoading = true;
   List<_HistoryDay>  _recent   = [];
   List<_WeekGroup>   _weeks    = [];
+  List<_HistoryDay>  _allDays  = [];
   bool _pdfGenerating = false;
+
+  // Data older than 10 days gets cleared (see SupabaseService.clearOldActivityHistory).
+  // This finds the oldest day currently on record and works out the date it'll
+  // be wiped, so we can nudge the user to export it before then.
+  DateTime? get _nextClearDate {
+    final active = _allDays.where((d) => d.hasActivity).toList();
+    if (active.isEmpty) return null;
+    active.sort((a, b) => a.date.compareTo(b.date));
+    final oldest = active.first.date;
+    return oldest.add(const Duration(days: 10));
+  }
+
+  String _fmtFullDate(DateTime d) {
+    const months = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+    return '${months[d.month - 1]} ${d.day}, ${d.year}';
+  }
 
   @override
   void initState() {
@@ -124,7 +143,7 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
     final List<_WeekGroup> weeks = [];
     if (past.isNotEmpty) {
       DateTime cursor = thisWeekStart.subtract(const Duration(days: 7));
-      while (!cursor.isBefore(past.last.date)) {
+      while (!cursor.add(const Duration(days: 6)).isBefore(past.last.date)) {
         final wEnd   = cursor.add(const Duration(days: 6));
         final wDays  = past.where((d) =>
             !d.date.isBefore(cursor) && !d.date.isAfter(wEnd)).toList()
@@ -138,7 +157,16 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
     }
 
     if (mounted) {
-      setState(() { _recent = recent; _weeks = weeks; _isLoading = false; });
+      setState(() {
+        _recent  = recent;
+        _weeks   = weeks;
+        _allDays = allDays;
+        _isLoading = false;
+      });
+    }
+
+    if (_nextClearDate != null) {
+      NotificationService.scheduleClearReminder(_nextClearDate!);
     }
   }
 
@@ -206,6 +234,91 @@ class _RunnerHistoryPageState extends State<RunnerHistoryPage> {
       final file  = File('${dir.path}/getfit_week_${week.weekStart.millisecondsSinceEpoch}.pdf');
       await file.writeAsBytes(bytes);
       await Share.shareXFiles([XFile(file.path)], text: 'My activity report for ${week.label}');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _pdfGenerating = false);
+    }
+  }
+
+  Future<void> _exportAllHistoryPdf() async {
+    setState(() => _pdfGenerating = true);
+    try {
+      final active = _allDays.where((d) => d.hasActivity).toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+
+      if (active.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No activity to export yet.')),
+          );
+        }
+        return;
+      }
+
+      final totalKcal = active.fold(0, (s, d) => s + d.totalKcal);
+      final totalSecs = active.fold(0, (s, d) => s + d.totalSecs);
+
+      final pdf = pw.Document();
+      pdf.addPage(pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        header: (ctx) => pw.Container(
+          padding: const pw.EdgeInsets.only(bottom: 12),
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300, width: 1)),
+          ),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Get Fit - Full Activity Report',
+                style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+              pw.Text('${active.length} days on record',
+                style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey600)),
+            ],
+          ),
+        ),
+        footer: (ctx) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          padding: const pw.EdgeInsets.only(top: 8),
+          child: pw.Text('Page ${ctx.pageNumber} of ${ctx.pagesCount}',
+            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey500)),
+        ),
+        build: (ctx) {
+          final items = <pw.Widget>[];
+          items.add(pw.Container(
+            padding: const pw.EdgeInsets.all(16),
+            decoration: pw.BoxDecoration(
+              color: const PdfColor.fromInt(0xFFCCE600),
+              borderRadius: pw.BorderRadius.circular(8),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+              children: [
+                _pdfStat('$totalKcal', 'Total Kcal'),
+                _pdfStat('${active.length}', 'Active Days'),
+                _pdfStat(_fmtDuration(totalSecs), 'Total Time'),
+              ],
+            ),
+          ));
+          items.add(pw.SizedBox(height: 24));
+          for (final day in active) {
+            items.add(_buildPdfDayCard(day));
+            items.add(pw.SizedBox(height: 16));
+          }
+          return items;
+        },
+      ));
+
+      final bytes = await pdf.save();
+      final dir   = await getTemporaryDirectory();
+      final file  = File('${dir.path}/getfit_full_history_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles([XFile(file.path)], text: 'My complete Get Fit activity history');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -327,6 +440,8 @@ if (day.yogaSessions.isNotEmpty) {
               if (_isLoading)
                 SliverToBoxAdapter(child: _buildSkeleton(context))
               else ...[
+                if (_nextClearDate != null)
+                  SliverToBoxAdapter(child: _buildRetentionBanner(context)),
                 if (_recent.any((d) => d.hasActivity)) ...[
                   _sectionHeader(context, 'This Week'),
                   SliverPadding(
@@ -411,6 +526,72 @@ if (day.yogaSessions.isNotEmpty) {
           fontWeight: FontWeight.bold, letterSpacing: -0.3)),
     ]),
   );
+
+  Widget _buildRetentionBanner(BuildContext context) {
+    final clearDate = _nextClearDate!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              themeColor.withOpacity(context.isDark ? 0.18 : 0.22),
+              themeColor.withOpacity(context.isDark ? 0.06 : 0.10),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: themeColor.withOpacity(0.35)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: themeColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.cloud_download_rounded,
+                  color: Colors.black, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text('Keep your progress forever 💛',
+                style: TextStyle(
+                  color: context.textColor,
+                  fontSize: 15, fontWeight: FontWeight.bold)),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          Text(
+            "We only keep your recent activity here so things stay fast and tidy for everyone. "
+            "Your earliest records will be cleared on ${_fmtFullDate(clearDate)} — "
+            "come back before then and save a PDF so nothing is ever lost.",
+            style: TextStyle(
+              color: context.subtextColor, fontSize: 12.5, height: 1.5),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _pdfGenerating ? null : _exportAllHistoryPdf,
+              icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.black, size: 18),
+              label: const Text('Download My History as PDF',
+                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeColor,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 
   Widget _sectionHeader(BuildContext context, String label) => SliverPadding(
     padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
