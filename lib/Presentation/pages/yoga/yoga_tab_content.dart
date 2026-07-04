@@ -66,12 +66,19 @@ class _YogaTabContentState extends State<YogaTabContent> {
   }
 
   List<Map<String, dynamic>> get _filteredItems {
-    if (_selectedFilter == 0) return _allItems;
-    if (_selectedFilter == 1) {
-      return _allItems.where((c) => c['_kind'] == 'free').toList();
-    }
+  if (_selectedFilter == 0) return _allItems;
+  if (_selectedFilter == 1) {
+    return _allItems.where((c) => c['_kind'] == 'free').toList();
+  }
+  if (_selectedFilter == 2) {
     return _allItems.where((c) => c['_kind'] == 'paid').toList();
   }
+  // Owned = paid courses you've purchased
+  return _allItems
+      .where((c) =>
+          c['_kind'] == 'paid' && _purchasedIds.contains(c['id'] as String))
+      .toList();
+}
 
   void _openSearch(BuildContext context) {
     showDialog(
