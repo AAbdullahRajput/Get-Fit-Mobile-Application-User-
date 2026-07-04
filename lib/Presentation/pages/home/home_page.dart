@@ -518,7 +518,7 @@ void _handleBannerTap(BuildContext context) {
                           },
                           child: const Icon(Icons.bug_report, color: Colors.red),
                         ),
-                        ───── END TEST NOTIFICATION BUTTON ───── */
+                        ──── END TEST NOTIFICATION BUTTON ───── */
                       ],
                     ),
                   ],
