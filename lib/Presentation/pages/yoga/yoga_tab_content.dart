@@ -71,9 +71,13 @@ class _YogaTabContentState extends State<YogaTabContent> {
     return _allItems.where((c) => c['_kind'] == 'free').toList();
   }
   if (_selectedFilter == 2) {
-    return _allItems.where((c) => c['_kind'] == 'paid').toList();
+    // Paid tab: only show paid courses NOT yet purchased
+    return _allItems
+        .where((c) =>
+            c['_kind'] == 'paid' && !_purchasedIds.contains(c['id'] as String))
+        .toList();
   }
-  // Owned = paid courses you've purchased
+  // Owned tab: only purchased courses
   return _allItems
       .where((c) =>
           c['_kind'] == 'paid' && _purchasedIds.contains(c['id'] as String))
@@ -189,15 +193,17 @@ class _YogaTabContentState extends State<YogaTabContent> {
         if (_isLoading)
           _buildSkeleton(context)
         else if (filtered.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Center(
-              child: Text(
-                'No yogas available',
-                style: TextStyle(color: context.subtextColor, fontSize: 14),
-              ),
-            ),
-          )
+  Padding(
+    padding: const EdgeInsets.symmetric(vertical: 20),
+    child: Center(
+      child: Text(
+        _selectedFilter == 3
+            ? 'You haven\'t purchased any courses yet'
+            : 'No yogas available',
+        style: TextStyle(color: context.subtextColor, fontSize: 14),
+      ),
+    ),
+  )
         else ...[
           ...visibleItems.map((item) {
             final kind = item['_kind'] as String;
@@ -300,7 +306,7 @@ class _YogaTabContentState extends State<YogaTabContent> {
   }
 
   Widget _buildFilterChips(BuildContext context) {
-    const labels = ['All', 'Free', 'Paid'];
+    const labels = ['All', 'Free', 'Paid', 'Owned'];
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(labels.length, (i) {

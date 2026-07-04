@@ -539,9 +539,9 @@ void initState() {
           const SizedBox(height: 14),
           _sourceRow(context, Icons.fitness_center_rounded,
             'Gym Exercises', g, total, const Color(0xFF2A5FAC)),
-          const SizedBox(height: 14),
-          _sourceRow(context, Icons.self_improvement_rounded,
-            'Yoga', y, total, const Color(0xFFB85C00)),
+          // const SizedBox(height: 14),
+          // _sourceRow(context, Icons.self_improvement_rounded,
+          //   'Yoga', y, total, const Color(0xFFB85C00)),
         ]),
       ),
     );
