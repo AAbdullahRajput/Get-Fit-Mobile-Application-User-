@@ -1575,31 +1575,96 @@ static Future<List<Map<String, dynamic>>> getTrainerCalendarSlots(
     String trainerId) async {
   try {
     final now = DateTime.now();
-    final today = now.toIso8601String().substring(0, 10);
-    debugPrint('\x1B[33m[API] GET trainer_slots (calendar) | trainer: $trainerId\x1B[0m');
-    final data = await client
+    final todayClean = DateTime(now.year, now.month, now.day);
+    final maxDate = DateTime(now.year + 1, now.month, now.day);
+    debugPrint('\x1B[33m[API] GET trainer_slots (calendar+templates) | trainer: $trainerId\x1B[0m');
+
+    // 1. Weekly template rows (the 1970-01-05..11 placeholder week)
+    final templates = await client
         .from('trainer_slots')
         .select()
         .eq('trainer_id', trainerId)
-        .or('status.eq.available,status.eq.booked')
-        .gte('slot_date', today)
-        .order('slot_date', ascending: true)
-        .order('start_time', ascending: true);
+        .gte('slot_date', '1970-01-05')
+        .lte('slot_date', '1970-01-11');
 
-    final filtered = List<Map<String, dynamic>>.from(data).where((slot) {
-      final slotDate = slot['slot_date'] as String;
-      final status = slot['status'] as String? ?? 'available';
-      if (slotDate != today) return true;
-      if (status != 'available') return true; // show past-today booked slots too
-      final startStr = slot['start_time'] as String;
-      final parts = startStr.split(':');
-      final slotStart = DateTime(
-          now.year, now.month, now.day, int.parse(parts[0]), int.parse(parts[1]));
-      return slotStart.isAfter(now); // hide only expired *available* slots
-    }).toList();
+    final templateByWeekday = <int, List<Map<String, dynamic>>>{};
+    for (final t in List<Map<String, dynamic>>.from(templates)) {
+      final d = DateTime.parse(t['slot_date'] as String);
+      templateByWeekday.putIfAbsent(d.weekday, () => []).add(t);
+    }
 
-    debugPrint('\x1B[32m[API] 200 OK | CalendarSlots: ${filtered.length}\x1B[0m');
-    return filtered;
+    // 2. Real dated rows already in range (actual bookings/overrides)
+    final todayStr = todayClean.toIso8601String().substring(0, 10);
+    final maxStr = maxDate.toIso8601String().substring(0, 10);
+    final realRows = await client
+        .from('trainer_slots')
+        .select()
+        .eq('trainer_id', trainerId)
+        .gte('slot_date', todayStr)
+        .lte('slot_date', maxStr);
+
+    final realByKey = <String, Map<String, dynamic>>{};
+    for (final r in List<Map<String, dynamic>>.from(realRows)) {
+      final key = '${r['slot_date']}_${(r['start_time'] as String).substring(0, 5)}';
+      realByKey[key] = r;
+    }
+
+    // 3. Walk each day, expand template -> virtual slot unless a real row overrides it
+    final result = <Map<String, dynamic>>[];
+    final totalDays = maxDate.difference(todayClean).inDays;
+    for (int i = 0; i <= totalDays; i++) {
+      final date = todayClean.add(Duration(days: i));
+      final dateStr =
+          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final dayTemplates = templateByWeekday[date.weekday] ?? [];
+
+      for (final t in dayTemplates) {
+        final startTime = t['start_time'] as String;
+        final key = '${dateStr}_${startTime.substring(0, 5)}';
+
+        if (realByKey.containsKey(key)) {
+          final real = realByKey[key]!;
+          final status = real['status'] as String? ?? 'available';
+          if (status == 'booked' || real['is_active'] == true) {
+            // hide expired-today available real rows
+            if (dateStr == todayStr && status == 'available') {
+              final parts = startTime.split(':');
+              final slotStart = DateTime(date.year, date.month, date.day,
+                  int.parse(parts[0]), int.parse(parts[1]));
+              if (!slotStart.isAfter(now)) continue;
+            }
+            result.add(real);
+          }
+        } else if (t['is_active'] == true) {
+          if (dateStr == todayStr) {
+            final parts = startTime.split(':');
+            final slotStart = DateTime(date.year, date.month, date.day,
+                int.parse(parts[0]), int.parse(parts[1]));
+            if (!slotStart.isAfter(now)) continue; // don't show today's past hours
+          }
+          result.add({
+            'id': 'virtual_${dateStr}_${startTime.replaceAll(':', '')}',
+            'trainer_id': trainerId,
+            'slot_date': dateStr,
+            'start_time': startTime,
+            'end_time': t['end_time'],
+            'price': t['price'],
+            'is_active': true,
+            'status': 'available',
+            'virtual': true,
+          });
+        }
+      }
+    }
+
+    result.sort((a, b) {
+      final c = (a['slot_date'] as String).compareTo(b['slot_date'] as String);
+      if (c != 0) return c;
+      return (a['start_time'] as String).compareTo(b['start_time'] as String);
+    });
+
+    debugPrint('\x1B[32m[API] 200 OK | CalendarSlots (with templates): ${result.length}\x1B[0m');
+    return result;
   } catch (e) {
     debugPrint('\x1B[31m[API] ERROR | getTrainerCalendarSlots | $e\x1B[0m');
     return [];
@@ -1639,11 +1704,27 @@ static Future<Map<String, dynamic>> bookTrainerSlot({
   final userId = currentUser?.id;
   if (userId == null) throw Exception('Not logged in');
 
+  String realSlotId = slotId;
+
+  if (slotId.startsWith('virtual_')) {
+    // Materialize the template slot into a real row on first booking
+    final inserted = await client.from('trainer_slots').insert({
+      'trainer_id': trainerId,
+      'slot_date': slotDate,
+      'start_time': startTime,
+      'end_time': endTime,
+      'price': price,
+      'is_active': true,
+      'status': 'available',
+    }).select().single();
+    realSlotId = inserted['id'] as String;
+  }
+
   // Re-check the slot is still open (avoid race condition with another buyer)
   final slot = await client
       .from('trainer_slots')
       .select('is_active, status')
-      .eq('id', slotId)
+      .eq('id', realSlotId)
       .single();
   if (slot['is_active'] != true || slot['status'] != 'available') {
     throw Exception('slot_unavailable');
@@ -1662,13 +1743,13 @@ static Future<Map<String, dynamic>> bookTrainerSlot({
     'booked_by_user_id': userId,
     'booked_by_name': userName,
     'booked_by_email': userEmail,
-  }).eq('id', slotId);
+  }).eq('id', realSlotId);
 
   // 2. Create the appointment record
   final result = await client
       .from('trainer_appointments')
       .insert({
-        'slot_id': slotId,
+        'slot_id': realSlotId,
         'trainer_id': trainerId,
         'user_id': userId,
         'appointment_date': slotDate,

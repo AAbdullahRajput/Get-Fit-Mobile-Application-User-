@@ -48,8 +48,8 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     final now = DateTime.now();
     _todayClean = DateTime(now.year, now.month, now.day);
     _focusedMonth = DateTime(now.year, now.month, 1);
-    _maxMonth = DateTime(now.year, now.month + 2, 1);
-    _load();
+    _maxMonth = DateTime(now.year + 1, now.month, 1);
+    _loadTemplatesOnly();
   }
 
   @override
@@ -70,6 +70,31 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     });
     _tryAutoSelectFirstAvailable();
   }
+  Future<void> _loadTemplatesOnly() async {
+  setState(() => _isLoading = true);
+  final slots =
+      await SupabaseService.getTrainerCalendarSlots(widget.trainerId);
+  if (!mounted) return;
+  setState(() {
+    _slots = slots;
+    _selectedSlot = null;
+    _isLoading = false;
+    _selectedDate = _todayClean; // auto-select today by default
+    _focusedMonth = DateTime(_todayClean.year, _todayClean.month, 1);
+  });
+}
+
+Future<void> _loadSlotsForDate(DateTime date) async {
+  // Filter slots to only this date
+  final dateStr = _fmt(date);
+  final slotsForDate = _slots.where((s) => s['slot_date'] == dateStr).toList();
+  
+  if (slotsForDate.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('No slots available on this date')),
+    );
+  }
+}
 
   void _tryAutoSelectFirstAvailable() {
     if (_slots.isEmpty) return;
@@ -94,6 +119,13 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     final h12 = h > 12 ? h - 12 : h == 0 ? 12 : h;
     return '$h12:$m $period';
   }
+
+  Color _getSlotDotColor(List<Map<String, dynamic>> slotsForDate, Color accent) {
+  if (slotsForDate.isEmpty) return Colors.transparent;
+  final hasAvailable = slotsForDate.any((s) => s['status'] == 'available');
+  final hasBooked = slotsForDate.any((s) => s['status'] != 'available');
+  return (hasBooked && !hasAvailable) ? Colors.redAccent : accent;
+}
 
   String _fmt(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -509,8 +541,11 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
 
       final tappable = !isPast && !beyondLimit && hasSlots;
 
-      cells.add(GestureDetector(
-        onTap: !tappable ? null : () => setState(() => _selectedDate = date),
+cells.add(GestureDetector(
+  onTap: !tappable ? null : () {
+    setState(() => _selectedDate = date);
+    _loadSlotsForDate(date);
+  },
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -542,7 +577,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                 ),
               ),
             ),
-            if (tappable && !isSelected)
+            if (hasSlots && !isSelected)
               Positioned(
                 bottom: 2,
                 left: 0,
@@ -552,7 +587,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                     width: 5,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: accent,
+                      color: _getSlotDotColor(grouped[dateKey] ?? [], accent),
                       shape: BoxShape.circle,
                     ),
                   ),

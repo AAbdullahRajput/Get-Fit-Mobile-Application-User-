@@ -171,7 +171,9 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
         title: 'Payment Failed',
         message: e.error.localizedMessage ?? 'Payment was not completed.',
       );
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('\x1B[31m[BOOKING] ERROR: $e\x1B[0m');
+      debugPrint('\x1B[31m[BOOKING] stack: $stack\x1B[0m');
       if (!mounted) return;
       setState(() => _isBooking = false);
       final msg = e.toString();
