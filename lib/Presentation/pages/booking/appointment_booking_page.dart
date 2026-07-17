@@ -39,17 +39,17 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
 
   late DateTime _todayClean;
   late DateTime _focusedMonth;
-  late DateTime _maxMonth; // 2 months ahead cap
   DateTime? _selectedDate;
+  Set<String> _myBookedDates = {};
+  final Map<String, List<Map<String, dynamic>>> _monthCache = {};
 
-  @override
+ @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _todayClean = DateTime(now.year, now.month, now.day);
     _focusedMonth = DateTime(now.year, now.month, 1);
-    _maxMonth = DateTime(now.year + 1, now.month, 1);
-    _loadTemplatesOnly();
+    _loadInitial();
   }
 
   @override
@@ -58,31 +58,76 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     super.dispose();
   }
 
-  Future<void> _load() async {
+  String _monthKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}';
+
+  Future<void> _loadInitial() async {
     setState(() => _isLoading = true);
-    final slots =
-        await SupabaseService.getTrainerCalendarSlots(widget.trainerId);
+    await _loadMonth(_focusedMonth, forceRefresh: true);
+    if (!mounted) return;
+    final todayKey = _fmt(_todayClean);
+    if (_groupedByDate.containsKey(todayKey)) {
+      setState(() {
+        _isLoading = false;
+        _selectedDate = _todayClean;
+      });
+    } else {
+      setState(() => _isLoading = false);
+      _selectFirstAvailableInMonth(_focusedMonth);
+    }
+    _fetchMyBookedDates();
+  }
+
+  Future<void> _loadMonth(DateTime monthStart, {bool forceRefresh = false}) async {
+    final key = _monthKey(monthStart);
+    if (!forceRefresh && _monthCache.containsKey(key)) {
+      _mergeSlots(_monthCache[key]!);
+      _selectFirstAvailableInMonth(monthStart);
+      return;
+    }
+    final rangeEnd = DateTime(monthStart.year, monthStart.month + 1, 0);
+    final slots = await SupabaseService.getTrainerCalendarSlots(
+      widget.trainerId,
+      rangeStart: monthStart,
+      rangeEnd: rangeEnd,
+    );
+    _monthCache[key] = slots;
+    // Discard this response if the user has since navigated to a
+    // different month — prevents an out-of-order network reply from
+    // overwriting the currently viewed month's slots.
+    if (!mounted || _monthKey(_focusedMonth) != key) return;
+    _mergeSlots(slots);
+    _selectFirstAvailableInMonth(monthStart);
+  }
+
+  void _mergeSlots(List<Map<String, dynamic>> newSlots) {
+    // Only ever display the currently focused month's slots — not an
+    // accumulation of every month the person has scrolled through.
     if (!mounted) return;
     setState(() {
-      _slots = slots;
+      _slots = newSlots;
       _selectedSlot = null;
-      _isLoading = false;
     });
-    _tryAutoSelectFirstAvailable();
   }
-  Future<void> _loadTemplatesOnly() async {
-  setState(() => _isLoading = true);
-  final slots =
-      await SupabaseService.getTrainerCalendarSlots(widget.trainerId);
-  if (!mounted) return;
-  setState(() {
-    _slots = slots;
-    _selectedSlot = null;
-    _isLoading = false;
-    _selectedDate = _todayClean; // auto-select today by default
-    _focusedMonth = DateTime(_todayClean.year, _todayClean.month, 1);
-  });
-}
+
+  Future<void> _load() async {
+    setState(() => _isLoading = true);
+    _monthCache.remove(_monthKey(_focusedMonth));
+    await _loadMonth(_focusedMonth, forceRefresh: true);
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    _fetchMyBookedDates();
+  }
+
+Future<void> _fetchMyBookedDates() async {
+    final appointments = await SupabaseService.getMyTrainerAppointments();
+    final dates = appointments
+        .where((a) =>
+            a['trainer_id'] == widget.trainerId && a['status'] != 'cancelled')
+        .map((a) => a['appointment_date'] as String)
+        .toSet();
+    if (mounted) setState(() => _myBookedDates = dates);
+  }
 
 Future<void> _loadSlotsForDate(DateTime date) async {
   // Filter slots to only this date
@@ -111,6 +156,19 @@ Future<void> _loadSlotsForDate(DateTime date) async {
     });
   }
 
+  void _selectFirstAvailableInMonth(DateTime monthStart) {
+    final availableOnly = _slots.where((s) => s['status'] == 'available');
+    final dates = availableOnly.isNotEmpty
+        ? (availableOnly.map((s) => s['slot_date'] as String).toSet().toList()
+          ..sort())
+        : (_groupedByDate.keys.toList()..sort());
+    if (dates.isEmpty) {
+      setState(() => _selectedDate = null);
+      return;
+    }
+    setState(() => _selectedDate = DateTime.parse(dates.first));
+  }
+
   String _fmtTime(String t) {
     final parts = t.split(':');
     final h = int.parse(parts[0]);
@@ -120,7 +178,8 @@ Future<void> _loadSlotsForDate(DateTime date) async {
     return '$h12:$m $period';
   }
 
-  Color _getSlotDotColor(List<Map<String, dynamic>> slotsForDate, Color accent) {
+  Color _getSlotDotColor(String dateKey, List<Map<String, dynamic>> slotsForDate, Color accent) {
+  if (_myBookedDates.contains(dateKey)) return Colors.redAccent;
   if (slotsForDate.isEmpty) return Colors.transparent;
   final hasAvailable = slotsForDate.any((s) => s['status'] == 'available');
   final hasBooked = slotsForDate.any((s) => s['status'] != 'available');
@@ -157,9 +216,7 @@ Future<void> _loadSlotsForDate(DateTime date) async {
               .isBefore(DateTime(_todayClean.year, _todayClean.month, 1)) ==
           false;
 
-  bool get _canGoNextMonth =>
-      DateTime(_focusedMonth.year, _focusedMonth.month + 1, 1)
-          .isBefore(DateTime(_maxMonth.year, _maxMonth.month + 1, 1));
+  bool get _canGoNextMonth => true; // no cap — trainer's weekly template applies to any future date
 
   void _proceed() {
     if (_selectedSlot == null) return;
@@ -467,8 +524,12 @@ Future<void> _loadSlotsForDate(DateTime date) async {
               GestureDetector(
                 onTap: !_canGoPrevMonth
                     ? null
-                    : () => setState(() => _focusedMonth =
-                        DateTime(_focusedMonth.year, _focusedMonth.month - 1)),
+                    : () {
+                        final newMonth =
+                            DateTime(_focusedMonth.year, _focusedMonth.month - 1);
+                        setState(() => _focusedMonth = newMonth);
+                        _loadMonth(newMonth);
+                      },
                 child: Icon(Icons.chevron_left,
                     color: !_canGoPrevMonth
                         ? context.subtextColor.withOpacity(0.3)
@@ -484,8 +545,12 @@ Future<void> _loadSlotsForDate(DateTime date) async {
               GestureDetector(
                 onTap: !_canGoNextMonth
                     ? null
-                    : () => setState(() => _focusedMonth =
-                        DateTime(_focusedMonth.year, _focusedMonth.month + 1)),
+                    : () {
+                        final newMonth =
+                            DateTime(_focusedMonth.year, _focusedMonth.month + 1);
+                        setState(() => _focusedMonth = newMonth);
+                        _loadMonth(newMonth);
+                      },
                 child: Icon(Icons.chevron_right,
                     color: !_canGoNextMonth
                         ? context.subtextColor.withOpacity(0.3)
@@ -493,7 +558,7 @@ Future<void> _loadSlotsForDate(DateTime date) async {
               ),
             ]),
         const SizedBox(height: 4),
-        Text('You can book up to 2 months in advance',
+        Text('Trainer\'s weekly schedule — browse any month',
             style: TextStyle(color: context.subtextColor, fontSize: 11)),
         const SizedBox(height: 12),
         Row(
@@ -529,8 +594,7 @@ Future<void> _loadSlotsForDate(DateTime date) async {
       final dateKey = _fmt(date);
       final hasSlots = grouped.containsKey(dateKey);
       final isPast = date.isBefore(_todayClean);
-      final beyondLimit = date.isAfter(
-          DateTime(_maxMonth.year, _maxMonth.month + 1, 0));
+      final beyondLimit = false; // no cap — any future date is bookable
       final isToday = date.year == _todayClean.year &&
           date.month == _todayClean.month &&
           date.day == _todayClean.day;
@@ -587,7 +651,7 @@ cells.add(GestureDetector(
                     width: 5,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: _getSlotDotColor(grouped[dateKey] ?? [], accent),
+                      color: _getSlotDotColor(dateKey, grouped[dateKey] ?? [], accent),
                       shape: BoxShape.circle,
                     ),
                   ),

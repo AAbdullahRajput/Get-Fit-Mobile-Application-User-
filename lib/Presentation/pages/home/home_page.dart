@@ -312,10 +312,12 @@ void dispose() {
       if (now.isAfter(start) && now.isBefore(end)) return 'LIVE NOW';
 
       final diff = start.difference(now);
-      if (diff.inDays > 0) return null; // not today
-      final h = diff.inHours;
+      if (diff.isNegative) return null;
+      final days = diff.inDays;
+      final h = diff.inHours % 24;
       final m = diff.inMinutes % 60;
       final s = diff.inSeconds % 60;
+      if (days > 0) return '${days}d ${h}h';
       if (h > 0) return '${h}h ${m}m';
       return '${m}m ${s}s';
     } catch (_) {
@@ -423,7 +425,8 @@ void _handleBannerTap(BuildContext context) {
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
       ];
       const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      return '${days[dt.weekday - 1]}, ${dt.day} ${months[dt.month - 1]}';
+      final year = dt.year.toString().substring(2); // "26" or "27"
+      return '${days[dt.weekday - 1]}, ${dt.day} ${months[dt.month - 1]}\'$year';
     } catch (_) {
       return dateStr;
     }

@@ -350,7 +350,9 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                     width: double.infinity,
                     height: 450,
                     child: Image.network(
-                      trainer['bg_image_url'] ?? '',
+                      (trainer['bg_image_url'] as String?)?.isNotEmpty == true
+                          ? trainer['bg_image_url']
+                          : (trainer['image_url'] as String?) ?? '',
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
                         height: 320,
@@ -658,9 +660,10 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
                 trainerType: trainer['training_type'] ?? '',
                 trainerExperience:
                     trainer['experience']?.toString() ?? '',
-                trainerAvatarUrl: trainer['bg_image_url'] ??
-                    trainer['avatar_url'] ??
-                    '',
+                trainerAvatarUrl:
+                    (trainer['bg_image_url'] as String?)?.isNotEmpty == true
+                        ? trainer['bg_image_url']
+                        : (trainer['image_url'] as String?) ?? '',
                 sessionPrice:
                     (trainer['session_price'] as num?)?.toDouble() ??
                         50.0,
