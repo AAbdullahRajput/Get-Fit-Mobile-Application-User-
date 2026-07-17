@@ -504,6 +504,136 @@ Future<void> _loadSlotsForDate(DateTime date) async {
     );
   }
 
+ void _showMonthYearPicker(BuildContext context, Color accent) {
+    int selectedYear = _focusedMonth.year;
+    final minYear = _todayClean.year;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: context.cardBgColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Jump to month',
+                        style: TextStyle(
+                            color: context.textColor,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+
+                    // Year scroller
+                    SizedBox(
+                      height: 44,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: 100, // current year .. current year + 12
+                        itemBuilder: (ctx, i) {
+                          final year = minYear + i;
+                          final isSelected = year == selectedYear;
+                          return GestureDetector(
+                            onTap: () => setSheetState(() => selectedYear = year),
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isSelected ? themeColor : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected ? themeColor : context.subtextColor.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$year',
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.black : context.textColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Month grid
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 2.2,
+                      ),
+                      itemCount: 12,
+                      itemBuilder: (ctx, i) {
+                        final month = i + 1;
+                        final disabled = selectedYear == minYear && month < _todayClean.month;
+                        final isCurrentSelection = selectedYear == _focusedMonth.year &&
+                            month == _focusedMonth.month;
+                        return GestureDetector(
+                          onTap: disabled
+                              ? null
+                              : () {
+                                  final newMonth = DateTime(selectedYear, month);
+                                  Navigator.pop(sheetContext);
+                                  setState(() => _focusedMonth = newMonth);
+                                  _loadMonth(newMonth);
+                                },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isCurrentSelection
+                                  ? themeColor.withOpacity(0.15)
+                                  : context.isDark
+                                      ? Colors.white10
+                                      : Colors.black.withOpacity(0.04),
+                              borderRadius: BorderRadius.circular(10),
+                              border: isCurrentSelection
+                                  ? Border.all(color: themeColor, width: 1.5)
+                                  : null,
+                            ),
+                            child: Center(
+                              child: Text(
+                                _monthName(month).substring(0, 3),
+                                style: TextStyle(
+                                  color: disabled
+                                      ? context.subtextColor.withOpacity(0.3)
+                                      : isCurrentSelection
+                                          ? themeColor
+                                          : context.textColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildCalendar(BuildContext context, Color accent) {
     final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysInMonth =
@@ -535,12 +665,22 @@ Future<void> _loadSlotsForDate(DateTime date) async {
                         ? context.subtextColor.withOpacity(0.3)
                         : context.textColor),
               ),
-              Text(
-                '${_monthName(_focusedMonth.month)} ${_focusedMonth.year}',
-                style: TextStyle(
-                    color: context.textColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold),
+              GestureDetector(
+                onTap: () => _showMonthYearPicker(context, accent),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${_monthName(_focusedMonth.month)} ${_focusedMonth.year}',
+                      style: TextStyle(
+                          color: context.textColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_drop_down, color: context.textColor, size: 20),
+                  ],
+                ),
               ),
               GestureDetector(
                 onTap: !_canGoNextMonth
