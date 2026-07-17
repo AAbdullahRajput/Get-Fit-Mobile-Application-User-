@@ -56,11 +56,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       await SupabaseService.resetPassword(email);
 
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => VerificationPage(email: email),
-        ),
+      setState(() => _isLoading = false);
+      _showSuccessDialog(
+        'OTP Sent!',
+        'We\'ve sent a verification code to $email. Please check your inbox.',
+        () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => VerificationPage(email: email),
+            ),
+          );
+        },
       );
+      return;
     } catch (e) {
       debugPrint('RESET ERROR: $e');
       if (!mounted) return;
@@ -68,6 +76,48 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showSuccessDialog(String title, String message, VoidCallback onContinue) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF4A5240),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Icon(Icons.mark_email_read_outlined, color: themeColor, size: 48),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14)),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              onContinue();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: themeColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text('OK',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showErrorDialog(String title, String message) {
