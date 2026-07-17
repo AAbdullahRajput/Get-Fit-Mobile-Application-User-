@@ -76,9 +76,9 @@ void dispose() {
       if (!mounted) return;
 
       if (response.user != null) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const NewPasswordPage()),
-        );
+        setState(() => _isLoading = false);
+        _showSuccessDialog('Verified!', 'Your code was verified successfully.');
+        return;
       }
     } catch (e) {
       if (!mounted) return;
@@ -102,6 +102,50 @@ void dispose() {
   }
 
 
+  void _showSuccessDialog(String title, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF4A5240),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Icon(Icons.check_circle_outline, color: Color(0xFFDBF500), size: 48),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14)),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => const NewPasswordPage()),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDBF500),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text('OK',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showErrorDialog(String title, String message) {
     showDialog(
       context: context,
@@ -109,8 +153,14 @@ void dispose() {
         backgroundColor: const Color(0xFF4A5240),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Icon(
-          title == 'Code Sent' ? Icons.mark_email_read_outlined : Icons.error_outline,
-          color: title == 'Code Sent' ? const Color(0xFFDBF500) : Colors.redAccent,
+          title == 'Code Sent'
+              ? Icons.mark_email_read_outlined
+              : title == 'Verified!'
+                  ? Icons.check_circle_outline
+                  : Icons.error_outline,
+          color: (title == 'Code Sent' || title == 'Verified!')
+              ? const Color(0xFFDBF500)
+              : Colors.redAccent,
           size: 48),
         content: Column(
           mainAxisSize: MainAxisSize.min,
