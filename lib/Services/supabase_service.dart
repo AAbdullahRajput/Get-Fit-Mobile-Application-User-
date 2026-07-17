@@ -1917,16 +1917,42 @@ static Future<Map<String, dynamic>> getAllMyBookings() async {
 
 
 
-static Future<String> createPaymentIntent(double amount) async {
+static Future<Map<String, dynamic>> createPaymentIntent(
+  double amount, {
+  String? stripePmId,
+}) async {
   try {
     final response = await client.functions.invoke(
       'create-payment-intent',
-      body: {'amount': amount, 'currency': 'usd'},
+      body: {
+        'amount': amount,
+        'currency': 'usd',
+        if (stripePmId != null) 'stripe_pm_id': stripePmId,
+      },
     );
-    final clientSecret = response.data['clientSecret'] as String;
-    return clientSecret;
+    return Map<String, dynamic>.from(response.data as Map);
   } catch (e) {
     debugPrint('\x1B[31m[STRIPE] ERROR | createPaymentIntent | $e\x1B[0m');
+    rethrow;
+  }
+}
+
+static Future<void> attachPaymentMethod(String paymentMethodId) async {
+  try {
+    final response = await client.functions.invoke(
+      'attach-payment-method',
+      body: {'payment_method_id': paymentMethodId},
+    );
+    debugPrint('\x1B[36m[STRIPE] attachPaymentMethod status: ${response.status} | data: ${response.data}\x1B[0m');
+    if (response.status != 200) {
+      throw Exception('attach-payment-method failed: ${response.data}');
+    }
+    final data = response.data as Map?;
+    if (data == null || data['success'] != true) {
+      throw Exception('attach-payment-method returned unexpected data: ${response.data}');
+    }
+  } catch (e) {
+    debugPrint('\x1B[31m[STRIPE] ERROR | attachPaymentMethod | $e\x1B[0m');
     rethrow;
   }
 }

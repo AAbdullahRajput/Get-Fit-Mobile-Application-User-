@@ -7,7 +7,7 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
 
 Deno.serve(async (req) => {
   try {
-    const { amount, currency = 'usd', stripe_pm_id } = await req.json();
+    const { payment_method_id } = await req.json();
 
     const authHeader = req.headers.get('Authorization')!;
     const supabase = createClient(
@@ -20,7 +20,6 @@ Deno.serve(async (req) => {
     );
     if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
 
-    // Get or create Stripe customer
     const { data: userData } = await supabase
       .from('users')
       .select('stripe_customer_id, email')
@@ -37,39 +36,33 @@ Deno.serve(async (req) => {
       await supabase.from('users').update({ stripe_customer_id: customerId }).eq('id', user.id);
     }
 
-    // Saved card path — no sheet shown to user
-    if (stripe_pm_id) {
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100),
-        currency,
-        customer: customerId,
-        payment_method: stripe_pm_id,
-        confirm: true,
-        off_session: false,
-        return_url: 'getfit://payment-return',
+    await stripe.paymentMethods.attach(payment_method_id, { customer: customerId });
+
+    const pm = await stripe.paymentMethods.retrieve(payment_method_id);
+    const card = pm.card!;
+
+    const { data: existing } = await supabase
+      .from('user_cards')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('stripe_pm_id', payment_method_id)
+      .maybeSingle();
+
+    if (!existing) {
+      await supabase.from('user_cards').insert({
+        user_id: user.id,
+        stripe_pm_id: payment_method_id,
+        holder_name: pm.billing_details.name ?? 'Card Holder',
+        last4: card.last4,
+        expiry: `${String(card.exp_month).padStart(2, '0')}/${String(card.exp_year).slice(-2)}`,
+        card_network: card.brand.charAt(0).toUpperCase() + card.brand.slice(1),
+        is_default: false,
       });
-      return new Response(JSON.stringify({
-        clientSecret: paymentIntent.client_secret,
-        customerId,
-        status: paymentIntent.status,
-      }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // New card path — show Stripe sheet
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100),
-      currency,
-      customer: customerId,
-      setup_future_usage: 'off_session',
-      automatic_payment_methods: { enabled: true },
+    return new Response(JSON.stringify({ success: true, pmId: payment_method_id }), {
+      headers: { 'Content-Type': 'application/json' },
     });
-
-    return new Response(JSON.stringify({
-      clientSecret: paymentIntent.client_secret,
-      customerId,
-      paymentIntentId: paymentIntent.id,
-    }), { headers: { 'Content-Type': 'application/json' } });
-
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }

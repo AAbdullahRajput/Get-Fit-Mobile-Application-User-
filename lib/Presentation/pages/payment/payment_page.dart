@@ -62,7 +62,8 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
 
   Future<void> _loadCards() async {
     final cards = await SupabaseService.getUserCards();
-    if (mounted) setState(() { _cards = cards; _loadingCards = false; });
+    final realCards = cards.where((c) => c['stripe_pm_id'] != null).toList();
+    if (mounted) setState(() { _cards = realCards; _loadingCards = false; });
   }
 
   List<Color> _cardGradient(String network) {
@@ -119,21 +120,36 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
     setState(() => _isBooking = true);
 
     try {
+      final selectedCard = (_cards.isNotEmpty && _selectedCardIndex < _cards.length)
+          ? _cards[_selectedCardIndex]
+          : null;
+      final stripePmId = selectedCard?['stripe_pm_id'] as String?;
+
       // 1. Create PaymentIntent on backend
-      final clientSecret =
-          await SupabaseService.createPaymentIntent(widget.sessionPrice);
-
-      // 2. Init Stripe payment sheet
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          merchantDisplayName: 'GetFit',
-          style: ThemeMode.dark,
-        ),
+      final result = await SupabaseService.createPaymentIntent(
+        widget.sessionPrice,
+        stripePmId: stripePmId,
       );
+      final clientSecret = result['clientSecret'] as String;
+      final status = result['status'] as String?;
 
-      // 3. Present Stripe payment sheet
-      await Stripe.instance.presentPaymentSheet();
+      if (stripePmId != null) {
+        // Saved card — off_session charge. If it needs extra auth (3DS),
+        // handleNextAction shows that; otherwise it's already confirmed.
+        if (status != 'succeeded') {
+          await Stripe.instance.handleNextAction(clientSecret);
+        }
+      } else {
+        // New card — collect via Stripe's payment sheet
+        await Stripe.instance.initPaymentSheet(
+          paymentSheetParameters: SetupPaymentSheetParameters(
+            paymentIntentClientSecret: clientSecret,
+            merchantDisplayName: 'GetFit',
+            style: ThemeMode.dark,
+          ),
+        );
+        await Stripe.instance.presentPaymentSheet();
+      }
 
       // 4. Payment succeeded — book the slot
       await SupabaseService.bookTrainerSlot(
