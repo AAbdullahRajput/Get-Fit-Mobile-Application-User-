@@ -36,6 +36,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       return;
     }
 
+    if (_isLoading) return;
     setState(() => _isLoading = true);
 
     try {

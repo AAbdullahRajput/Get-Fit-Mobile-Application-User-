@@ -21,6 +21,7 @@ class _VerificationPageState extends State<VerificationPage> {
   Timer? _timer;
   bool _canResend = false;
   bool _isLoading = false;
+  bool _isResending = false;
 
  @override
 void initState() {
@@ -35,7 +36,7 @@ void dispose() {
 }
 
   void _startTimer() {
-    _secondsRemaining = 30;
+    _secondsRemaining = 60;
     _canResend = false;
     _timer?.cancel();
 
@@ -89,7 +90,8 @@ void dispose() {
   }
 
   Future<void> _resendOtp() async {
-    if (!mounted) return;
+    if (!mounted || _isResending || !_canResend) return;
+    setState(() => _isResending = true);
     try {
       await SupabaseService.resetPassword(widget.email);
       if (!mounted) return;
@@ -97,7 +99,35 @@ void dispose() {
       _showErrorDialog('Code Sent', 'A new OTP has been sent to ${widget.email}');
     } catch (e) {
       if (!mounted) return;
-      _showErrorDialog('Error', e.toString().replaceAll('AuthException: ', ''));
+      final message = e.toString().replaceAll('AuthException: ', '');
+
+      // Supabase rejected it as too soon — this shouldn't normally happen
+      // since we enforce our own 60s cooldown client-side, but as a
+      // fallback, use whichever is longer: our 60s or Supabase's own ask.
+      final match = RegExp(r'after (\d+) seconds').firstMatch(message);
+      if (match != null) {
+        final waitSeconds = int.parse(match.group(1)!);
+        setState(() {
+          _secondsRemaining = waitSeconds > 60 ? waitSeconds : 60;
+          _canResend = false;
+        });
+        _timer?.cancel();
+        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          setState(() {
+            if (_secondsRemaining > 0) {
+              _secondsRemaining--;
+            } else {
+              _canResend = true;
+              _timer?.cancel();
+            }
+          });
+        });
+        _showErrorDialog('Please Wait', 'You can request a new code in $waitSeconds seconds.');
+      } else {
+        _showErrorDialog('Error', message);
+      }
+    } finally {
+      if (mounted) setState(() => _isResending = false);
     }
   }
 
@@ -336,7 +366,7 @@ void dispose() {
                                 fontSize: 14,
                               ),
                             ),
-                            _canResend
+                            _canResend && !_isResending
                                 ? GestureDetector(
                                     onTap: _resendOtp,
                                     child: const Text(
@@ -349,7 +379,7 @@ void dispose() {
                                     ),
                                   )
                                 : Text(
-                                    'Resend in $_formattedTime',
+                                    _isResending ? 'Sending...' : 'Resend in $_formattedTime',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 14,

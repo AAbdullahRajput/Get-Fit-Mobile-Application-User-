@@ -14,16 +14,10 @@ class AppointmentPaymentPage extends StatefulWidget {
   final String trainerId;
   final String trainerName;
   final String trainerType;
-  final String date;
-  final String displayDate;
-  final String time;
+  final List<Map<String, dynamic>> selectedSlots;
   final String notes;
-  final double sessionPrice;
   final double trainerRating;
   final String trainerAvatarUrl;
-  final String slotId;
-  final String startTime;
-  final String endTime;
   final bool noRefundAcknowledged;
 
   const AppointmentPaymentPage({
@@ -31,14 +25,8 @@ class AppointmentPaymentPage extends StatefulWidget {
     required this.trainerId,
     required this.trainerName,
     required this.trainerType,
-    required this.date,
-    required this.displayDate,
-    required this.time,
+    required this.selectedSlots,
     required this.notes,
-    required this.slotId,
-    required this.startTime,
-    required this.endTime,
-    this.sessionPrice = 50.00,
     this.trainerRating = 0.0,
     this.trainerAvatarUrl = '',
     this.noRefundAcknowledged = false,
@@ -65,6 +53,11 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
     final realCards = cards.where((c) => c['stripe_pm_id'] != null).toList();
     if (mounted) setState(() { _cards = realCards; _loadingCards = false; });
   }
+
+  double get _totalPrice => widget.selectedSlots.fold<double>(
+    0,
+    (sum, slot) => sum + ((slot['price'] as num).toDouble())
+  );
 
   List<Color> _cardGradient(String network) {
     switch (network) {
@@ -125,17 +118,16 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
           : null;
       final stripePmId = selectedCard?['stripe_pm_id'] as String?;
 
-      // 1. Create PaymentIntent on backend
+      // 1. Create PaymentIntent on backend for TOTAL of all slots
       final result = await SupabaseService.createPaymentIntent(
-        widget.sessionPrice,
+        _totalPrice,
         stripePmId: stripePmId,
       );
       final clientSecret = result['clientSecret'] as String;
       final status = result['status'] as String?;
 
       if (stripePmId != null) {
-        // Saved card — off_session charge. If it needs extra auth (3DS),
-        // handleNextAction shows that; otherwise it's already confirmed.
+        // Saved card — off_session charge
         if (status != 'succeeded') {
           await Stripe.instance.handleNextAction(clientSecret);
         }
@@ -151,17 +143,19 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
         await Stripe.instance.presentPaymentSheet();
       }
 
-      // 4. Payment succeeded — book the slot
-      await SupabaseService.bookTrainerSlot(
-        trainerId: widget.trainerId,
-        slotId: widget.slotId,
-        slotDate: widget.date,
-        startTime: widget.startTime,
-        endTime: widget.endTime,
-        price: widget.sessionPrice,
-        notes: widget.notes,
-        noRefundAcknowledged: widget.noRefundAcknowledged,
-      );
+      // 2. Payment succeeded — book ALL slots
+      for (final slot in widget.selectedSlots) {
+        await SupabaseService.bookTrainerSlot(
+          trainerId: widget.trainerId,
+          slotId: slot['id'] as String,
+          slotDate: slot['slot_date'] as String,
+          startTime: slot['start_time'] as String,
+          endTime: slot['end_time'] as String,
+          price: (slot['price'] as num).toDouble(),
+          notes: widget.notes,
+          noRefundAcknowledged: widget.noRefundAcknowledged,
+        );
+      }
 
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -172,8 +166,8 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
             trainerType: widget.trainerType,
             trainerRating: widget.trainerRating,
             trainerAvatarUrl: widget.trainerAvatarUrl,
-            displayDate: widget.displayDate,
-            time: widget.time,
+            displayDate: '${widget.selectedSlots.length} session${widget.selectedSlots.length == 1 ? '' : 's'} booked',
+            time: 'Total: \$${_totalPrice.toStringAsFixed(2)}',
           ),
         ),
       );
@@ -198,7 +192,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
           icon: Icons.event_busy,
           iconColor: Colors.orangeAccent,
           title: 'Slot No Longer Available',
-          message: 'This slot was just booked by someone else. Please go back and pick another time.',
+          message: 'One or more slots were just booked. Please go back and select again.',
         );
       } else {
         _showDialog(
@@ -478,30 +472,32 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                             ? Colors.white12
                             : Colors.grey.shade200,
                         height: 24),
-                    Text('Date',
+                    Text('Selected Sessions',
                         style: TextStyle(
                             color: context.subtextColor, fontSize: 16)),
-                    const SizedBox(height: 6),
-                    Text(widget.displayDate,
-                        style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600)),
-
-                    Divider(
-                        color: context.isDark
-                            ? Colors.white12
-                            : Colors.grey.shade200,
-                        height: 24),
-                    Text('Time',
-                        style: TextStyle(
-                            color: context.subtextColor, fontSize: 16)),
-                    const SizedBox(height: 6),
-                    Text(widget.time,
-                        style: TextStyle(
-                            color: context.textColor,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 12),
+                    ...widget.selectedSlots.map((slot) {
+                      final dateStr = slot['slot_date'] as String;
+                      final startTime = slot['start_time'] as String;
+                      final endTime = slot['end_time'] as String;
+                      final price = (slot['price'] as num).toDouble();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('$dateStr • $startTime - $endTime',
+                                style: TextStyle(
+                                    color: context.textColor, fontSize: 14)),
+                            Text('\$${price.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                    color: themeColor,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      );
+                    }).toList(),
 
                     Divider(
                         color: context.isDark
@@ -511,10 +507,10 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Estimated Cost',
+                        Text('Total Cost (${widget.selectedSlots.length} sessions)',
                             style: TextStyle(
                                 color: context.subtextColor, fontSize: 15)),
-                        Text('\$${widget.sessionPrice.toStringAsFixed(2)}',
+                        Text('\$${_totalPrice.toStringAsFixed(2)}',
                             style: const TextStyle(
                                 color: themeColor,
                                 fontSize: 22,

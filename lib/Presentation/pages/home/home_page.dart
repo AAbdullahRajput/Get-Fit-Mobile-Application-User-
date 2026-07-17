@@ -210,6 +210,9 @@ class _OverviewTabState extends State<_OverviewTab> {
   // Live countdown ticker
   Timer? _ticker;
 
+  // How many trainer bookings are currently shown (starts at 3, grows by 3)
+  int _visibleBookingCount = 3;
+
   @override
 void initState() {
   super.initState();
@@ -252,6 +255,7 @@ void dispose() {
     if (mounted) setState(() {
       _trainerBookings = filtered;
       _loadingTrainer = false;
+      _visibleBookingCount = 3;
     });
   } catch (_) {
     if (mounted) setState(() => _loadingTrainer = false);
@@ -634,7 +638,7 @@ void _handleBannerTap(BuildContext context) {
                                       Text(
                                         _loadingActivity
                                             ? '0'
-                                            : '${(_totalKcal7d* 0.1).round() < 100 ? 5000 : (_totalKcal7d * 0.1).round()}',
+                                            : '${(_totalKcal7d* 0.1).round() < 100 ? 0 : (_totalKcal7d * 0.1).round()}',
                                           style: TextStyle(
                                               fontSize: 22,
                                               fontWeight: FontWeight.bold,
@@ -1009,7 +1013,8 @@ void _handleBannerTap(BuildContext context) {
                 )
               else
                 Column(
-                  children: _trainerBookings.take(3).map((booking) {
+                  children: [
+                    ..._trainerBookings.take(_visibleBookingCount).map((booking) {
                     final trainer =
                         booking['fitness_trainers']
                                 as Map<String, dynamic>? ??
@@ -1208,7 +1213,41 @@ void _handleBannerTap(BuildContext context) {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
+                    if (_trainerBookings.length > 3)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (_visibleBookingCount < _trainerBookings.length)
+                              TextButton.icon(
+                                onPressed: () => setState(() {
+                                  _visibleBookingCount =
+                                      (_visibleBookingCount + 3)
+                                          .clamp(0, _trainerBookings.length);
+                                }),
+                                icon: Icon(Icons.expand_more, color: accent, size: 18),
+                                label: Text('Show more',
+                                    style: TextStyle(
+                                        color: accent,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600)),
+                              ),
+                            if (_visibleBookingCount > 3)
+                              TextButton.icon(
+                                onPressed: () => setState(() => _visibleBookingCount = 3),
+                                icon: Icon(Icons.expand_less, color: accent.withOpacity(0.7), size: 18),
+                                label: Text('Show less',
+                                    style: TextStyle(
+                                        color: accent.withOpacity(0.7),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600)),
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
 
               const SizedBox(height: 24),

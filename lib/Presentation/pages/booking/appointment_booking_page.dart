@@ -33,7 +33,7 @@ class AppointmentBookingPage extends StatefulWidget {
 class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   List<Map<String, dynamic>> _slots = [];
   bool _isLoading = true;
-  Map<String, dynamic>? _selectedSlot;
+  final List<Map<String, dynamic>> _selectedSlots = [];
   bool _acknowledgedNoRefund = false;
   final TextEditingController _notesController = TextEditingController();
 
@@ -106,7 +106,6 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     if (!mounted) return;
     setState(() {
       _slots = newSlots;
-      _selectedSlot = null;
     });
   }
 
@@ -219,8 +218,7 @@ Future<void> _loadSlotsForDate(DateTime date) async {
   bool get _canGoNextMonth => true; // no cap — trainer's weekly template applies to any future date
 
   void _proceed() {
-    if (_selectedSlot == null) return;
-    final slot = _selectedSlot!;
+    if (_selectedSlots.isEmpty) return;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -228,17 +226,10 @@ Future<void> _loadSlotsForDate(DateTime date) async {
           trainerId: widget.trainerId,
           trainerName: widget.trainerName,
           trainerType: widget.trainerType,
-          date: slot['slot_date'] as String,
-          displayDate: _fmtDisplayDate(slot['slot_date'] as String),
-          time:
-              '${_fmtTime(slot['start_time'] as String)} → ${_fmtTime(slot['end_time'] as String)}',
+          selectedSlots: _selectedSlots,
           notes: _notesController.text.trim(),
-          sessionPrice: (slot['price'] as num).toDouble(),
           trainerRating: widget.trainerRating,
           trainerAvatarUrl: widget.trainerAvatarUrl,
-          slotId: slot['id'] as String,
-          startTime: slot['start_time'] as String,
-          endTime: slot['end_time'] as String,
           noRefundAcknowledged: _acknowledgedNoRefund,
         ),
       ),
@@ -329,7 +320,7 @@ Future<void> _loadSlotsForDate(DateTime date) async {
                               width: double.infinity,
                               child: ElevatedButton(
                                 onPressed:
-                                    (_selectedSlot == null || !_acknowledgedNoRefund)
+                                    (_selectedSlots.isEmpty || !_acknowledgedNoRefund)
                                         ? null
                                         : _proceed,
                                 style: ElevatedButton.styleFrom(
@@ -343,13 +334,13 @@ Future<void> _loadSlotsForDate(DateTime date) async {
                                           BorderRadius.circular(30)),
                                 ),
                                 child: Text(
-                                  _selectedSlot == null
-                                      ? 'Select a date and time slot'
+                                  _selectedSlots.isEmpty
+                                      ? 'Select slots to book'
                                       : !_acknowledgedNoRefund
                                           ? 'Please confirm the no-refund policy above'
-                                          : 'Proceed to Payment  •  \$${(_selectedSlot!['price'] as num).toStringAsFixed(2)}',
+                                          : 'Proceed to Payment (${_selectedSlots.length} slot${_selectedSlots.length == 1 ? '' : 's'})  •  \$${_selectedSlots.fold<double>(0, (sum, s) => sum + ((s['price'] as num).toDouble())).toStringAsFixed(2)}',
                                   style: TextStyle(
-                                    color: _selectedSlot == null
+                                    color: _selectedSlots.isEmpty
                                         ? Colors.grey.shade400
                                         : Colors.black,
                                     fontSize: 15,
@@ -368,7 +359,7 @@ Future<void> _loadSlotsForDate(DateTime date) async {
   }
 
   Widget _buildNoRefundNotice(BuildContext context) {
-    final slotChosen = _selectedSlot != null;
+    final slotChosen = _selectedSlots.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -826,7 +817,7 @@ cells.add(GestureDetector(
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(
-        'Available Slots  —  ${_fmtDisplayDate(dateKey)}',
+        'Available Slots  —  ${_fmtDisplayDate(dateKey)} (${_selectedSlots.where((s) => s['slot_date'] == dateKey).length} selected)',
         style: TextStyle(
             color: context.textColor,
             fontSize: 16,
@@ -854,18 +845,22 @@ cells.add(GestureDetector(
     final slotId = slot['id'] as String;
     final status = slot['status'] as String? ?? 'available';
     final isBooked = status != 'available';
-    final isSelected = _selectedSlot?['id'] == slotId;
+    final isSelected = _selectedSlots.any((s) => s['id'] == slotId);
     final price = (slot['price'] as num).toDouble();
     final startTime = _fmtTime(slot['start_time'] as String);
     final endTime = _fmtTime(slot['end_time'] as String);
 
     return GestureDetector(
       onTap: isBooked
-          ? null
-          : () => setState(() {
-                _selectedSlot = isSelected ? null : slot;
-                _acknowledgedNoRefund = false; // require re-confirmation on slot change
-              }),
+    ? null
+    : () => setState(() {
+          if (isSelected) {
+            _selectedSlots.removeWhere((s) => s['id'] == slotId);
+          } else {
+            _selectedSlots.add(slot);
+          }
+          _acknowledgedNoRefund = false;
+        }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(bottom: 10),
