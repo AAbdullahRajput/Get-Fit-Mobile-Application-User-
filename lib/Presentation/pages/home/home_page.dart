@@ -238,7 +238,7 @@ void dispose() {
   try {
     final res = await SupabaseService.getUpcomingTrainerAppointments();
     final now = DateTime.now();
-    // Filter out slots whose end time has already passed today
+    // Filter: keep only if appointment end time hasn't passed yet
     final filtered = res.where((booking) {
       try {
         final dateStr = booking['appointment_date'] as String;
@@ -247,9 +247,13 @@ void dispose() {
         final d = DateTime.parse(dateStr);
         final end = DateTime(d.year, d.month, d.day,
             int.parse(parts[0]), int.parse(parts[1]));
-        return now.isBefore(end); // only keep if not ended yet
-      } catch (_) {
-        return true;
+        // Keep only if current time is before end time
+        final isActive = now.isBefore(end);
+        debugPrint('\x1B[33m[FILTER] $dateStr ${endStr} → active=$isActive (now: $now, end: $end)\x1B[0m');
+        return isActive;
+      } catch (e) {
+        debugPrint('\x1B[31m[FILTER] Parse error: $e\x1B[0m');
+        return false; // <-- FIX: discard broken data instead of keeping it
       }
     }).toList();
     if (mounted) setState(() {
@@ -758,6 +762,7 @@ void _handleBannerTap(BuildContext context) {
                                   Text("Calories",
                                       style: TextStyle(
                                           fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                           color: isDark
                                               ? Colors.black
                                               : Colors.white)),
@@ -785,7 +790,7 @@ void _handleBannerTap(BuildContext context) {
                                                   : themeColor)),
                                       Text('/${_totalKcal7d > 2000 ? '20000' : '2000'} kcal',
                                           style: TextStyle(
-                                              fontSize: 11,
+                                              fontSize: 15,
                                               color: isDark
                                                   ? Colors.black
                                                   : Colors.white)),

@@ -1857,6 +1857,29 @@ static Future<void> markAppointmentAttended(String appointmentId) async {
 }
 
 /// Get all appointments for current user
+static Future<List<Map<String, dynamic>>> getEndedTrainerAppointments({
+  int page = 0,
+  int pageSize = 9,
+}) async {
+  try {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+    final yesterday = DateTime.now().subtract(const Duration(days: 1)).toIso8601String().substring(0, 10);
+    final data = await client
+        .from('trainer_appointments')
+        .select('id, appointment_date, start_time, end_time, price, status, fitness_trainers(id, name, image_url, training_type)')
+        .eq('user_id', userId)
+        .lt('appointment_date', yesterday)
+        .order('appointment_date', ascending: false)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+    debugPrint('\x1B[32m[API] 200 OK | EndedAppointments: ${data.length}\x1B[0m');
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    debugPrint('\x1B[31m[API] ERROR | getEndedTrainerAppointments | $e\x1B[0m');
+    return [];
+  }
+}
+
 static Future<List<Map<String, dynamic>>> getMyTrainerAppointments() async {
   try {
     final userId = currentUser?.id;
@@ -1956,6 +1979,25 @@ static Future<void> attachPaymentMethod(String paymentMethodId) async {
     rethrow;
   }
 }
+
+static Future<List<Map<String, dynamic>>> getCallSessionsForAppointment(
+      String appointmentId) async {
+    try {
+      debugPrint(
+          '\x1B[33m[API] GET call_sessions | appointment: $appointmentId\x1B[0m');
+      final data = await client
+          .from('call_sessions')
+          .select()
+          .eq('appointment_id', appointmentId)
+          .order('created_at', ascending: false);
+      debugPrint('\x1B[32m[API] 200 OK | CallSessions: ${data.length}\x1B[0m');
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint(
+          '\x1B[31m[API] ERROR | getCallSessionsForAppointment | $e\x1B[0m');
+      return [];
+    }
+  }
 
 static Future<List<Map<String, dynamic>>> getAllYogaClasses({int page = 0, int pageSize = 100}) async {
   try {

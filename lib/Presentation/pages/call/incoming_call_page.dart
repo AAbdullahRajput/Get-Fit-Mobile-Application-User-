@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_fit/Services/call_service.dart';
+import 'package:get_fit/Services/agora_service.dart';
 import 'package:get_fit/Presentation/pages/call/video_call_page.dart';
+import 'package:get_fit/Presentation/widgets/call/call_widgets.dart';
 import 'package:get_fit/Utils/constants.dart';
 
-/// Shown to the receiving side when a call comes in. In production this
-/// runs on the trainer's React dashboard — this Flutter version exists so
-/// you can test the full call flow end-to-end with two logged-in test
-/// accounts on two devices/emulators before the web side is built.
 class IncomingCallPage extends StatefulWidget {
   final String callId;
   final String channelName;
@@ -29,6 +27,7 @@ class IncomingCallPage extends StatefulWidget {
 class _IncomingCallPageState extends State<IncomingCallPage> {
   final _callService = CallService();
   bool _isResponding = false;
+  bool _isDeclining = false;
 
   @override
   void initState() {
@@ -42,14 +41,25 @@ class _IncomingCallPageState extends State<IncomingCallPage> {
     final status = session['status'] as String?;
     debugPrint('\x1B[36m[INCOMING-CALL] Status changed -> $status\x1B[0m');
     if (!mounted) return;
-    // Caller cancelled before we responded — close this screen.
     if (status == 'ended' && !_isResponding) {
       Navigator.pop(context);
     }
   }
 
   Future<void> _accept() async {
-    if (_isResponding) return;
+    if (_isResponding || _isDeclining) return;
+
+    final hasPermissions = await AgoraService().requestPermissions();
+    if (!hasPermissions) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Camera and microphone permission is required to accept the call'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isResponding = true);
     debugPrint('\x1B[32m[INCOMING-CALL] Accepted\x1B[0m');
     await _callService.updateStatus(widget.callId, 'accepted');
@@ -66,8 +76,8 @@ class _IncomingCallPageState extends State<IncomingCallPage> {
   }
 
   Future<void> _decline() async {
-    if (_isResponding) return;
-    setState(() => _isResponding = true);
+    if (_isResponding || _isDeclining) return;
+    setState(() => _isDeclining = true);
     debugPrint('\x1B[33m[INCOMING-CALL] Declined\x1B[0m');
     await _callService.updateStatus(widget.callId, 'declined');
     if (mounted) Navigator.pop(context);
@@ -81,92 +91,51 @@ class _IncomingCallPageState extends State<IncomingCallPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: const Color(0xFF1A1A1A),
+        backgroundColor: const Color(0xFF141414),
         body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+            padding: EdgeInsets.symmetric(horizontal: 32, vertical: screenHeight * 0.04),
             child: Column(
               children: [
                 const Spacer(flex: 2),
-                CircleAvatar(
-                  radius: 70,
-                  backgroundColor: themeColor,
-                  backgroundImage: (widget.callerImageUrl ?? '').isNotEmpty
-                      ? NetworkImage(widget.callerImageUrl!)
-                      : null,
-                  child: (widget.callerImageUrl ?? '').isEmpty
-                      ? const Icon(Icons.person, size: 70, color: Colors.black)
-                      : null,
-                ),
-                const SizedBox(height: 24),
+                PulsingAvatar(imageUrl: widget.callerImageUrl, ringColor: themeColor),
+                const SizedBox(height: 28),
                 Text(
                   widget.callerName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Incoming video call...',
-                  style: TextStyle(color: Colors.white60, fontSize: 16),
-                ),
+                const SizedBox(height: 12),
+                const CallStatusPill(text: 'Incoming video call', showDot: true, dotColor: themeColor),
                 const Spacer(flex: 3),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Column(
-                      children: [
-                        GestureDetector(
-                          onTap: _decline,
-                          child: Container(
-                            width: 70,
-                            height: 70,
-                            decoration: const BoxDecoration(
-                              color: Colors.redAccent,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.call_end,
-                                color: Colors.white, size: 32),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text('Decline',
-                            style: TextStyle(color: Colors.white54)),
-                      ],
+                    CallActionButton(
+                      svg: CallIcons.callEnd,
+                      onTap: _decline,
+                      background: const Color(0xFFE5484D),
+                      loading: _isDeclining,
+                      size: 68,
+                      label: 'Decline',
                     ),
-                    Column(
-                      children: [
-                        GestureDetector(
-                          onTap: _accept,
-                          child: Container(
-                            width: 70,
-                            height: 70,
-                            decoration: const BoxDecoration(
-                              color: themeColor,
-                              shape: BoxShape.circle,
-                            ),
-                            child: _isResponding
-                                ? const Padding(
-                                    padding: EdgeInsets.all(20),
-                                    child: CircularProgressIndicator(
-                                        color: Colors.black, strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.videocam,
-                                    color: Colors.black, size: 32),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text('Accept',
-                            style: TextStyle(color: Colors.white54)),
-                      ],
+                    CallActionButton(
+                      svg: CallIcons.callAccept,
+                      onTap: _accept,
+                      background: themeColor,
+                      iconColor: Colors.black,
+                      loading: _isResponding,
+                      size: 68,
+                      label: 'Accept',
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
               ],
             ),
           ),

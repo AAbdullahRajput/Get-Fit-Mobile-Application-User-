@@ -4,10 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:get_fit/Services/agora_service.dart';
 import 'package:get_fit/Services/call_service.dart';
+import 'package:get_fit/Presentation/widgets/call/call_widgets.dart';
 import 'package:get_fit/Utils/constants.dart';
 
-/// The actual active-call screen: local + remote video, mute/camera/end
-/// controls, and a running timer that starts once both sides are joined.
 class VideoCallPage extends StatefulWidget {
   final String callId;
   final String channelName;
@@ -32,6 +31,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
   bool _remoteJoined = false;
   bool _isMuted = false;
   bool _isCameraOff = false;
+  bool _isEnding = false;
   String? _errorMessage;
 
   DateTime? _connectedAt;
@@ -61,6 +61,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
 
     _agoraService.onRemoteUserLeft = () {
       debugPrint('\x1B[33m[VIDEO-CALL] Remote left — ending call\x1B[0m');
+      if (mounted) setState(() => _remoteJoined = false);
       _endCall();
     };
 
@@ -81,9 +82,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
     _tickTimer?.cancel();
     _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_connectedAt == null) return;
-      if (mounted) {
-        setState(() => _elapsed = DateTime.now().difference(_connectedAt!));
-      }
+      if (mounted) setState(() => _elapsed = DateTime.now().difference(_connectedAt!));
     });
   }
 
@@ -113,6 +112,8 @@ class _VideoCallPageState extends State<VideoCallPage> {
   }
 
   Future<void> _endCall() async {
+    if (_isEnding) return;
+    setState(() => _isEnding = true);
     debugPrint('\x1B[33m[VIDEO-CALL] Ending call | elapsed=${_elapsed.inSeconds}s\x1B[0m');
     _tickTimer?.cancel();
     await _callService.endCall(widget.callId, connectedAt: _connectedAt);
@@ -130,6 +131,15 @@ class _VideoCallPageState extends State<VideoCallPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final topPadding = MediaQuery.of(context).padding.top;
+    final localPreviewWidth = (screenSize.width * 0.28).clamp(96.0, 130.0);
+    final localPreviewHeight = localPreviewWidth * 1.35;
+
+    final statusText = _remoteJoined
+        ? _formatDuration(_elapsed)
+        : (_isJoined ? 'Ringing...' : 'Connecting...');
+
     return PopScope(
       canPop: false,
       onPopInvoked: (didPop) {
@@ -139,12 +149,14 @@ class _VideoCallPageState extends State<VideoCallPage> {
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            // Remote video — fills the screen
-            _remoteJoined && _agoraService.engine != null
+            _remoteJoined &&
+                    _agoraService.engine != null &&
+                    _agoraService.remoteUid != null &&
+                    _agoraService.remoteUid != 0
                 ? AgoraVideoView(
                     controller: VideoViewController.remote(
                       rtcEngine: _agoraService.engine!,
-                      canvas: VideoCanvas(uid: _agoraService.remoteUid ?? 0),
+                      canvas: VideoCanvas(uid: _agoraService.remoteUid!),
                       connection: RtcConnection(channelId: widget.channelName),
                     ),
                   )
@@ -155,33 +167,32 @@ class _VideoCallPageState extends State<VideoCallPage> {
                         const CircularProgressIndicator(color: themeColor),
                         const SizedBox(height: 16),
                         Text(
-                          _isJoined
-                              ? 'Waiting for ${widget.remoteName} to join...'
-                              : 'Connecting...',
+                          _isJoined ? 'Waiting for ${widget.remoteName} to join...' : 'Connecting...',
                           style: const TextStyle(color: Colors.white70),
                         ),
                       ],
                     ),
                   ),
 
-            // Local video — small preview, top-right
             if (_isJoined && _agoraService.engine != null)
               Positioned(
-                top: 50,
+                top: topPadding + 16,
                 right: 16,
                 child: Container(
-                  width: 110,
-                  height: 150,
+                  width: localPreviewWidth,
+                  height: localPreviewHeight,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: Colors.white24, width: 1),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))],
                   ),
                   clipBehavior: Clip.hardEdge,
                   child: _isCameraOff
                       ? Container(
                           color: const Color(0xFF2C2C2C),
-                          child: const Icon(Icons.videocam_off,
-                              color: Colors.white38),
+                          child: Center(
+                            child: CallSvgIcon(svg: CallIcons.cameraOff, size: 26, color: Colors.white38),
+                          ),
                         )
                       : AgoraVideoView(
                           controller: VideoViewController(
@@ -192,92 +203,67 @@ class _VideoCallPageState extends State<VideoCallPage> {
                 ),
               ),
 
-            // Top bar — name + timer
             Positioned(
-              top: 50,
+              top: topPadding + 16,
               left: 16,
+              right: localPreviewWidth + 32,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: Colors.black45,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       widget.remoteName,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14.5),
                     ),
-                    Text(
-                      _remoteJoined ? _formatDuration(_elapsed) : 'Ringing...',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
+                    const SizedBox(height: 4),
+                    CallStatusPill(text: statusText, showDot: !_remoteJoined, dotColor: themeColor),
                   ],
                 ),
               ),
             ),
 
-            // Bottom controls
             Positioned(
-              bottom: 40,
+              bottom: MediaQuery.of(context).padding.bottom + 24,
               left: 0,
               right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _controlButton(
-                    icon: _isMuted ? Icons.mic_off : Icons.mic,
-                    onTap: _toggleMute,
-                    active: _isMuted,
-                  ),
-                  _controlButton(
-                    icon: Icons.call_end,
-                    onTap: _endCall,
-                    background: Colors.redAccent,
-                  ),
-                  _controlButton(
-                    icon: _isCameraOff ? Icons.videocam_off : Icons.videocam,
-                    onTap: _toggleCamera,
-                    active: _isCameraOff,
-                  ),
-                  _controlButton(
-                    icon: Icons.cameraswitch,
-                    onTap: () => _agoraService.switchCamera(),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    CallActionButton(
+                      svg: _isMuted ? CallIcons.micOff : CallIcons.mic,
+                      onTap: _toggleMute,
+                      active: _isMuted,
+                    ),
+                    CallActionButton(
+                      svg: CallIcons.callEnd,
+                      onTap: _endCall,
+                      background: const Color(0xFFE5484D),
+                      loading: _isEnding,
+                      size: 62,
+                    ),
+                    CallActionButton(
+                      svg: _isCameraOff ? CallIcons.cameraOff : CallIcons.camera,
+                      onTap: _toggleCamera,
+                      active: _isCameraOff,
+                    ),
+                    CallActionButton(
+                      svg: CallIcons.switchCamera,
+                      onTap: () => _agoraService.switchCamera(),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _controlButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    bool active = false,
-    Color? background,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: background ?? (active ? themeColor : Colors.white24),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          color: background != null
-              ? Colors.white
-              : (active ? Colors.black : Colors.white),
-          size: 24,
         ),
       ),
     );

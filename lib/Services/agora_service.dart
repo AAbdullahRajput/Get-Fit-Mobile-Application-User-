@@ -2,6 +2,7 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:get_fit/Services/supabase_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Thin wrapper around the Agora RTC engine — handles engine lifecycle,
 /// joining/leaving a video channel, and exposes simple callbacks for the
@@ -22,7 +23,7 @@ class AgoraService {
   VoidCallback? onLocalJoinSuccess;
   void Function(String reason)? onError;
 
-  static const String _appId = 'b7894a6512fa4afab7f64e6eda2ed9bc';
+  static String get _appId => dotenv.env['AGORA_APP_ID'] ?? '';
 
   /// Requests camera + mic permissions. Must be called before joining.
   Future<bool> requestPermissions() async {
@@ -80,7 +81,7 @@ class AgoraService {
 
       debugPrint('\x1B[33m[AGORA] Creating engine\x1B[0m');
       _engine = createAgoraRtcEngine();
-      await _engine!.initialize(const RtcEngineContext(appId: _appId));
+      await _engine!.initialize(RtcEngineContext(appId: _appId));
 
       await _engine!.enableVideo();
       await _engine!.enableAudio();

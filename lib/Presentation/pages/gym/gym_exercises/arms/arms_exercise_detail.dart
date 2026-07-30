@@ -41,6 +41,7 @@ class _ArmsExerciseDetailState extends State<ArmsExerciseDetail> {
   Timer? _timer;
   int _totalDurationSeconds = 0;
   int _totalCalories = 0;
+  int _minSetDurationSeconds = 0; // minimum time user must work (1/3 of expected)
 
   @override
   void initState() {
@@ -60,6 +61,10 @@ class _ArmsExerciseDetailState extends State<ArmsExerciseDetail> {
     _repsPerSet = int.tryParse(RegExp(r'\d+').firstMatch(repsStr)?.group(0) ?? '10') ?? 10;
     _restSeconds = int.tryParse(RegExp(r'\d+').firstMatch(restStr)?.group(0) ?? '45') ?? 45;
     _totalCalories = int.tryParse(RegExp(r'\d+').firstMatch(kcalStr)?.group(0) ?? '200') ?? 200;
+    
+    // Calculate minimum set duration: assume ~3 sec per rep, minimum = 1/3 of that
+    final expectedDurationPerSet = _repsPerSet * 3;
+    _minSetDurationSeconds = (expectedDurationPerSet / 3).ceil();
   }
 
   Future<void> _loadStepsAndGender() async {
@@ -139,6 +144,19 @@ class _ArmsExerciseDetailState extends State<ArmsExerciseDetail> {
   }
 
   void _markSetDone() {
+    if (_timerSeconds < _minSetDurationSeconds) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Keep going! Work for at least ${_minSetDurationSeconds - _timerSeconds}s more.',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    
     _timer?.cancel();
     final setDurationSecs = _timerSeconds;
     final kcalPerSet = (_totalCalories / _totalSets).round();
@@ -567,7 +585,7 @@ class _ArmsExerciseDetailState extends State<ArmsExerciseDetail> {
           const SizedBox(height: 12),
           SizedBox(width: double.infinity,
             child: ElevatedButton(
-              onPressed: _setDone ? null : _markSetDone,
+              onPressed: _setDone || _timerSeconds < _minSetDurationSeconds ? null : _markSetDone,
               style: ElevatedButton.styleFrom(
                 backgroundColor: themeColor,
                 disabledBackgroundColor: Colors.grey.shade700,
@@ -575,7 +593,9 @@ class _ArmsExerciseDetailState extends State<ArmsExerciseDetail> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: Text(
-                _currentSet >= _totalSets ? 'Finish Workout' : 'Mark Set Done',
+                _timerSeconds < _minSetDurationSeconds
+                    ? 'Keep Going (${_minSetDurationSeconds - _timerSeconds}s left)'
+                    : (_currentSet >= _totalSets ? 'Finish Workout' : 'Mark Set Done'),
                 style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),

@@ -4,6 +4,7 @@ import 'package:get_fit/Presentation/pages/review/reviews_page.dart';
 import 'package:get_fit/Presentation/widgets/reuseable_button.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Services/call_service.dart';
+import 'package:get_fit/Services/agora_service.dart';
 import 'package:get_fit/Presentation/pages/call/outgoing_call_page.dart';
 import 'package:get_fit/Utils/constants.dart';
 
@@ -115,6 +116,20 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
   Future<void> _startVideoCall(Map<String, dynamic> trainer) async {
     if (_isStartingCall) return;
     setState(() => _isStartingCall = true);
+
+    final hasPermissions = await AgoraService().requestPermissions();
+    if (!hasPermissions) {
+      if (mounted) setState(() => _isStartingCall = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Camera and microphone permission is required to make a call'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     debugPrint('\x1B[36m[CALL-BUTTON] Starting call to trainer=${trainer['id']}\x1B[0m');
     final session = await CallService().startCall(
       trainerId: trainer['id'],

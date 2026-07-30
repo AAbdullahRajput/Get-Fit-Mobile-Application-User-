@@ -125,6 +125,67 @@ class NotificationService {
   static Future<void> cancelClearReminder() async {
     await _plugin.cancel(_clearReminderId);
   }
+  static const int _bookingClearReminderId = 9002;
+
+  static Future<void> scheduleBookingClearReminder(DateTime clearDate) async {
+    try {
+      await _plugin.cancel(_bookingClearReminderId);
+
+      final prefs = await SharedPreferences.getInstance();
+      final generalOn = prefs.getBool(_kGeneral) ?? false;
+      final dataReminderOn = prefs.getBool(_kDataReminder) ?? false;
+
+      if (!generalOn || !dataReminderOn) {
+        debugPrint('[NOTIF] Booking clear reminder skipped — disabled in settings');
+        return;
+      }
+
+      final dndOn = prefs.getBool(_kDnd) ?? false;
+      final soundOn = (prefs.getBool(_kSound) ?? false) && !dndOn;
+      final vibrateOn = prefs.getBool(_kVibrate) ?? false;
+
+      final now = tz.TZDateTime.now(tz.local);
+      final scheduled = tz.TZDateTime(
+        tz.local,
+        clearDate.year,
+        clearDate.month,
+        clearDate.day,
+        9, 0,
+      );
+
+      if (scheduled.isBefore(now)) return;
+
+      final androidDetails = AndroidNotificationDetails(
+        'booking_retention_channel',
+        'Booking Retention Reminders',
+        channelDescription: 'Reminds you before your booking history is cleared.',
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: soundOn,
+        enableVibration: vibrateOn,
+      );
+      final iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: soundOn,
+      );
+
+      await _plugin.zonedSchedule(
+        _bookingClearReminderId,
+        'Your booking history clears today 💛',
+        'Open Get Fit and download your bookings as a PDF before it\'s cleared.',
+        scheduled,
+        NotificationDetails(android: androidDetails, iOS: iosDetails),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+
+      debugPrint('[NOTIF] Booking clear reminder scheduled for $scheduled');
+    } catch (e) {
+      debugPrint('[NOTIF] ERROR | scheduleBookingClearReminder | $e');
+    }
+  }
 
   // ─────────────────────────────────────────────
   // TEMPORARY TEST METHOD — fires a notification 2 minutes from now,

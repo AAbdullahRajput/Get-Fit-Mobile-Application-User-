@@ -13,8 +13,44 @@ class CallService {
 
   RealtimeChannel? _channel;
   String? _activeCallId;
+  RealtimeChannel? _incomingChannel;
 
   void Function(Map<String, dynamic> session)? onSessionUpdate;
+
+  /// Global listener — call once per login session. Fires [onIncomingCall]
+  /// whenever a new 'ringing' call_sessions row targets this user.
+  void listenForIncomingCalls(
+    String userId,
+    void Function(Map<String, dynamic> call) onIncomingCall,
+  ) {
+    debugPrint('\x1B[35m[CALL] Listening for incoming calls | userId=$userId\x1B[0m');
+    _incomingChannel?.unsubscribe();
+
+    final channel = SupabaseService.client.channel('incoming_calls_$userId');
+    channel.on(
+      RealtimeListenTypes.postgresChanges,
+      ChannelFilter(
+        event: 'INSERT',
+        schema: 'public',
+        table: 'call_sessions',
+        filter: 'caller_user_id=eq.$userId',
+      ),
+      (payload, [ref]) {
+        final newRecord = Map<String, dynamic>.from(payload['new'] as Map);
+        debugPrint('\x1B[35m[CALL] Incoming insert | status=${newRecord['status']}\x1B[0m');
+        if (newRecord['status'] == 'ringing') {
+          onIncomingCall(newRecord);
+        }
+      },
+    );
+    channel.subscribe();
+    _incomingChannel = channel;
+  }
+
+  void stopListeningForIncomingCalls() {
+    _incomingChannel?.unsubscribe();
+    _incomingChannel = null;
+  }
 
   /// Called by the caller (app user) to start a new call.
   /// Creates the call_sessions row with status='calling', then flips to
