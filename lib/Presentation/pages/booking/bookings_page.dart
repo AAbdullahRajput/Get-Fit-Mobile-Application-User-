@@ -25,6 +25,8 @@ class _BookingsPageState extends State<BookingsPage> {
   List<Map<String, dynamic>> _bookings = [];
   final Map<String, bool> _expandedCards = {};
   final Map<String, List<Map<String, dynamic>>> _callSessions = {};
+  final Map<String, int> _visibleCallCount = {};
+  static const int _callsPageSize = 9;
   final Set<String> _loadingCalls = {};
   bool _pdfGenerating = false;
 
@@ -53,7 +55,7 @@ class _BookingsPageState extends State<BookingsPage> {
     });
     await _loadPage(0);
     if (mounted) setState(() => _isLoading = false);
-    
+
     if (_nextClearDate != null) {
       await NotificationService.scheduleBookingClearReminder(_nextClearDate!);
     }
@@ -204,6 +206,7 @@ class _BookingsPageState extends State<BookingsPage> {
         if (mounted) {
           setState(() {
             _callSessions[bookingId] = calls;
+            _visibleCallCount[bookingId] = _callsPageSize;
             _expandedCards[bookingId] = true;
             _loadingCalls.remove(bookingId);
           });
@@ -212,7 +215,13 @@ class _BookingsPageState extends State<BookingsPage> {
         if (mounted) setState(() => _loadingCalls.remove(bookingId));
       }
     } else {
-      setState(() => _expandedCards[bookingId] = !isExpanded);
+      final willCollapse = isExpanded;
+      setState(() {
+        _expandedCards[bookingId] = !isExpanded;
+        if (willCollapse) {
+          _visibleCallCount[bookingId] = _callsPageSize;
+        }
+      });
     }
   }
 
@@ -522,12 +531,39 @@ class _BookingsPageState extends State<BookingsPage> {
           else if (calls.isNotEmpty)
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Call History (${calls.length})',
-                    style: TextStyle(color: context.textColor, fontSize: 12, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                ...calls.map((call) => _buildCallTile(context, call, accent)),
-              ]),
+              child: Builder(builder: (_) {
+                final visibleCount = _visibleCallCount[bookingId] ?? _callsPageSize;
+                final shownCalls = calls.take(visibleCount).toList();
+                final hasMore = visibleCount < calls.length;
+                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Call History (${calls.length})',
+                      style: TextStyle(color: context.textColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  ...shownCalls.map((call) => _buildCallTile(context, call, accent)),
+                  if (hasMore)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              _visibleCallCount[bookingId] =
+                                  visibleCount + _callsPageSize;
+                            });
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: accent),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text('Load More Calls',
+                              style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                    ),
+                ]);
+              }),
             )
           else
             Padding(
@@ -558,7 +594,10 @@ class _BookingsPageState extends State<BookingsPage> {
   Widget _buildCallTile(BuildContext context, Map<String, dynamic> call, Color accent) {
     final status = call['status'] as String? ?? 'unknown';
     final createdAt = call['created_at'] as String? ?? '';
-    final duration = (call['duration_seconds'] as int?) ?? 0;
+    final duration = (call['duration_seconds'] as num?)?.toInt() ?? 0;
+    final initiatedBy = call['initiated_by'] as String? ?? 'trainer';
+    final connectedAt = call['connected_at'] as String?;
+    final endedBy = call['ended_by'] as String?;
 
     Color callColor;
     IconData callIcon;
@@ -575,6 +614,11 @@ class _BookingsPageState extends State<BookingsPage> {
       callColor = Colors.grey;
       callIcon = Icons.call;
     }
+
+    final bool trainerCalled = initiatedBy == 'trainer';
+    final String directionLabel = trainerCalled ? 'You called' : 'Client called';
+    final IconData directionIcon =
+        trainerCalled ? Icons.call_made : Icons.call_received;
 
     String fmtTime(int secs) {
       if (secs == 0) return 'N/A';
@@ -594,6 +638,28 @@ class _BookingsPageState extends State<BookingsPage> {
       }
     }
 
+    String? fmtConnectedAt(String? iso) {
+      if (iso == null || iso.isEmpty) return null;
+      try {
+        final dt = DateTime.parse(iso);
+        final h = dt.hour.toString().padLeft(2, '0');
+        final m = dt.minute.toString().padLeft(2, '0');
+        return '$h:$m';
+      } catch (_) {
+        return null;
+      }
+    }
+
+    String? endedByLabel(String? endedBy) {
+      if (endedBy == null || endedBy.isEmpty) return null;
+      if (endedBy == 'trainer') return 'Ended by you';
+      if (endedBy == 'client') return 'Ended by client';
+      return 'Ended by $endedBy';
+    }
+
+    final connectedLabel = fmtConnectedAt(connectedAt);
+    final endLabel = endedByLabel(endedBy);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(8),
@@ -607,8 +673,22 @@ class _BookingsPageState extends State<BookingsPage> {
         const SizedBox(width: 8),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(status, style: TextStyle(color: callColor, fontSize: 10, fontWeight: FontWeight.bold)),
-            Text(fmtCreatedAt(createdAt), style: TextStyle(color: context.subtextColor, fontSize: 9)),
+            Row(children: [
+              Text(status, style: TextStyle(color: callColor, fontSize: 10, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 6),
+              Icon(directionIcon, color: context.subtextColor, size: 10),
+              const SizedBox(width: 2),
+              Text(directionLabel, style: TextStyle(color: context.subtextColor, fontSize: 9)),
+            ]),
+            const SizedBox(height: 2),
+            Text(
+              connectedLabel != null
+                  ? 'Started ${fmtCreatedAt(createdAt)} • Connected $connectedLabel'
+                  : fmtCreatedAt(createdAt),
+              style: TextStyle(color: context.subtextColor, fontSize: 9),
+            ),
+            if (endLabel != null)
+              Text(endLabel, style: TextStyle(color: context.subtextColor, fontSize: 9)),
           ]),
         ),
         Text(fmtTime(duration), style: TextStyle(color: context.textColor, fontSize: 10, fontWeight: FontWeight.w600)),
