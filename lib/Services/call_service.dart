@@ -33,12 +33,32 @@ class CallService {
         event: 'INSERT',
         schema: 'public',
         table: 'call_sessions',
-        filter: 'caller_user_id=eq.$userId',
+        filter: 'user_id=eq.$userId',
       ),
       (payload, [ref]) {
         final newRecord = Map<String, dynamic>.from(payload['new'] as Map);
         debugPrint('\x1B[35m[CALL] Incoming insert | status=${newRecord['status']}\x1B[0m');
-        if (newRecord['status'] == 'ringing') {
+        final initiatedBy = newRecord['initiated_by'] as String? ?? '';
+        debugPrint('\x1B[35m[CALL] User insert | status=${newRecord['status']} | by=$initiatedBy\x1B[0m');
+        if (newRecord['status'] == 'ringing' && initiatedBy == 'trainer') {
+          onIncomingCall(newRecord);
+        }
+      },
+    );
+    channel.on(
+      RealtimeListenTypes.postgresChanges,
+      ChannelFilter(
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'call_sessions',
+        filter: 'user_id=eq.$userId',
+      ),
+      (payload, [ref]) {
+        final newRecord = Map<String, dynamic>.from(payload['new'] as Map);
+        final initiatedBy = newRecord['initiated_by'] as String? ?? '';
+        final status = newRecord['status'] as String? ?? '';
+        debugPrint('\x1B[35m[CALL] User update | status=$status | by=$initiatedBy\x1B[0m');
+        if (status == 'ringing' && initiatedBy == 'trainer') {
           onIncomingCall(newRecord);
         }
       },

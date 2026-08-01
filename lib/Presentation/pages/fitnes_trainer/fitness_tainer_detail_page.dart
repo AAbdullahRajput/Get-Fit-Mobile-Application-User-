@@ -154,7 +154,9 @@ class _FitnessTrainerDetailPageState extends State<FitnessTrainerDetailPage> {
           callId: session['id'] as String,
           channelName: session['channel_name'] as String,
           trainerName: trainer['name'] ?? '',
-          trainerImageUrl: trainer['bg_image_url'],
+          trainerImageUrl: (trainer['bg_image_url'] as String?)?.isNotEmpty == true
+              ? trainer['bg_image_url']
+              : (trainer['image_url'] as String?) ?? '',
         ),
       ),
     );

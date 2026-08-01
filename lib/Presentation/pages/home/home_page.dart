@@ -9,6 +9,9 @@ import 'package:get_fit/Presentation/pages/gym/gym_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_fit/Services/supabase_service.dart';
 import 'package:get_fit/Services/notification_service.dart';
+import 'package:get_fit/Services/agora_service.dart';
+import 'package:get_fit/Services/call_service.dart';
+import 'package:get_fit/Presentation/pages/call/outgoing_call_page.dart';
 import 'package:get_fit/Presentation/pages/setting/notifications_page.dart';
 import 'package:get_fit/Presentation/pages/yoga/yoga_detail_page.dart';
 
@@ -1356,6 +1359,8 @@ void _handleBannerTap(BuildContext context) {
                           (booking['trainer_id'] as String?) ??
                               trainer['id'] as String,
                       trainerName: trainer['name'] ?? 'Trainer',
+                      trainerImageUrl: imageUrl,
+                      appointmentId: booking['id'] as String?,
                     ),
                     icon: const Icon(Icons.video_call, color: Colors.black),
                     label: const Text('Join Call',
@@ -1433,43 +1438,54 @@ void _handleBannerTap(BuildContext context) {
     );
   }
 
-  void _joinCall({
+  Future<void> _joinCall({
     required BuildContext context,
     required BuildContext dialogContext,
     required String trainerId,
     required String trainerName,
-  }) {
+    String? trainerImageUrl,
+    String? appointmentId,
+  }) async {
     Navigator.pop(dialogContext);
-    // TODO: wire this into the real video-call integration once it's built.
-    // trainerId is already available here to pass straight into the call
-    // session (e.g. as a channel/room identifier).
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: context.cardBgColor,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Icon(Icons.video_call, color: Colors.green, size: 40),
-        content: Text(
-          'Video call with $trainerName is coming soon.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: context.textColor, fontSize: 14),
+
+    final hasPermissions = await AgoraService().requestPermissions();
+    if (!hasPermissions) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Camera and microphone permission is required to make a call'),
+          backgroundColor: Colors.redAccent,
         ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              decoration: BoxDecoration(
-                  color: themeColor, borderRadius: BorderRadius.circular(10)),
-              child: const Text('OK',
-                  style: TextStyle(
-                      color: Colors.black, fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
+      );
+      return;
+    }
+
+    debugPrint('\x1B[36m[HOME-CALL] Starting call to trainer=$trainerId\x1B[0m');
+    final session = await CallService().startCall(
+      trainerId: trainerId,
+      appointmentId: appointmentId,
+    );
+
+    if (session == null) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to start call — please try again'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OutgoingCallPage(
+          callId: session['id'] as String,
+          channelName: session['channel_name'] as String,
+          trainerName: trainerName,
+          trainerImageUrl: trainerImageUrl,
+        ),
       ),
     );
   }

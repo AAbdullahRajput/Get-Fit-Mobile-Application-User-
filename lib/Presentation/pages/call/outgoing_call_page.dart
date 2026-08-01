@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_fit/Services/call_service.dart';
+import 'package:get_fit/Services/beep_service.dart';
 import 'package:get_fit/Presentation/pages/call/video_call_page.dart';
 import 'package:get_fit/Presentation/widgets/call/call_widgets.dart';
 import 'package:get_fit/Utils/constants.dart';
@@ -27,15 +28,47 @@ class OutgoingCallPage extends StatefulWidget {
 class _OutgoingCallPageState extends State<OutgoingCallPage>
     with SingleTickerProviderStateMixin {
   final _callService = CallService();
+  final _beepService = BeepService();
   Timer? _timeoutTimer;
   bool _isCancelling = false;
   String _statusText = 'Calling...';
   bool _imageLoaded = false;
+  bool _hasPrecached = false;
+  bool _hasEnded = false;
 
   late final AnimationController _fadeController = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1200),
   )..repeat(reverse: true);
+
+  void _showStyledSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline_rounded : Icons.call_end_rounded,
+              color: isError ? const Color(0xFFE5484D) : Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(color: Colors.white, fontSize: 14.5),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF2C2C2C),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -45,9 +78,29 @@ class _OutgoingCallPageState extends State<OutgoingCallPage>
 
     _callService.onSessionUpdate = _onSessionUpdate;
     _callService.listenToCall(widget.callId);
+    _beepService.startRingback();
 
-    // Preload image if available
-    if ((widget.trainerImageUrl ?? '').isNotEmpty) {
+    _timeoutTimer = Timer(const Duration(seconds: 45), () async {
+      debugPrint(
+          '\x1B[33m[OUTGOING-CALL] Ring timeout reached — marking missed\x1B[0m');
+      _hasEnded = true;
+      await _callService.updateStatus(widget.callId, 'missed');
+      _beepService.stopRingback();
+      if (mounted) {
+        _showStyledSnackBar(
+          '${widget.trainerName} is not reachable right now',
+          isError: true,
+        );
+        Navigator.pop(context);
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasPrecached && (widget.trainerImageUrl ?? '').isNotEmpty) {
+      _hasPrecached = true;
       precacheImage(
         NetworkImage(widget.trainerImageUrl!),
         context,
@@ -57,24 +110,19 @@ class _OutgoingCallPageState extends State<OutgoingCallPage>
         debugPrint('\x1B[33m[OUTGOING-CALL] Image load error: $e\x1B[0m');
       });
     }
-
-    _timeoutTimer = Timer(const Duration(seconds: 45), () async {
-      debugPrint(
-          '\x1B[33m[OUTGOING-CALL] Ring timeout reached — marking missed\x1B[0m');
-      await _callService.updateStatus(widget.callId, 'missed');
-      if (mounted) Navigator.pop(context);
-    });
   }
 
   void _onSessionUpdate(Map<String, dynamic> session) {
     final status = session['status'] as String?;
     debugPrint('\x1B[36m[OUTGOING-CALL] Status changed -> $status\x1B[0m');
-    if (!mounted) return;
+    if (!mounted || _hasEnded) return;
 
     if (status == 'ringing') {
       setState(() => _statusText = 'Ringing...');
     } else if (status == 'accepted') {
+      _hasEnded = true;
       _timeoutTimer?.cancel();
+      _beepService.stopRingback();
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => VideoCallPage(
@@ -85,32 +133,26 @@ class _OutgoingCallPageState extends State<OutgoingCallPage>
         ),
       );
     } else if (status == 'declined') {
+      _hasEnded = true;
       _timeoutTimer?.cancel();
-      _showEndedMessage('${widget.trainerName} declined the call');
+      _beepService.stopRingback();
+      _showStyledSnackBar('${widget.trainerName} declined the call');
       Navigator.pop(context);
     } else if (status == 'ended') {
+      _hasEnded = true;
       _timeoutTimer?.cancel();
+      _beepService.stopRingback();
       Navigator.pop(context);
     }
-  }
-
-  void _showEndedMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: const Color(0xFF2C2C2C),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-      ),
-    );
   }
 
   Future<void> _cancelCall() async {
     if (_isCancelling) return;
     setState(() => _isCancelling = true);
     debugPrint('\x1B[33m[OUTGOING-CALL] User cancelled outgoing call\x1B[0m');
+    _hasEnded = true;
     _timeoutTimer?.cancel();
+    _beepService.stopRingback();
     await _callService.updateStatus(widget.callId, 'ended');
     if (mounted) Navigator.pop(context);
   }
@@ -120,6 +162,7 @@ class _OutgoingCallPageState extends State<OutgoingCallPage>
     _timeoutTimer?.cancel();
     _fadeController.dispose();
     _callService.stopListening();
+    _beepService.stopRingback();
     super.dispose();
   }
 

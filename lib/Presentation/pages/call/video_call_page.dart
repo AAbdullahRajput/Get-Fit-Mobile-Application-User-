@@ -94,7 +94,22 @@ class _VideoCallPageState extends State<VideoCallPage> {
 
   void _showErrorAndExit(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Color(0xFFE5484D), size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(message, style: const TextStyle(color: Colors.white, fontSize: 14.5)),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF2C2C2C),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
     );
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) Navigator.pop(context);
