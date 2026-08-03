@@ -21,7 +21,9 @@ class BookingsPage extends StatefulWidget {
 class _BookingsPageState extends State<BookingsPage> {
   bool _isLoading = true;
   bool _loadingMore = false;
+  bool _hasMore = true;
   int _page = 0;
+  static const int _bookingsPageSize = 9;
   List<Map<String, dynamic>> _bookings = [];
   final Map<String, bool> _expandedCards = {};
   final Map<String, List<Map<String, dynamic>>> _callSessions = {};
@@ -30,16 +32,7 @@ class _BookingsPageState extends State<BookingsPage> {
   final Set<String> _loadingCalls = {};
   bool _pdfGenerating = false;
 
-  DateTime? get _nextClearDate {
-    if (_bookings.isEmpty) return null;
-    final oldest = _bookings.reduce((a, b) {
-      final aDate = DateTime.parse(a['appointment_date'] as String);
-      final bDate = DateTime.parse(b['appointment_date'] as String);
-      return aDate.isBefore(bDate) ? a : b;
-    });
-    final oldestDate = DateTime.parse(oldest['appointment_date'] as String);
-    return oldestDate.add(const Duration(days: 20));
-  }
+  DateTime? _nextClearDate;
 
   @override
   void initState() {
@@ -51,8 +44,17 @@ class _BookingsPageState extends State<BookingsPage> {
     setState(() {
       _isLoading = true;
       _page = 0;
+      _hasMore = true;
       _bookings.clear();
     });
+
+    // Actually enforce the 20-day retention — deletes anything past the
+    // window from the DB before we compute what date to show in the banner.
+    await SupabaseService.clearOldBookings();
+
+    final oldest = await SupabaseService.getOldestBookingDate();
+    _nextClearDate = oldest?.add(const Duration(days: 20));
+
     await _loadPage(0);
     if (mounted) setState(() => _isLoading = false);
 
@@ -62,7 +64,7 @@ class _BookingsPageState extends State<BookingsPage> {
   }
 
   Future<void> _loadMore() async {
-    if (_loadingMore) return;
+    if (_loadingMore || !_hasMore) return;
     setState(() => _loadingMore = true);
     await _loadPage(_page + 1);
     if (mounted) setState(() => _loadingMore = false);
@@ -70,11 +72,15 @@ class _BookingsPageState extends State<BookingsPage> {
 
   Future<void> _loadPage(int page) async {
     try {
-      final bookings = await SupabaseService.getEndedTrainerAppointments(page: page);
+      final bookings = await SupabaseService.getEndedTrainerAppointments(
+        page: page,
+        pageSize: _bookingsPageSize,
+      );
       if (mounted) {
         setState(() {
           _bookings.addAll(bookings);
           _page = page;
+          _hasMore = bookings.length == _bookingsPageSize;
         });
       }
     } catch (e) {
@@ -367,7 +373,7 @@ class _BookingsPageState extends State<BookingsPage> {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.only(bottom: 16),
-          itemCount: _bookings.length + 1,
+          itemCount: _bookings.length + (_hasMore || _loadingMore ? 1 : 0),
           itemBuilder: (_, i) {
             if (i < _bookings.length) {
               return Padding(
@@ -406,7 +412,7 @@ class _BookingsPageState extends State<BookingsPage> {
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-      itemCount: _bookings.length + 1,
+      itemCount: _bookings.length + (_hasMore || _loadingMore ? 1 : 0),
       itemBuilder: (_, i) {
         if (i < _bookings.length) {
           return _buildCard(context, _bookings[i], accent);
@@ -447,14 +453,57 @@ class _BookingsPageState extends State<BookingsPage> {
     final date = booking['appointment_date'] as String? ?? '';
     final startTime = booking['start_time'] as String? ?? '';
     final endTime = booking['end_time'] as String? ?? '';
-    final price = (booking['price'] as num?)?.toDouble() ?? 0.0;
+final price = (booking['price'] as num?)?.toDouble() ?? 0.0;
     final status = booking['status'] as String? ?? 'confirmed';
     final isExpanded = _expandedCards[bookingId] ?? false;
     final isLoading = _loadingCalls.contains(bookingId);
     final calls = _callSessions[bookingId] ?? [];
 
     final dt = DateTime.tryParse(date);
+    // Compute the effective display status based on date/time AND the
+    // stored status (so today's upcoming/past appointments are labelled).
+    final now = DateTime.now();
+    final startParts = startTime.split(':');
+    DateTime? startDateTime;
+    if (dt != null && startParts.length == 2) {
+      startDateTime = DateTime(
+        dt.year, dt.month, dt.day,
+        int.tryParse(startParts[0]) ?? 0,
+        int.tryParse(startParts[1]) ?? 0,
+      );
+    }
+    final endParts = endTime.split(':');
+    DateTime? endDateTime;
+    if (dt != null && endParts.length == 2) {
+      endDateTime = DateTime(
+        dt.year, dt.month, dt.day,
+        int.tryParse(endParts[0]) ?? 0,
+        int.tryParse(endParts[1]) ?? 0,
+      );
+    }
+
+    bool isPast = endDateTime != null && endDateTime.isBefore(now);
+    bool isUpcoming = startDateTime != null && startDateTime.isAfter(now);
+
+    String displayStatus = status;
     Color statusColor = status == 'cancelled' ? Colors.red : status == 'attended' ? Colors.green : Colors.grey;
+
+    if (status == 'confirmed') {
+      if (isPast) {
+        displayStatus = 'Missed';
+        statusColor = Colors.red;
+      } else if (isUpcoming) {
+        displayStatus = 'Upcoming';
+        statusColor = Colors.blue;
+      } else if (startDateTime != null) {
+        // Same day, already started (or ongoing time window)
+        displayStatus = 'Today';
+        statusColor = Colors.orange;
+      }
+    } else if (status == 'attended') {
+      displayStatus = 'Completed';
+      statusColor = Colors.green;
+    }
 
     String fmtDate = date;
     if (dt != null) {
@@ -516,7 +565,7 @@ class _BookingsPageState extends State<BookingsPage> {
                   color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Text(status, style: TextStyle(color: statusColor, fontSize: 9, fontWeight: FontWeight.bold)),
+child: Text(displayStatus, style: TextStyle(color: statusColor, fontSize: 9, fontWeight: FontWeight.bold)),
               ),
             ]),
           ]),

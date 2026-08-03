@@ -1312,6 +1312,47 @@ static Future<Map<String, dynamic>> getStreakInfo() async {
     }
   }
 
+  /// True oldest booking date for this user — independent of pagination.
+  static Future<DateTime?> getOldestBookingDate() async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return null;
+      final data = await client
+          .from('trainer_appointments')
+          .select('appointment_date')
+          .eq('user_id', userId)
+          .order('appointment_date', ascending: true)
+          .limit(1)
+          .maybeSingle();
+      if (data == null) return null;
+      return DateTime.parse(data['appointment_date'] as String);
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | getOldestBookingDate | $e\x1B[0m');
+      return null;
+    }
+  }
+
+  /// Actually enforces the 20-day retention shown in the Bookings banner.
+  static Future<void> clearOldBookings({int retentionDays = 20}) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return;
+      final cutoffDate = DateTime.now()
+          .subtract(Duration(days: retentionDays))
+          .toIso8601String()
+          .substring(0, 10);
+      final deleted = await client
+          .from('trainer_appointments')
+          .delete()
+          .eq('user_id', userId)
+          .lt('appointment_date', cutoffDate)
+          .select('id');
+      debugPrint('\x1B[32m[API] clearOldBookings done (< $cutoffDate) — deleted: ${deleted.length}\x1B[0m');
+    } catch (e) {
+      debugPrint('\x1B[31m[API] ERROR | clearOldBookings | $e\x1B[0m');
+    }
+  }
+
 // ─────────────────────────────────────────────
   // INSTRUCTOR PAID CLASSES
   // ─────────────────────────────────────────────
@@ -1856,24 +1897,54 @@ static Future<void> markAppointmentAttended(String appointmentId) async {
   }
 }
 
-/// Get all appointments for current user
+/// Get ALL appointments for current user (today, past, and upcoming).
+/// Uses mobile-friendly pagination (newest first).
 static Future<List<Map<String, dynamic>>> getEndedTrainerAppointments({
   int page = 0,
-  int pageSize = 9,
+  int pageSize = 50,
 }) async {
   try {
     final userId = currentUser?.id;
     if (userId == null) return [];
-    final yesterday = DateTime.now().subtract(const Duration(days: 1)).toIso8601String().substring(0, 10);
+
+    // Fetch all appointments for this user — sorting by "closest to now"
+    // (past or future) can't be expressed as a single DB column order,
+    // so we sort client-side and paginate manually below.
     final data = await client
         .from('trainer_appointments')
-        .select('id, appointment_date, start_time, end_time, price, status, fitness_trainers(id, name, image_url, training_type)')
-        .eq('user_id', userId)
-        .lt('appointment_date', yesterday)
-        .order('appointment_date', ascending: false)
-        .range(page * pageSize, (page + 1) * pageSize - 1);
-    debugPrint('\x1B[32m[API] 200 OK | EndedAppointments: ${data.length}\x1B[0m');
-    return List<Map<String, dynamic>>.from(data);
+        .select('id, appointment_date, start_time, end_time, price, status, trainer_slots(status), fitness_trainers(id, name, image_url, training_type)')
+        .eq('user_id', userId);
+
+    final list = List<Map<String, dynamic>>.from(data);
+    final now = DateTime.now();
+
+    DateTime? apptDateTime(Map<String, dynamic> b) {
+      final d = DateTime.tryParse(b['appointment_date'] as String? ?? '');
+      if (d == null) return null;
+      final parts = (b['start_time'] as String? ?? '00:00:00').split(':');
+      return DateTime(
+        d.year, d.month, d.day,
+        int.tryParse(parts[0]) ?? 0,
+        parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0,
+      );
+    }
+
+    list.sort((a, b) {
+      final da = apptDateTime(a);
+      final db = apptDateTime(b);
+      if (da == null || db == null) return 0;
+      return da.difference(now).abs().compareTo(db.difference(now).abs());
+    });
+
+    final start = page * pageSize;
+    if (start >= list.length) {
+      debugPrint('\x1B[32m[API] 200 OK | EndedAppointments: 0\x1B[0m');
+      return [];
+    }
+    final end = (start + pageSize > list.length) ? list.length : start + pageSize;
+    final pageItems = list.sublist(start, end);
+    debugPrint('\x1B[32m[API] 200 OK | EndedAppointments: ${pageItems.length}\x1B[0m');
+    return pageItems;
   } catch (e) {
     debugPrint('\x1B[31m[API] ERROR | getEndedTrainerAppointments | $e\x1B[0m');
     return [];
