@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:typed_data';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get_fit/Services/notification_service.dart';
 
 class SupabaseService {
@@ -2272,6 +2273,30 @@ static Future<List<Map<String, dynamic>>> getMyPurchasedCourses() async {
   } catch (e) {
     debugPrint('\x1B[31m[API] ERROR | getMyPurchasedCourses | $e\x1B[0m');
     return [];
+  }
+}
+
+static Future<void> registerFcmToken(String userId) async {
+  try {
+    debugPrint('\x1B[33m[FCM] Requesting permission\x1B[0m');
+    final settings = await FirebaseMessaging.instance.requestPermission();
+    debugPrint('\x1B[33m[FCM] Permission status: ${settings.authorizationStatus}\x1B[0m');
+
+    final token = await FirebaseMessaging.instance.getToken();
+    if (token == null) {
+      debugPrint('\x1B[31m[FCM] Token null — skipping registration\x1B[0m');
+      return;
+    }
+
+    await client.from('device_tokens').upsert({
+      'user_id': userId,
+      'fcm_token': token,
+      'updated_at': DateTime.now().toIso8601String(),
+    }, onConflict: 'user_id');
+
+    debugPrint('\x1B[32m[FCM] Token registered for user: $userId\x1B[0m');
+  } catch (e) {
+    debugPrint('\x1B[31m[FCM] ERROR | registerFcmToken | $e\x1B[0m');
   }
 }
 
