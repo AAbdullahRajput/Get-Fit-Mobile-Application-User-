@@ -942,7 +942,7 @@ void _handleBannerTap(BuildContext context) {
                     Positioned(
                       top: -23,
                       left: 0,
-                      right: -105,
+                      right: -130,
                       child: Image.asset("assets/home/yoga-girl.png",
                           height: 223, width: 150),
                     ),

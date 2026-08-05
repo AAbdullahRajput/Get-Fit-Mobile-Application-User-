@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:get_fit/Services/agora_service.dart';
 import 'package:get_fit/Services/call_service.dart';
 import 'package:get_fit/Presentation/widgets/call/call_widgets.dart';
@@ -38,12 +39,46 @@ class _VideoCallPageState extends State<VideoCallPage> {
   Timer? _tickTimer;
   Duration _elapsed = Duration.zero;
 
+  bool _hasEndedByRemote = false;
+
   @override
   void initState() {
     super.initState();
     debugPrint('\x1B[36m[VIDEO-CALL] Screen opened | callId=${widget.callId} channel=${widget.channelName}\x1B[0m');
     _setupCallbacks();
+    _callService.onSessionUpdate = _onSessionUpdate;
+    _callService.listenToCall(widget.callId);
     _join();
+  }
+
+  void _onSessionUpdate(Map<String, dynamic> session) {
+    final status = session['status'] as String?;
+    debugPrint('\x1B[36m[VIDEO-CALL] Session status update -> $status\x1B[0m');
+    if (!mounted || _hasEndedByRemote || _isEnding) return;
+
+    if (status == 'ended') {
+      _hasEndedByRemote = true;
+      _showErrorAndExit('${widget.remoteName} ended the call');
+      _cleanupAndExit();
+    } else if (status == 'declined') {
+      _hasEndedByRemote = true;
+      _showErrorAndExit('${widget.remoteName} declined the call');
+      _cleanupAndExit();
+    } else if (status == 'missed') {
+      _hasEndedByRemote = true;
+      _showErrorAndExit('Call not answered');
+      _cleanupAndExit();
+    }
+  }
+
+  Future<void> _cleanupAndExit() async {
+    _tickTimer?.cancel();
+    try {
+      await _agoraService.leaveChannel();
+      await FlutterCallkitIncoming.endCall(widget.callId);
+    } catch (e) {
+      debugPrint('\x1B[31m[VIDEO-CALL] ERROR | _cleanupAndExit | $e\x1B[0m');
+    }
   }
 
   void _setupCallbacks() {
@@ -61,6 +96,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
 
     _agoraService.onRemoteUserLeft = () {
       debugPrint('\x1B[33m[VIDEO-CALL] Remote left — ending call\x1B[0m');
+      if (_hasEndedByRemote) return;
       if (mounted) setState(() => _remoteJoined = false);
       _endCall();
     };
@@ -127,12 +163,17 @@ class _VideoCallPageState extends State<VideoCallPage> {
   }
 
   Future<void> _endCall() async {
-    if (_isEnding) return;
+    if (_isEnding || _hasEndedByRemote) return;
     setState(() => _isEnding = true);
     debugPrint('\x1B[33m[VIDEO-CALL] Ending call | elapsed=${_elapsed.inSeconds}s\x1B[0m');
     _tickTimer?.cancel();
-    await _callService.endCall(widget.callId, connectedAt: _connectedAt);
-    await _agoraService.leaveChannel();
+    try {
+      await _callService.endCall(widget.callId, connectedAt: _connectedAt);
+      await _agoraService.leaveChannel();
+      await FlutterCallkitIncoming.endCall(widget.callId);
+    } catch (e) {
+      debugPrint('\x1B[31m[VIDEO-CALL] ERROR | _endCall | $e\x1B[0m');
+    }
     if (mounted) Navigator.pop(context);
   }
 

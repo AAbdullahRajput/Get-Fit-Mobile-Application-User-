@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get_fit/Services/call_service.dart';
 import 'package:get_fit/Services/agora_service.dart';
 import 'package:get_fit/Services/beep_service.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:get_fit/Presentation/pages/call/video_call_page.dart';
 import 'package:get_fit/Presentation/widgets/call/call_widgets.dart';
 import 'package:get_fit/Utils/constants.dart';
@@ -12,6 +13,7 @@ class IncomingCallPage extends StatefulWidget {
   final String channelName;
   final String callerName;
   final String? callerImageUrl;
+  final bool playRingtone;
 
   const IncomingCallPage({
     super.key,
@@ -19,6 +21,7 @@ class IncomingCallPage extends StatefulWidget {
     required this.channelName,
     required this.callerName,
     this.callerImageUrl,
+    this.playRingtone = true,
   });
 
   @override
@@ -67,7 +70,9 @@ class _IncomingCallPageState extends State<IncomingCallPage> {
     debugPrint('\x1B[36m[INCOMING-CALL] Screen opened | callId=${widget.callId} from=${widget.callerName}\x1B[0m');
     _callService.onSessionUpdate = _onSessionUpdate;
     _callService.listenToCall(widget.callId);
-    _beepService.startRingtone();
+    if (widget.playRingtone) {
+      _beepService.startRingtone();
+    }
   }
 
   void _onSessionUpdate(Map<String, dynamic> session) {
@@ -99,6 +104,7 @@ class _IncomingCallPageState extends State<IncomingCallPage> {
     _beepService.stopRingtone();
     debugPrint('\x1B[32m[INCOMING-CALL] Accepted\x1B[0m');
     await _callService.updateStatus(widget.callId, 'accepted');
+    await FlutterCallkitIncoming.endCall(widget.callId);
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
@@ -118,6 +124,7 @@ class _IncomingCallPageState extends State<IncomingCallPage> {
     _beepService.stopRingtone();
     debugPrint('\x1B[33m[INCOMING-CALL] Declined\x1B[0m');
     await _callService.updateStatus(widget.callId, 'declined');
+    await FlutterCallkitIncoming.endCall(widget.callId);
     if (mounted) Navigator.pop(context);
   }
 
