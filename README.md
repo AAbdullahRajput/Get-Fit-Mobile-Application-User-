@@ -1,92 +1,105 @@
-# 🏋️ Get Fit — Mobile Application
+<div align="center">
 
-**Get Fit** is a comprehensive fitness and wellness mobile application built with **Flutter**. It connects users with professional fitness trainers, provides guided gym and yoga workouts, weekly fitness challenges, and allows users to book appointments, manage payments, and participate in live video calls with their trainers.
+# 🏋️ Get Fit
 
-![Flutter](https://img.shields.io/badge/Flutter-3.3.1-blueviolet?logo=flutter&logoColor=white)
-![Dart](https://img.shields.io/badge/Dart-≥3.3.1-blue?logo=dart&logoColor=white)
-![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-lightgrey)
-![License](https://img.shields.io/badge/License-Private-informational)
+### Your Complete Fitness & Wellness Companion
+
+*Connect with professional trainers. Train smarter. Live healthier.*
+
+[![Flutter](https://img.shields.io/badge/Flutter-3.3.1-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-%E2%89%A53.3.1-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
+[![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-lightgrey?style=for-the-badge)](#)
+[![License](https://img.shields.io/badge/License-Private-red?style=for-the-badge)](#)
+
+[Features](#-features) • [Tech Stack](#%EF%B8%8F-tech-stack) • [Getting Started](#-getting-started) • [Project Structure](#-project-structure) • [Author](#-author)
+
+</div>
+
+---
+
+## 📖 Overview
+
+**Get Fit** is a full-featured fitness and wellness mobile application built with **Flutter**. It bridges the gap between users and professional fitness trainers — offering guided gym and yoga workouts, weekly fitness challenges, live video coaching, and seamless appointment booking, all wrapped in a polished, modern experience.
+
+Whether you're booking a one-on-one session, following a structured gym program, or joining a live video call with your trainer, Get Fit brings the personal training studio to your pocket.
 
 ---
 
 ## ✨ Features
 
-The app is a full-featured fitness platform with a wide range of modules:
-
 ### 🏠 Home & Onboarding
-- Beautiful onboarding flow with 3 introduction screens
-- Modern home dashboard with quick-access containers and motivational content
-- Launch page with animated startup experience
+- Elegant 3-screen onboarding flow for new users
+- Modern home dashboard with quick-access shortcuts and motivational content
+- Animated launch/splash experience
 
 ### 💪 Fitness Trainers
-- Browse and discover professional fitness trainers
+- Discover and browse verified professional trainers
 - Detailed trainer profiles with ratings and reviews
-- Book personalized training sessions
+- Book personalized 1-on-1 training sessions
 
 ### 🏋️ Gym Workouts
-- Comprehensive exercise library organized by muscle group:
-  - **Chest**, **Back**, **Arms**, **Legs**, **Shoulders**, and **Core**
-- Exercise detail pages with guides and instructions
+- Exercise library organized by muscle group — **Chest · Back · Arms · Legs · Shoulders · Core**
+- Step-by-step exercise detail pages with guided instructions
 
 ### 🧘 Yoga & Challenges
-- Yoga courses, instructor classes, and schedules
-- Motivational yoga content and course cards
-- **Weekly fitness challenges** with landing pages, details, and success tracking
+- Yoga courses, instructor-led classes, and flexible scheduling
+- Motivational content and curated course cards
+- **Weekly fitness challenges** with landing pages, progress tracking, and success milestones
 
 ### 📅 Appointment Booking
-- Book appointments with trainers
-- Booking confirmation and booking history management
-- Appointment reminders via push notifications
+- Effortless trainer appointment booking
+- Booking confirmations and full booking history
+- Smart push notification reminders
 
 ### 💳 Payments
-- Secure in-app payments powered by **Stripe**
-- Add, edit, and manage saved payment cards
-- Payment flows for bookings and yoga sessions
+- Secure, PCI-compliant payments powered by **Stripe**
+- Save, edit, and manage payment cards
+- Streamlined checkout for bookings and yoga sessions
 
-### 📞 Video Calls
-- Live video calling between users and trainers powered by **Agora**
-- Incoming/outgoing call pages with full-screen call UI
-- CallKit integration for background/locked/killed device states
-- Ringtone and call notification handling
+### 📞 Live Video Calls
+- Real-time video calling between users and trainers via **Agora**
+- Full-screen incoming/outgoing call UI
+- **CallKit** integration — works in background, locked, or killed app states
+- Native ringtone and call notification handling
 
 ### 🔔 Notifications
-- **Firebase Cloud Messaging (FCM)** for push notifications
-- Incoming call notifications with CallKit full-screen takeover
-- Appointment reminder banners
-- Local notifications support
+- **Firebase Cloud Messaging (FCM)** push notifications
+- Full-screen CallKit takeover for incoming calls
+- Appointment reminder banners and local notifications
 
 ### 👤 User Account
-- Full authentication flow (register, login, forgot password, OTP verification, new password)
-- User profile management
-- In-app settings, password management, privacy policy, and help/FAQ
-- AI assistant chat within settings
+- Complete auth flow — register, login, forgot password, OTP verification
+- Editable user profiles
+- In-app settings, privacy policy, and help/FAQ center
+- Built-in AI assistant chat
 
 ### 📰 Community
-- Newsfeed with posts and detail views
-- Reviews and ratings system
-- Favorites tracking
+- Social newsfeed with posts and detail views
+- Ratings & reviews system
+- Favorites and bookmarking
 
 ### 🏃 Activity Tracking
-- Runner module with activity tracking and history
-- Calorie, steps, and clock tracking widgets
+- Runner module with live activity tracking and history
+- Calorie, step count, and workout clock widgets
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Category          | Technology |
-|-------------------|------------|
-| **Framework**     | Flutter / Dart |
-| **Backend / DB**  | Supabase (PostgreSQL, Auth, Realtime) |
-| **Payments**      | Stripe (`flutter_stripe`) |
-| **Video Calls**   | Agora (`agora_rtc_engine`) |
+| Category | Technology |
+|---|---|
+| **Framework** | Flutter / Dart |
+| **Backend & Database** | Supabase (PostgreSQL, Auth, Realtime) |
+| **Payments** | Stripe (`flutter_stripe`) |
+| **Video Calls** | Agora (`agora_rtc_engine`) |
 | **Push Notifications** | Firebase Cloud Messaging |
 | **Call Handling** | `flutter_callkit_incoming` |
 | **Local Notifications** | `flutter_local_notifications` + `timezone` |
-| **State / Env**   | `flutter_dotenv`, `shared_preferences` |
-| **Media**        | `image_picker`, `video_player`, `audioplayers` |
-| **Documents**    | `pdf`, `share_plus`, `path_provider` |
-| **UI**           | `flutter_svg`, `pin_code_fields`, `vertical_card_pager`, `animated_weight_picker`, `omni_datetime_picker`, `payment_card` |
+| **State / Env** | `flutter_dotenv`, `shared_preferences` |
+| **Media** | `image_picker`, `video_player`, `audioplayers` |
+| **Documents** | `pdf`, `share_plus`, `path_provider` |
+| **UI Components** | `flutter_svg`, `pin_code_fields`, `vertical_card_pager`, `animated_weight_picker`, `omni_datetime_picker`, `payment_card` |
 
 ---
 
@@ -94,36 +107,40 @@ The app is a full-featured fitness platform with a wide range of modules:
 
 ```
 lib/
-├── main.dart                 # App entry point (init, FCM, Stripe, Supabase)
+├── main.dart                       # App entry point (init, FCM, Stripe, Supabase)
+│
 ├── Domain/
-│   └── models/               # Data models (e.g., onboarding)
+│   └── models/                     # Data models (e.g., onboarding)
+│
 ├── Presentation/
-│   ├── pages/                # All UI screens
-│   │   ├── auth/             # Login, register, verification, password flows
-│   │   ├── booking/          # Appointment booking & history
-│   │   ├── call/             # Incoming/outgoing/video call pages
-│   │   ├── fitnes_trainer/   # Trainer listings & details
-│   │   ├── gym/              # Gym exercises by muscle group
-│   │   ├── home/             # Home dashboard
-│   │   ├── launch/           # Launch/splash screen
-│   │   ├── newsfeed/         # Community posts
-│   │   ├── onboarding/       # Getting started screens
-│   │   ├── payment/          # Stripe payment & cards
-│   │   ├── review/           # Reviews & ratings
-│   │   ├── runner/           # Activity tracking
-│   │   ├── setting/          # Profile, settings, help, assistant
-│   │   ├── setup/            # Setup flow
-│   │   └── yoga/             # Yoga courses & challenges
-│   └── widgets/              # Reusable UI components
-├── Services/                 # Business logic & integrations
-│   ├── agora_service.dart    # Agora video call engine
-│   ├── call_service.dart     # Call management & Supabase realtime
-│   ├── supabase_service.dart # Supabase client & FCM token
+│   ├── pages/                      # All UI screens
+│   │   ├── auth/                   # Login, register, verification, password flows
+│   │   ├── booking/                # Appointment booking & history
+│   │   ├── call/                   # Incoming / outgoing / video call pages
+│   │   ├── fitnes_trainer/         # Trainer listings & details
+│   │   ├── gym/                    # Gym exercises by muscle group
+│   │   ├── home/                   # Home dashboard
+│   │   ├── launch/                 # Launch / splash screen
+│   │   ├── newsfeed/               # Community posts
+│   │   ├── onboarding/             # Getting started screens
+│   │   ├── payment/                # Stripe payment & saved cards
+│   │   ├── review/                 # Reviews & ratings
+│   │   ├── runner/                 # Activity tracking
+│   │   ├── setting/                # Profile, settings, help, assistant
+│   │   ├── setup/                  # Setup flow
+│   │   └── yoga/                   # Yoga courses & challenges
+│   └── widgets/                    # Reusable UI components
+│
+├── Services/                       # Business logic & integrations
+│   ├── agora_service.dart          # Agora video call engine
+│   ├── call_service.dart           # Call management & Supabase realtime
+│   ├── supabase_service.dart       # Supabase client & FCM token
 │   ├── notification_service.dart   # FCM & local notifications
 │   ├── call_notification_service.dart
 │   └── appointment_notification_service.dart
+│
 └── Utils/
-    └── constants.dart        # Theme, app-wide constants
+    └── constants.dart              # Theme & app-wide constants
 ```
 
 ---
@@ -132,45 +149,47 @@ lib/
 
 ### Prerequisites
 
-- [Flutter SDK](https://flutter.dev/docs/get-started/install) (≥ 3.3.1)
-- A configured `flutter` development environment
-- Supabase project (URL + anon key)
-- Stripe account (publishable key)
-- Firebase project (for FCM)
-- Agora project (App ID)
+Make sure you have the following set up before installing:
+
+- [Flutter SDK](https://flutter.dev/docs/get-started/install) `≥ 3.3.1`
+- A configured Flutter development environment
+- A [Supabase](https://supabase.com) project (URL + anon key)
+- A [Stripe](https://stripe.com) account (publishable key)
+- A [Firebase](https://firebase.google.com) project (for FCM)
+- An [Agora](https://www.agora.io) project (App ID)
 
 ### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/AAbdullahRajput/Get-Fit-Mobile-Application-User-.git
-   cd Get-Fit-Mobile-Application-User-
-   ```
+**1. Clone the repository**
+```bash
+git clone https://github.com/AAbdullahRajput/Get-Fit-Mobile-Application-User-.git
+cd Get-Fit-Mobile-Application-User-
+```
 
-2. **Install dependencies**
-   ```bash
-   flutter pub get
-   ```
+**2. Install dependencies**
+```bash
+flutter pub get
+```
 
-3. **Configure environment variables**
+**3. Configure environment variables**
 
-   Create a `.env` file in the project root with your keys:
-   ```env
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_ANON_KEY=your_supabase_anon_key
-   STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
-   ```
+Create a `.env` file in the project root:
+```env
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+```
 
-4. **Set up Firebase**
-   - Add your platform-specific `google-services.json` (Android) / `GoogleService-Info.plist` (iOS) files
-   - Enable Firebase Cloud Messaging for push notifications
+**4. Set up Firebase**
+- Add `google-services.json` (Android) and/or `GoogleService-Info.plist` (iOS)
+- Enable Firebase Cloud Messaging for push notifications
 
-5. **Run the app**
-   ```bash
-   flutter run
-   ```
+**5. Run the app**
+```bash
+flutter run
+```
 
-### Build
+### Build for Release
 
 ```bash
 # Android APK
@@ -187,45 +206,58 @@ flutter build ios --release
 
 ## ⚙️ App Icon
 
-The app icon is configured via `flutter_launcher_icons`:
+App icons are generated via `flutter_launcher_icons`:
+
 ```bash
 dart run flutter_launcher_icons
 ```
+
 - **Source image:** `assets/icons/app_icon.png`
 - Configured for both **Android** and **iOS**
 
 ---
 
-## 📦 Dependencies Overview
+## 📦 Key Dependencies
 
-Key packages used in this project:
+| Package | Purpose |
+|---|---|
+| `supabase_flutter` | Backend, auth, and realtime database |
+| `flutter_stripe` | Payment processing |
+| `agora_rtc_engine` | Video calling |
+| `firebase_core` / `firebase_messaging` | Push notifications |
+| `flutter_callkit_incoming` | Native call handling (CallKit) |
+| `flutter_local_notifications` | Local notifications |
+| `flutter_dotenv` | Environment configuration |
+| `shared_preferences` | Local persistence |
+| `image_picker` | Media selection |
+| `video_player` / `audioplayers` | Audio & video playback |
+| `pdf` / `share_plus` | Document generation & sharing |
 
-- `supabase_flutter` — Backend, auth, and realtime database
-- `flutter_stripe` — Payment processing
-- `agora_rtc_engine` — Video calling
-- `firebase_core` / `firebase_messaging` — Push notifications
-- `flutter_callkit_incoming` — Native call handling (CallKit)
-- `flutter_local_notifications` — Local notifications
-- `flutter_dotenv` — Environment configuration
-- `shared_preferences` — Local persistence
-- `image_picker` — Media selection
-- `video_player` / `audioplayers` — Audio & video playback
-- `pdf` / `share_plus` — Document generation & sharing
+---
+
+## 🗺️ Roadmap
+
+- [ ] Wearable device integration (steps, heart rate sync)
+- [ ] In-app group challenges & leaderboards
+- [ ] Trainer availability calendar sync
+- [ ] Offline workout mode
 
 ---
 
 ## 📄 License
 
-This project is **private** and proprietary to the repository owner. Unauthorized copying, distribution, or use is prohibited.
+This project is **private and proprietary** to the repository owner. Unauthorized copying, distribution, or use is strictly prohibited.
 
 ---
 
 ## 👤 Author
 
-**AAbdullahRajput**
+<div align="center">
 
-- GitHub: [@AAbdullahRajput](https://github.com/AAbdullahRajput)
+**Ahmad Abdullah** (AAbdullahRajput)
 
----
+[![GitHub](https://img.shields.io/badge/GitHub-AAbdullahRajput-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/AAbdullahRajput)
 
 Made with 💙 using Flutter
+
+</div>
